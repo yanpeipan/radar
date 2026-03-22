@@ -11,7 +11,7 @@
 - [x] **Phase 2: Search & Refresh** - FTS5 search, feed refresh mechanism (v1.0)
 - [x] **Phase 3: Web Crawling** - Website crawling with robots.txt, rate limiting (v1.0)
 - [x] **Phase 4: GitHub API Client + Releases Integration** - Add repos, fetch releases via GitHub API, token auth, rate limit handling (completed 2026-03-22)
-- [ ] **Phase 5: Changelog Detection + Scraping** - Detect changelog files, scrape content, store as articles
+- [x] **Phase 5: Changelog Detection + Scraping** - Detect changelog files, scrape content, store as articles (completed 2026-03-22)
 - [ ] **Phase 6: Unified Display + Refresh Integration** - Display GitHub content in unified format, integrate with refresh
 
 ---
@@ -51,7 +51,7 @@
 
 **Plans**: 2 plans
 - [x] 05-01-PLAN.md - Changelog detection and scraping module (DB schema, github.py functions)
-- [ ] 05-02-PLAN.md - CLI commands for viewing and refreshing changelogs
+- [x] 05-02-PLAN.md - CLI commands for viewing and refreshing changelogs
 
 ### Phase 6: Unified Display + Refresh Integration
 
@@ -79,7 +79,7 @@
 | 2. Search & Refresh | v1.0 | 4/4 | ✅ Complete | 2026-03-22 |
 | 3. Web Crawling | v1.0 | 2/2 | ✅ Complete | 2026-03-22 |
 | 4. GitHub API Client | v1.1 | 2/2 | Complete   | 2026-03-22 |
-| 5. Changelog Detection | v1.1 | 1/2 | In Progress|  |
+| 5. Changelog Detection | v1.1 | 2/2 | Complete   | 2026-03-22 |
 | 6. Unified Display | v1.1 | 0/0 | Not started | - |
 
 ---
