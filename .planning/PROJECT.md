@@ -12,16 +12,17 @@
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] 用户可以添加 RSS 订阅源（Phase 1）
+- [x] 系统可以解析和抓取 RSS 内容（Phase 1）
+- [x] 用户可以添加网站 URL 进行抓取（Phase 3）
+- [x] 系统将抓取的内容存储到 SQLite 数据库（Phase 1, 3）
+- [x] 用户可以查看已采集的文章列表（Phase 1）
+- [x] 用户可以搜索已存储的内容（Phase 2）
 
 ### Active
 
-- [ ] 用户可以添加 RSS 订阅源
-- [ ] 系统可以解析和抓取 RSS 内容
-- [ ] 用户可以添加网站 URL 进行抓取
-- [ ] 系统将抓取的内容存储到 SQLite 数据库
-- [ ] 用户可以查看已采集的文章列表
-- [ ] 用户可以搜索已存储的内容
+- [ ] 用户可以刷新订阅源获取最新内容（Phase 1）
+- [ ] 系统支持条件刷新（ETag/Last-Modified）（Phase 1）
 
 ### Out of Scope
 
@@ -53,4 +54,4 @@
 
 ---
 
-*Last updated: 2026-03-22 after initialization*
+*Last updated: 2026-03-23 after Phase 3 completion*
