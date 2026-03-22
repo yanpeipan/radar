@@ -91,20 +91,20 @@
 | CLI-01 | Phase 1 | Pending |
 | CLI-02 | Phase 1 | Pending |
 | CLI-03 | Phase 1 | Pending |
-| CLI-04 | Phase 2 | Pending |
+| CLI-04 | Phase 3 | Pending |
 | CLI-05 | Phase 1 | Pending |
 | CLI-06 | Phase 2 | Pending |
 | CLI-07 | Phase 1 | Pending |
-| CRAWL-01 | Phase 2 | Pending |
-| CRAWL-02 | Phase 2 | Pending |
-| CRAWL-03 | Phase 2 | Pending |
-| CRAWL-04 | Phase 2 | Pending |
+| CRAWL-01 | Phase 3 | Pending |
+| CRAWL-02 | Phase 3 | Pending |
+| CRAWL-03 | Phase 3 | Pending |
+| CRAWL-04 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 21 total
 - Mapped to phases: 21
-- Unmapped: 0 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after initial definition*
+*Last updated: 2026-03-23 after roadmap creation*
