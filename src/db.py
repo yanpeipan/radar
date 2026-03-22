@@ -100,6 +100,17 @@ def init_db() -> None:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_pub_date ON articles(pub_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_link ON articles(link)")
 
+        # FTS5 virtual table for full-text search
+        # Uses porter tokenizer for English stemming
+        cursor.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
+                title,
+                description,
+                content,
+                tokenize='porter ascii'
+            )
+        """)
+
         conn.commit()
     finally:
         conn.close()
