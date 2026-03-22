@@ -50,20 +50,24 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None) -> list[Articl
     Args:
         limit: Maximum number of articles to return (default 20).
         feed_id: Optional feed ID to filter articles by a specific feed.
+                 If provided, only feed articles are returned (GitHub releases
+                 do not have a feed_id association).
 
     Returns:
         List of ArticleListItem objects ordered by pub_date DESC
-        (or created_at DESC if no pub_date), limited to specified count.
+        (or published_at DESC for GitHub releases), limited to specified count.
     """
     conn = get_connection()
     try:
         cursor = conn.cursor()
 
         if feed_id:
+            # When filtering by feed_id, only return feed articles
             cursor.execute(
                 """
-                SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link,
-                       a.guid, a.pub_date, a.description
+                SELECT 'feed' as source_type, a.id, a.feed_id, f.name as feed_name,
+                       a.title, a.link, a.guid, a.pub_date, a.description,
+                       NULL as repo_id, NULL as repo_name, NULL as release_tag
                 FROM articles a
                 JOIN feeds f ON a.feed_id = f.id
                 WHERE a.feed_id = ?
@@ -73,13 +77,23 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None) -> list[Articl
                 (feed_id, limit),
             )
         else:
+            # Return both feed articles and GitHub releases via UNION ALL
             cursor.execute(
                 """
-                SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link,
-                       a.guid, a.pub_date, a.description
+                SELECT 'feed' as source_type, a.id, a.feed_id, f.name as feed_name,
+                       a.title, a.link, a.guid, a.pub_date, a.description,
+                       NULL as repo_id, NULL as repo_name, NULL as release_tag
                 FROM articles a
                 JOIN feeds f ON a.feed_id = f.id
-                ORDER BY a.pub_date DESC, a.created_at DESC
+                UNION ALL
+                SELECT 'github' as source_type, r.id, '' as feed_id,
+                       g.owner || '/' || g.repo as feed_name,
+                       COALESCE(r.name, r.tag_name) as title, r.html_url as link,
+                       r.tag_name as guid, r.published_at as pub_date, r.body as description,
+                       r.repo_id, g.name as repo_name, r.tag_name as release_tag
+                FROM github_releases r
+                JOIN github_repos g ON r.repo_id = g.id
+                ORDER BY pub_date DESC, created_at DESC
                 LIMIT ?
                 """,
                 (limit,),
@@ -98,6 +112,10 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None) -> list[Articl
                     guid=row["guid"],
                     pub_date=row["pub_date"],
                     description=row["description"],
+                    source_type=row["source_type"],
+                    repo_id=row["repo_id"],
+                    repo_name=row["repo_name"],
+                    release_tag=row["release_tag"],
                 )
             )
         return articles
