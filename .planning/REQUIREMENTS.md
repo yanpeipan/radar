@@ -22,10 +22,10 @@
 
 ### Web Crawling
 
-- [ ] **CRAWL-01**: User can add a website URL to crawl
-- [ ] **CRAWL-02**: System fetches HTML and extracts article-like content
-- [ ] **CRAWL-03**: System respects robots.txt directives
-- [ ] **CRAWL-04**: System implements rate limiting (1-2s delay between requests)
+- [x] **CRAWL-01**: User can add a website URL to crawl
+- [x] **CRAWL-02**: System fetches HTML and extracts article-like content
+- [x] **CRAWL-03**: System respects robots.txt directives
+- [x] **CRAWL-04**: System implements rate limiting (1-2s delay between requests)
 
 ### Storage
 
@@ -95,10 +95,10 @@
 | CLI-05 | Phase 1 | Complete |
 | CLI-06 | Phase 2 | Complete |
 | CLI-07 | Phase 1 | Complete |
-| CRAWL-01 | Phase 3 | Pending |
-| CRAWL-02 | Phase 3 | Pending |
-| CRAWL-03 | Phase 3 | Pending |
-| CRAWL-04 | Phase 3 | Pending |
+| CRAWL-01 | Phase 3 | Complete |
+| CRAWL-02 | Phase 3 | Complete |
+| CRAWL-03 | Phase 3 | Complete |
+| CRAWL-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total
