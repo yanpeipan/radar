@@ -67,7 +67,9 @@
   3. `fetch --all` command refreshes GitHub repositories alongside RSS feeds
   4. User can see GitHub source indicated for each article (repo name, release tag)
 
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 06-01-PLAN.md - Articles module unified listing (GitHub releases + feed articles)
+- [ ] 06-02-PLAN.md - CLI commands (article list/search GitHub display, fetch --all integration)
 
 ---
 
@@ -80,7 +82,7 @@
 | 3. Web Crawling | v1.0 | 2/2 | ✅ Complete | 2026-03-22 |
 | 4. GitHub API Client | v1.1 | 2/2 | Complete   | 2026-03-22 |
 | 5. Changelog Detection | v1.1 | 2/2 | Complete   | 2026-03-22 |
-| 6. Unified Display | v1.1 | 0/0 | Not started | - |
+| 6. Unified Display | v1.1 | 0/2 | Not started | - |
 
 ---
 
