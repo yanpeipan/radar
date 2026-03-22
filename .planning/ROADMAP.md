@@ -26,7 +26,7 @@ A CLI-based personal information system for subscribing to RSS/Atom feeds and cr
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Foundation: database, models, project config
+- [x] 01-01-PLAN.md -- Foundation: database, models, project config
 - [ ] 01-02-PLAN.md -- Feed operations: add/list/remove/refresh, parsing, deduplication
 - [ ] 01-03-PLAN.md -- CLI: article list, fetch --all, click commands
 

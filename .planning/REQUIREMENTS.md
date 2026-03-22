@@ -29,9 +29,9 @@
 
 ### Storage
 
-- [ ] **STOR-01**: SQLite database with WAL mode enabled
-- [ ] **STOR-02**: Feeds table with name, url, last_fetched, etag, modified
-- [ ] **STOR-03**: Articles table with feed_id, title, link, guid, pubDate, content
+- [x] **STOR-01**: SQLite database with WAL mode enabled
+- [x] **STOR-02**: Feeds table with name, url, last_fetched, etag, modified
+- [x] **STOR-03**: Articles table with feed_id, title, link, guid, pubDate, content
 - [ ] **STOR-04**: FTS5 virtual table for full-text search
 
 ### CLI Interface
@@ -84,9 +84,9 @@
 | FETCH-03 | Phase 1 | Pending |
 | FETCH-04 | Phase 1 | Pending |
 | FETCH-05 | Phase 2 | Pending |
-| STOR-01 | Phase 1 | Pending |
-| STOR-02 | Phase 1 | Pending |
-| STOR-03 | Phase 1 | Pending |
+| STOR-01 | Phase 1 | Complete |
+| STOR-02 | Phase 1 | Complete |
+| STOR-03 | Phase 1 | Complete |
 | STOR-04 | Phase 2 | Pending |
 | CLI-01 | Phase 1 | Pending |
 | CLI-02 | Phase 1 | Pending |
