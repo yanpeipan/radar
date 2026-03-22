@@ -44,7 +44,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md -- FTS5: database table creation in init_db()
 - [x] 02-02-PLAN.md -- FTS5: sync in refresh_feed() + search_articles() function
-- [ ] 02-03-PLAN.md -- CLI: article search subcommand
+- [x] 02-03-PLAN.md -- CLI: article search subcommand
 
 ### Phase 3: Web Crawling
 **Goal**: User can crawl websites and store extracted content as articles
