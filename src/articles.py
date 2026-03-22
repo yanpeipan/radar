@@ -134,3 +134,76 @@ def get_article(article_id: str) -> Optional[ArticleListItem]:
         )
     finally:
         conn.close()
+
+
+def search_articles(
+    query: str,
+    limit: int = 20,
+    feed_id: Optional[str] = None
+) -> list[ArticleListItem]:
+    """Search articles using FTS5 full-text search.
+
+    Args:
+        query: FTS5 query string (space-separated = AND, use quotes for phrases)
+        limit: Maximum number of results (default 20)
+        feed_id: Optional feed ID to filter by specific feed
+
+    Returns:
+        List of ArticleListItem objects ordered by bm25 relevance
+    """
+    if not query or not query.strip():
+        return []
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        # FTS5 MATCH with bm25 ranking
+        if feed_id:
+            cursor.execute(
+                """
+                SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link,
+                       a.guid, a.pub_date, a.description
+                FROM articles_fts
+                JOIN articles a ON articles_fts.rowid = a.id
+                JOIN feeds f ON a.feed_id = f.id
+                WHERE articles_fts MATCH ?
+                  AND a.feed_id = ?
+                ORDER BY bm25(articles_fts)
+                LIMIT ?
+                """,
+                (query, feed_id, limit),
+            )
+        else:
+            cursor.execute(
+                """
+                SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link,
+                       a.guid, a.pub_date, a.description
+                FROM articles_fts
+                JOIN articles a ON articles_fts.rowid = a.id
+                JOIN feeds f ON a.feed_id = f.id
+                WHERE articles_fts MATCH ?
+                ORDER BY bm25(articles_fts)
+                LIMIT ?
+                """,
+                (query, limit),
+            )
+
+        rows = cursor.fetchall()
+        articles = []
+        for row in rows:
+            articles.append(
+                ArticleListItem(
+                    id=row["id"],
+                    feed_id=row["feed_id"],
+                    feed_name=row["feed_name"],
+                    title=row["title"],
+                    link=row["link"],
+                    guid=row["guid"],
+                    pub_date=row["pub_date"],
+                    description=row["description"],
+                )
+            )
+        return articles
+    finally:
+        conn.close()
