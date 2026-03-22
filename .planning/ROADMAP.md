@@ -23,7 +23,12 @@ A CLI-based personal information system for subscribing to RSS/Atom feeds and cr
   4. System parses RSS 2.0 and Atom feeds, extracting title, link, guid, pubDate, description
   5. System stores articles in SQLite with UNIQUE(feed_id, guid) deduplication
   6. System handles malformed XML gracefully without crashing
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md -- Foundation: database, models, project config
+- [ ] 01-02-PLAN.md -- Feed operations: add/list/remove/refresh, parsing, deduplication
+- [ ] 01-03-PLAN.md -- CLI: article list, fetch --all, click commands
 
 ### Phase 2: Search & Refresh
 **Goal**: User can search articles by keyword and refresh feeds efficiently with conditional fetching
@@ -54,6 +59,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/3 | Ready to execute | - |
 | 2. Search & Refresh | 0/TBD | Not started | - |
 | 3. Web Crawling | 0/TBD | Not started | - |
