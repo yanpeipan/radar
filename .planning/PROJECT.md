@@ -17,7 +17,7 @@
 
 **Milestone: v1.1 (in progress)**
 - Phase 4 complete — GitHub API client + Releases integration (GH-01, GH-02, GH-03, GH-04)
-- Phase 5 pending — Changelog detection + scraping
+- Phase 5 complete — Changelog detection + scraping (GH-05, GH-06)
 
 **Goal:** 用户可以监控 GitHub 仓库的 releases 和 changelog 变化
 
