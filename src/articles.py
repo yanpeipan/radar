@@ -167,7 +167,7 @@ def search_articles(
     limit: int = 20,
     feed_id: Optional[str] = None
 ) -> list[ArticleListItem]:
-    """Search articles using FTS5 full-text search.
+    """Search articles using FTS5 full-text search and GitHub releases.
 
     Args:
         query: FTS5 query string (space-separated = AND, use quotes for phrases)
@@ -175,7 +175,7 @@ def search_articles(
         feed_id: Optional feed ID to filter by specific feed
 
     Returns:
-        List of ArticleListItem objects ordered by bm25 relevance
+        List of ArticleListItem objects ordered by relevance
     """
     if not query or not query.strip():
         return []
@@ -183,13 +183,15 @@ def search_articles(
     conn = get_connection()
     try:
         cursor = conn.cursor()
+        articles = []
 
-        # FTS5 MATCH with bm25 ranking
+        # FTS5 MATCH for feed articles with bm25 ranking
         if feed_id:
             cursor.execute(
                 """
-                SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link,
-                       a.guid, a.pub_date, a.description
+                SELECT 'feed' as source_type, a.id, a.feed_id, f.name as feed_name,
+                       a.title, a.link, a.guid, a.pub_date, a.description,
+                       NULL as repo_id, NULL as repo_name, NULL as release_tag
                 FROM articles_fts
                 JOIN articles a ON articles_fts.rowid = a.id
                 JOIN feeds f ON a.feed_id = f.id
@@ -203,8 +205,9 @@ def search_articles(
         else:
             cursor.execute(
                 """
-                SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link,
-                       a.guid, a.pub_date, a.description
+                SELECT 'feed' as source_type, a.id, a.feed_id, f.name as feed_name,
+                       a.title, a.link, a.guid, a.pub_date, a.description,
+                       NULL as repo_id, NULL as repo_name, NULL as release_tag
                 FROM articles_fts
                 JOIN articles a ON articles_fts.rowid = a.id
                 JOIN feeds f ON a.feed_id = f.id
@@ -215,9 +218,7 @@ def search_articles(
                 (query, limit),
             )
 
-        rows = cursor.fetchall()
-        articles = []
-        for row in rows:
+        for row in cursor.fetchall():
             articles.append(
                 ArticleListItem(
                     id=row["id"],
@@ -228,8 +229,50 @@ def search_articles(
                     guid=row["guid"],
                     pub_date=row["pub_date"],
                     description=row["description"],
+                    source_type=row["source_type"],
+                    repo_id=row["repo_id"],
+                    repo_name=row["repo_name"],
+                    release_tag=row["release_tag"],
                 )
             )
+
+        # If no feed_id filter, also search GitHub releases via LIKE
+        # (github_releases.body is not in FTS5, so we use LIKE for searching)
+        if not feed_id:
+            like_query = f'%{query}%'
+            cursor.execute(
+                """
+                SELECT 'github' as source_type, r.id, '' as feed_id,
+                       g.owner || '/' || g.repo as feed_name,
+                       COALESCE(r.name, r.tag_name) as title, r.html_url as link,
+                       r.tag_name as guid, r.published_at as pub_date, r.body as description,
+                       r.repo_id, g.name as repo_name, r.tag_name as release_tag
+                FROM github_releases r
+                JOIN github_repos g ON r.repo_id = g.id
+                WHERE r.tag_name LIKE ? OR r.name LIKE ? OR r.body LIKE ?
+                LIMIT ?
+                """,
+                (like_query, like_query, like_query, limit),
+            )
+
+            for row in cursor.fetchall():
+                articles.append(
+                    ArticleListItem(
+                        id=row["id"],
+                        feed_id=row["feed_id"],
+                        feed_name=row["feed_name"],
+                        title=row["title"],
+                        link=row["link"],
+                        guid=row["guid"],
+                        pub_date=row["pub_date"],
+                        description=row["description"],
+                        source_type=row["source_type"],
+                        repo_id=row["repo_id"],
+                        repo_name=row["repo_name"],
+                        release_tag=row["release_tag"],
+                    )
+                )
+
         return articles
     finally:
         conn.close()
