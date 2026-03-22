@@ -11,8 +11,8 @@
 - [x] **GH-02**: System fetches release information using GitHub API (tag_name, body, published_at, html_url)
 - [x] **GH-03**: System supports GitHub token authentication via environment variable (GITHUB_TOKEN)
 - [x] **GH-04**: System handles GitHub API rate limits gracefully (60 req/hour unauthenticated, 5000 req/hour with token)
-- [ ] **GH-05**: System detects changelog files (CHANGELOG.md, HISTORY.md, etc.) via raw.githubusercontent.com
-- [ ] **GH-06**: System scrapes changelog content and stores as article
+- [x] **GH-05**: System detects changelog files (CHANGELOG.md, HISTORY.md, etc.) via raw.githubusercontent.com
+- [x] **GH-06**: System scrapes changelog content and stores as article
 - [ ] **GH-07**: New releases and changelog changes are displayed in unified format
 - [ ] **GH-08**: System reuses existing refresh mechanism (fetch --all includes GitHub sources)
 
@@ -63,8 +63,8 @@
 | GH-02 | Phase 4 | Complete |
 | GH-03 | Phase 4 | Complete |
 | GH-04 | Phase 4 | Complete |
-| GH-05 | Phase 5 | Pending |
-| GH-06 | Phase 5 | Pending |
+| GH-05 | Phase 5 | Complete |
+| GH-06 | Phase 5 | Complete |
 | GH-07 | Phase 6 | Pending |
 | GH-08 | Phase 6 | Pending |
 | FEED-01 | Phase 1 (v1.0) | Complete |

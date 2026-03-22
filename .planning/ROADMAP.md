@@ -50,7 +50,7 @@
   3. Changelog content is stored as article in database with repository association
 
 **Plans**: 2 plans
-- [ ] 05-01-PLAN.md - Changelog detection and scraping module (DB schema, github.py functions)
+- [x] 05-01-PLAN.md - Changelog detection and scraping module (DB schema, github.py functions)
 - [ ] 05-02-PLAN.md - CLI commands for viewing and refreshing changelogs
 
 ### Phase 6: Unified Display + Refresh Integration
@@ -79,7 +79,7 @@
 | 2. Search & Refresh | v1.0 | 4/4 | ✅ Complete | 2026-03-22 |
 | 3. Web Crawling | v1.0 | 2/2 | ✅ Complete | 2026-03-22 |
 | 4. GitHub API Client | v1.1 | 2/2 | Complete   | 2026-03-22 |
-| 5. Changelog Detection | v1.1 | 0/2 | Not started | - |
+| 5. Changelog Detection | v1.1 | 1/2 | In Progress|  |
 | 6. Unified Display | v1.1 | 0/0 | Not started | - |
 
 ---
