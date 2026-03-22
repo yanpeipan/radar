@@ -36,13 +36,13 @@
 
 ### CLI Interface
 
-- [ ] **CLI-01**: `feed add <url>` - Add a new feed
-- [ ] **CLI-02**: `feed list` - List all feeds
-- [ ] **CLI-03**: `feed remove <id>` - Remove a feed
+- [x] **CLI-01**: `feed add <url>` - Add a new feed
+- [x] **CLI-02**: `feed list` - List all feeds
+- [x] **CLI-03**: `feed remove <id>` - Remove a feed
 - [ ] **CLI-04**: `crawl <url>` - Fetch and store content from URL
-- [ ] **CLI-05**: `article list` - List recent articles
+- [x] **CLI-05**: `article list` - List recent articles
 - [ ] **CLI-06**: `article search <query>` - Search articles via FTS5
-- [ ] **CLI-07**: `fetch --all` - Refresh all feeds
+- [x] **CLI-07**: `fetch --all` - Refresh all feeds
 
 ## v2 Requirements
 
@@ -88,13 +88,13 @@
 | STOR-02 | Phase 1 | Complete |
 | STOR-03 | Phase 1 | Complete |
 | STOR-04 | Phase 2 | Pending |
-| CLI-01 | Phase 1 | Pending |
-| CLI-02 | Phase 1 | Pending |
-| CLI-03 | Phase 1 | Pending |
+| CLI-01 | Phase 1 | Complete |
+| CLI-02 | Phase 1 | Complete |
+| CLI-03 | Phase 1 | Complete |
 | CLI-04 | Phase 3 | Pending |
-| CLI-05 | Phase 1 | Pending |
+| CLI-05 | Phase 1 | Complete |
 | CLI-06 | Phase 2 | Pending |
-| CLI-07 | Phase 1 | Pending |
+| CLI-07 | Phase 1 | Complete |
 | CRAWL-01 | Phase 3 | Pending |
 | CRAWL-02 | Phase 3 | Pending |
 | CRAWL-03 | Phase 3 | Pending |

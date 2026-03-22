@@ -6,7 +6,7 @@ A CLI-based personal information system for subscribing to RSS/Atom feeds and cr
 
 ## Phases
 
-- [ ] **Phase 1: Foundation** - Feed subscription, article storage, and CLI commands
+- [x] **Phase 1: Foundation** - Feed subscription, article storage, and CLI commands (completed 2026-03-22)
 - [ ] **Phase 2: Search & Refresh** - FTS5 search and conditional fetching
 - [ ] **Phase 3: Web Crawling** - Website crawling with robots.txt and rate limiting
 
@@ -28,7 +28,7 @@ A CLI-based personal information system for subscribing to RSS/Atom feeds and cr
 Plans:
 - [x] 01-01-PLAN.md -- Foundation: database, models, project config
 - [x] 01-02-PLAN.md -- Feed operations: add/list/remove/refresh, parsing, deduplication
-- [ ] 01-03-PLAN.md -- CLI: article list, fetch --all, click commands
+- [x] 01-03-PLAN.md -- CLI: article list, fetch --all, click commands
 
 ### Phase 2: Search & Refresh
 **Goal**: User can search articles by keyword and refresh feeds efficiently with conditional fetching
@@ -59,6 +59,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Ready to execute | - |
+| 1. Foundation | 3/3 | Complete   | 2026-03-22 |
 | 2. Search & Refresh | 0/TBD | Not started | - |
 | 3. Web Crawling | 0/TBD | Not started | - |
