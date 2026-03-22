@@ -111,6 +111,39 @@ def init_db() -> None:
             )
         """)
 
+        # GitHub repositories table: stores monitored GitHub repositories
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS github_repos (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                repo TEXT NOT NULL,
+                last_fetched TEXT,
+                last_tag TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(owner, repo)
+            )
+        """)
+
+        # GitHub releases table: stores release information
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS github_releases (
+                id TEXT PRIMARY KEY,
+                repo_id TEXT NOT NULL REFERENCES github_repos(id) ON DELETE CASCADE,
+                tag_name TEXT NOT NULL,
+                name TEXT,
+                body TEXT,
+                html_url TEXT NOT NULL,
+                published_at TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(repo_id, tag_name)
+            )
+        """)
+
+        # Indexes for GitHub tables
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_github_releases_repo_id ON github_releases(repo_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_github_releases_published ON github_releases(published_at)")
+
         conn.commit()
     finally:
         conn.close()
