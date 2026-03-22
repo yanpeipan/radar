@@ -1,96 +1,80 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: Milestone complete
-stopped_at: Completed 03-web-crawling-03-02-PLAN.md
-last_updated: "2026-03-22T18:00:57.869Z"
+milestone: v1.1
+milestone_name: github-monitoring
+status: Defining requirements
+stopped_at: Milestone v1.1 started
+last_updated: "2026-03-23"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-22)
+See: .planning/PROJECT.md (updated 2026-03-23)
 
-**Core value:** User can centrally manage all information sources without visiting each website individually
-**Current focus:** Phase 03 — web-crawling
+**Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
+**Current focus:** Milestone v1.1 — GitHub Releases & Changelog 监控
 
 ## Current Position
 
-Phase: 03
-Plan: Not started
+Milestone: v1.1
+Phase: Not started (defining requirements)
+Plan: —
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (v1.0):**
 
-- Total plans completed: 0
-- Average duration: N/A
-- Total execution time: 0 hours
+- Total plans completed: 9
+- Total execution time: ~3 hours
 
-**By Phase:**
+**By Phase (v1.0):**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: N/A
-- Trend: N/A
-
-*Updated after each plan completion*
-| Phase 01-foundation P01 | 1 min | 3 tasks | 3 files |
-| Phase 01-foundation P02 | 20 | 1 tasks | 1 files |
-| Phase 01-foundation P03 | 2 | 2 tasks | 2 files |
-| Phase 02-search-refresh P02-01 | 64 | 1 tasks | 1 files |
-| Phase 02-search-refresh P02-02 | 60 | 2 tasks | 2 files |
-| Phase 02-search-refresh P03 | 3 | 1 tasks | 1 files |
-| Phase 03-web-crawling P03-01 | 82 | 1 tasks | 1 files |
-| Phase 03-web-crawling P03-02 | 2 | 1 tasks | 1 files |
+| Phase | Plans | Avg/Plan |
+|-------|-------|----------|
+| 1. Foundation | 3 | ~8 min |
+| 2. Search & Refresh | 4 | ~32 min |
+| 3. Web Crawling | 2 | ~2 min |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
 
-- Phase 1: Foundational feed subscription and storage (16 requirements)
-- Phase 2: Search and conditional fetching (4 requirements)
-- Phase 3: Web crawling (5 requirements)
-- [Phase 01-foundation]: GUID fallback chain: guid -> link -> SHA256(link:pubDate) ensures unique article IDs
-- [Phase 01-foundation]: Bozo detection via feed.bozo flag logs malformed XML but continues processing
-- [Phase 01-foundation]: INSERT OR IGNORE + UNIQUE(feed_id, guid) handles duplicate articles silently
-- [Phase 02-search-refresh]: Shadow FTS5 approach: articles_fts virtual table indexes title, description, content with porter tokenizer
-- [Phase 02-search-refresh]: D-03: FTS5 query syntax exposed directly (space-separated = AND)
-- [Phase 02-search-refresh]: D-04: Multiple keywords default to AND behavior
-- [Phase 02-search-refresh]: D-06: Results sorted by bm25 ranking (relevance)
-- [Phase 02-search-refresh]: D-05: Same format as article list command (title | feed | date columns)
-- [Phase 02-search-refresh]: D-07: article search subcommand with --limit and --feed-id filter options
-- [Phase 03-web-crawling]: D-06: crawl command accepts URL argument and --ignore-robots flag
-- [Phase 03-web-crawling]: D-05: CLI echoes errors in red, no-content in yellow, success in green
+**v1.0 decisions:**
+- GUID fallback chain: guid -> link -> SHA256(link:pubDate) ensures unique article IDs
+- Bozo detection via feed.bozo flag logs malformed XML but continues processing
+- INSERT OR IGNORE + UNIQUE(feed_id, guid) handles duplicate articles silently
+- Shadow FTS5 approach: articles_fts virtual table indexes title, description, content with porter tokenizer
+- FTS5 query syntax exposed directly (space-separated = AND)
+- Multiple keywords default to AND behavior
+- Results sorted by bm25 ranking (relevance)
+- Same format as article list command (title | feed | date columns)
+- article search subcommand with --limit and --feed-id filter options
+- crawl command accepts URL argument and --ignore-robots flag
+- CLI echoes errors in red, no-content in yellow, success in green
+
+**v1.1 decisions:**
+- GitHub Releases 用 GitHub API 获取
+- GitHub Changelog 用 Scrapling 网页抓取
 
 ### Pending Todos
-
-[From .planning/todos/pending/ — ideas captured during sessions]
 
 None yet.
 
 ### Blockers/Concerns
 
-[Issues that affect future work]
-
 None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22T17:58:10.455Z
-Stopped at: Completed 03-web-crawling-03-02-PLAN.md
+Last session: 2026-03-23
+Stopped at: Milestone v1.1 started
 Resume file: None
