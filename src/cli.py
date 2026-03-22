@@ -26,6 +26,8 @@ from src.github import (
     list_github_repos,
     remove_github_repo,
     refresh_github_repo,
+    refresh_changelog,
+    get_repo_changelog,
     RepoNotFoundError,
     RateLimitError,
 )
@@ -472,6 +474,120 @@ def repo_refresh(ctx: click.Context, repo_id: Optional[str]) -> None:
         click.echo(f"Error: Failed to refresh repos: {e}", err=True, fg="red")
         logger.exception("Failed to refresh repos")
         sys.exit(1)
+
+
+@repo.command("changelog")
+@click.argument("repo_id", required=False)
+@click.option("--refresh", is_flag=True, help="Refresh changelog before displaying")
+@click.pass_context
+def repo_changelog(ctx: click.Context, repo_id: Optional[str], refresh: bool) -> None:
+    """View or refresh changelog for a GitHub repository.
+
+    If repo_id is provided, shows changelog for that specific repo.
+    Without repo_id, prompts to select from available repos.
+
+    Use --refresh to fetch the latest changelog before displaying.
+    """
+    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+
+    try:
+        if repo_id:
+            # Single repo specified
+            _show_repo_changelog(repo_id, refresh, verbose)
+        else:
+            # List all repos and let user select one
+            repos = list_github_repos()
+            if not repos:
+                click.echo("No GitHub repos monitored. Use 'repo add <url>' first.")
+                return
+
+            click.echo("Select a repo to view changelog:")
+            for i, r in enumerate(repos, 1):
+                click.echo(f"  {i}. {r.name}")
+            click.echo()
+
+            # For now, show changelog for first repo with stored changelog
+            for r in repos:
+                changelog = get_repo_changelog(r.id)
+                if changelog:
+                    _display_changelog(r, changelog, verbose)
+                    return
+
+            click.echo("No changelogs stored yet. Use 'repo changelog <id> --refresh' to fetch.")
+
+    except RepoNotFoundError:
+        click.echo(f"Repo not found: {repo_id}", fg="red")
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True, fg="red")
+        logger.exception("Failed to get changelog")
+        sys.exit(1)
+
+
+def _show_repo_changelog(repo_id: str, refresh: bool, verbose: bool) -> None:
+    """Helper to show changelog for a specific repo.
+
+    Args:
+        repo_id: ID of the repo to show changelog for.
+        refresh: Whether to refresh before showing.
+        verbose: Whether to show verbose output.
+    """
+    repo = None
+    # Find repo name
+    repos = list_github_repos()
+    for r in repos:
+        if r.id == repo_id:
+            repo = r
+            break
+
+    if not repo:
+        click.echo(f"Repo not found: {repo_id}", fg="red")
+        sys.exit(1)
+
+    if refresh:
+        # Refresh changelog first
+        result = refresh_changelog(repo_id)
+        if result.get("error"):
+            click.echo(f"Error refreshing changelog: {result['error']}", fg="red")
+            # Fall through to show stored changelog if available
+        elif result.get("changelog_found"):
+            click.echo(f"Changelog refreshed: {result.get('filename', 'unknown')}", fg="green")
+        else:
+            click.echo(f"No changelog found: {result.get('message', 'unknown')}", fg="yellow")
+            return
+
+    # Get stored changelog
+    changelog = get_repo_changelog(repo_id)
+    if changelog:
+        _display_changelog(repo, changelog, verbose)
+    else:
+        click.echo(f"No changelog stored for {repo.name}. Use --refresh to fetch.", fg="yellow")
+
+
+def _display_changelog(repo, changelog: dict, verbose: bool) -> None:
+    """Display a changelog article.
+
+    Args:
+        repo: GitHubRepo object.
+        changelog: Dict with title, link, content, created_at.
+        verbose: Whether to show full content or just header.
+    """
+    click.echo(f"\n=== {changelog['title']} ===")
+    click.echo(f"Source: {changelog['link']}")
+    click.echo(f"Stored: {changelog['created_at']}")
+    click.echo()
+
+    if verbose:
+        # Show full content
+        click.echo(changelog['content'])
+    else:
+        # Show first 2000 characters
+        content = changelog['content']
+        if len(content) > 2000:
+            click.echo(content[:2000])
+            click.echo(f"\n... (truncated, use --verbose for full content)")
+        else:
+            click.echo(content)
 
 
 if __name__ == "__main__":
