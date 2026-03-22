@@ -69,7 +69,7 @@
 
 **Plans**: 2 plans
 - [x] 06-01-PLAN.md - Articles module unified listing (GitHub releases + feed articles)
-- [ ] 06-02-PLAN.md - CLI commands (article list/search GitHub display, fetch --all integration)
+- [x] 06-02-PLAN.md - CLI commands (article list/search GitHub display, fetch --all integration)
 
 ---
 

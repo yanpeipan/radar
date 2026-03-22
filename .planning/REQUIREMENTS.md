@@ -14,7 +14,7 @@
 - [x] **GH-05**: System detects changelog files (CHANGELOG.md, HISTORY.md, etc.) via raw.githubusercontent.com
 - [x] **GH-06**: System scrapes changelog content and stores as article
 - [x] **GH-07**: New releases and changelog changes are displayed in unified format
-- [ ] **GH-08**: System reuses existing refresh mechanism (fetch --all includes GitHub sources)
+- [x] **GH-08**: System reuses existing refresh mechanism (fetch --all includes GitHub sources)
 
 ### Feed Management
 
@@ -66,7 +66,7 @@
 | GH-05 | Phase 5 | Complete |
 | GH-06 | Phase 5 | Complete |
 | GH-07 | Phase 6 | Complete |
-| GH-08 | Phase 6 | Pending |
+| GH-08 | Phase 6 | Complete |
 | FEED-01 | Phase 1 (v1.0) | Complete |
 | FEED-02 | Phase 1 (v1.0) | Complete |
 | FEED-03 | Phase 1 (v1.0) | Complete |
