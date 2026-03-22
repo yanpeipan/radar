@@ -11,7 +11,7 @@ from typing import Optional
 
 import click
 
-from src.articles import list_articles
+from src.articles import list_articles, search_articles
 from src.db import init_db
 from src.feeds import (
     FeedNotFoundError,
@@ -179,6 +179,51 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str]) -> None
     except Exception as e:
         click.echo(f"Error: Failed to list articles: {e}", err=True, fg="red")
         logger.exception("Failed to list articles")
+        sys.exit(1)
+
+
+@cli.command("search")
+@click.argument("query")
+@click.option("--limit", default=20, help="Maximum number of results")
+@click.option("--feed-id", default=None, help="Filter by feed ID")
+@click.pass_context
+def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional[str]) -> None:
+    """Search articles by keyword using full-text search.
+
+    Supports FTS5 query syntax:
+    - Multiple words default to AND (all must match)
+    - Use quotes for exact phrase: "machine learning"
+    - Use OR for either: python OR ruby
+    """
+    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+    try:
+        articles = search_articles(query=query, limit=limit, feed_id=feed_id)
+        if not articles:
+            click.echo("No articles found matching your search.")
+            return
+
+        click.echo("Title | Feed | Date")
+        click.echo("-" * 80)
+
+        for article in articles:
+            title = article.title or "No title"
+            feed_name = article.feed_name or "Unknown"
+            pub_date = article.pub_date or "No date"
+
+            if verbose:
+                click.echo(f"\nTitle: {title}")
+                click.echo(f"Feed: {feed_name}")
+                click.echo(f"Date: {pub_date}")
+                if article.link:
+                    click.echo(f"Link: {article.link}")
+                if article.description:
+                    desc_preview = article.description[:100] + "..." if len(article.description) > 100 else article.description
+                    click.echo(f"Description: {desc_preview}")
+            else:
+                click.echo(f"{title[:50]} | {feed_name[:20]} | {pub_date[:10]}")
+    except Exception as e:
+        click.echo(f"Error: Failed to search articles: {e}", err=True, fg="red")
+        logger.exception("Failed to search articles")
         sys.exit(1)
 
 
