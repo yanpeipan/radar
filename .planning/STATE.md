@@ -90,3 +90,4 @@ Next action: `/gsd:plan-phase 12` to start Phase 12 planning
 | Date | Task | Files | Notes |
 |------|------|-------|-------|
 | 2026-03-24 | 260324-0u6 | Remove github.py, github tables, github CLI commands, embedding code | Deleted 808-line github.py, removed github_repos/releases/release_tags tables from db.py, cleaned articles.py JOINs, removed repo command group from cli.py, removed embedding/clustering from tags.py, removed GitHub models |
+| 2026-03-24 | fast | Fix feeds.py src.github import error | Removed src.github imports from feeds.py, deleted add_github_blob_feed function, removed github_blob handling from add_feed and refresh_feed |

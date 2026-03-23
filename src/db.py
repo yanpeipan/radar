@@ -118,6 +118,39 @@ def init_db() -> None:
             )
         """)
 
+        # GitHub repositories table: stores monitored GitHub repositories
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS github_repos (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                repo TEXT NOT NULL,
+                last_fetched TEXT,
+                last_tag TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(owner, repo)
+            )
+        """)
+
+        # GitHub releases table: stores release information
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS github_releases (
+                id TEXT PRIMARY KEY,
+                repo_id TEXT NOT NULL REFERENCES github_repos(id) ON DELETE CASCADE,
+                tag_name TEXT NOT NULL,
+                name TEXT,
+                body TEXT,
+                html_url TEXT NOT NULL,
+                published_at TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(repo_id, tag_name)
+            )
+        """)
+
+        # Indexes for GitHub tables
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_github_releases_repo_id ON github_releases(repo_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_github_releases_published ON github_releases(published_at)")
+
         # Tags table for article categorization
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS tags (
@@ -141,6 +174,26 @@ def init_db() -> None:
 
         # Index for tag lookups
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_article_tags_tag_id ON article_tags(tag_id)")
+
+        # GitHub release tags table (many-to-many)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS github_release_tags (
+                release_id TEXT NOT NULL,
+                tag_id TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (release_id, tag_id),
+                FOREIGN KEY (release_id) REFERENCES github_releases(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_github_release_tags_tag_id ON github_release_tags(tag_id)")
+
+        # Add repo_id column for GitHub changelog association (Phase 5)
+        # This is a migration-safe check - only add if column doesn't exist
+        cursor.execute("PRAGMA table_info(articles)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'repo_id' not in columns:
+            cursor.execute("ALTER TABLE articles ADD COLUMN repo_id TEXT REFERENCES github_repos(id) ON DELETE SET NULL")
 
         conn.commit()
 
@@ -206,13 +259,18 @@ def remove_tag(tag_name: str) -> bool:
 
 
 def get_tag_article_counts() -> dict[str, int]:
-    """Returns {tag_name: item_count} for all tags."""
+    """Returns {tag_name: item_count} for all tags.
+
+    Counts both feed articles AND GitHub releases that have each tag.
+    """
     conn = get_connection()
     try:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT t.name, (
                 SELECT COUNT(*) FROM article_tags at WHERE at.tag_id = t.id
+                UNION ALL
+                SELECT COUNT(*) FROM github_release_tags grt WHERE grt.tag_id = t.id
             ) as count
             FROM tags t
             GROUP BY t.id, t.name
@@ -273,6 +331,128 @@ def untag_article(article_id: str, tag_name: str) -> bool:
         conn.close()
 
 
+def tag_github_release(release_id: str, tag_name: str) -> bool:
+    """Link a GitHub release to a tag. Creates tag if it doesn't exist. Returns True if linked."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        # Get or create tag
+        cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
+        row = cursor.fetchone()
+        if row:
+            tag_id = row["id"]
+        else:
+            import uuid
+            tag_id = str(uuid.uuid4())
+            cursor.execute("INSERT INTO tags (id, name) VALUES (?, ?)", (tag_id, tag_name))
+            conn.commit()
+        # Link release to tag
+        try:
+            cursor.execute(
+                "INSERT INTO github_release_tags (release_id, tag_id) VALUES (?, ?)",
+                (release_id, tag_id)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            # Already linked, not an error
+            pass
+        return True
+    finally:
+        conn.close()
+
+
+def untag_github_release(release_id: str, tag_name: str) -> bool:
+    """Remove link between GitHub release and tag. Returns True if unlinked."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        tag_id = row["id"]
+        cursor.execute(
+            "DELETE FROM github_release_tags WHERE release_id = ? AND tag_id = ?",
+            (release_id, tag_id)
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
+def get_release_tags(release_id: str) -> list[str]:
+    """Returns list of tag names for a GitHub release."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT t.name FROM tags t
+            JOIN github_release_tags grt ON t.id = grt.tag_id
+            WHERE grt.release_id = ?
+            ORDER BY t.name
+        """, (release_id,))
+        return [row["name"] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_release_detail(release_id: str) -> Optional[dict]:
+    """Get full GitHub release details including tags.
+
+    Args:
+        release_id: The ID of the release (can be truncated 8-char or full 32-char).
+
+    Returns:
+        Dict with all release fields plus 'tags' key containing list of tag names.
+        Returns None if release not found.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        # First try exact match
+        cursor.execute("""
+            SELECT r.*, g.name as repo_name, g.owner, g.repo
+            FROM github_releases r
+            JOIN github_repos g ON r.repo_id = g.id
+            WHERE r.id = ?
+        """, (release_id,))
+        row = cursor.fetchone()
+
+        # If not found and length == 8, try truncated ID match
+        if not row and len(release_id) == 8:
+            cursor.execute("""
+                SELECT r.*, g.name as repo_name, g.owner, g.repo
+                FROM github_releases r
+                JOIN github_repos g ON r.repo_id = g.id
+                WHERE r.id LIKE ? || '%'
+                LIMIT 1
+            """, (release_id,))
+            row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        # Fetch tags for the release
+        tags = get_release_tags(row["id"])
+
+        return {
+            "id": row["id"],
+            "repo_id": row["repo_id"],
+            "repo_name": row["repo_name"],
+            "tag_name": row["tag_name"],
+            "name": row["name"],
+            "body": row["body"],
+            "html_url": row["html_url"],
+            "published_at": row["published_at"],
+            "created_at": row["created_at"],
+            "tags": tags,
+        }
+    finally:
+        conn.close()
+
+
 def get_article_tags(article_id: str) -> list[str]:
     """Returns list of tag names for an article."""
     conn = get_connection()
@@ -295,6 +475,7 @@ def store_article(
     content: str,
     link: str,
     feed_id: Optional[str] = None,
+    repo_id: Optional[str] = None,
     pub_date: Optional[str] = None,
 ) -> str:
     """Store an article (insert or update based on guid existence).
@@ -305,6 +486,7 @@ def store_article(
         content: Article content (markdown/html).
         link: URL to the article.
         feed_id: Feed ID if from RSS feed (optional).
+        repo_id: GitHub repo ID if from GitHub source (optional).
         pub_date: Publication date (optional).
 
     Returns:
@@ -335,11 +517,12 @@ def store_article(
             # INSERT new article
             article_id = str(uuid.uuid4())
             cursor.execute(
-                """INSERT INTO articles (id, feed_id, title, link, guid, pub_date, content, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO articles (id, feed_id, repo_id, title, link, guid, pub_date, content, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     article_id,
                     feed_id or "",
+                    repo_id or None,
                     title,
                     link,
                     guid,

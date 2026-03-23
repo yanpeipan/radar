@@ -22,13 +22,16 @@ from src.crawl import crawl_url
 from src.db import (
     add_tag,
     get_article_tags,
+    get_release_tags,
     get_tag_article_counts,
     init_db,
     list_tags,
     remove_tag,
     tag_article,
+    tag_github_release,
 )
 from src.tag_rules import add_rule, remove_rule, list_rules, edit_rule
+from src.tags import run_auto_tagging
 from src.tag_rules import apply_rules_to_article
 from src.feeds import (
     FeedNotFoundError,
@@ -36,6 +39,16 @@ from src.feeds import (
     list_feeds,
     refresh_feed,
     remove_feed,
+)
+from src.github import (
+    add_github_repo,
+    list_github_repos,
+    remove_github_repo,
+    refresh_github_repo,
+    refresh_changelog,
+    get_repo_changelog,
+    RepoNotFoundError,
+    RateLimitError,
 )
 
 logger = logging.getLogger(__name__)
@@ -190,8 +203,12 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
             click.secho("No articles found. Add some feeds and fetch them first.")
             return
 
-        article_ids = [a.id for a in articles]
-        tags_map = get_articles_with_tags(article_ids)
+        # Separate article IDs and release IDs
+        article_ids = [a.id for a in articles if a.source_type == "feed"]
+        release_ids = [a.id for a in articles if a.source_type == "github"]
+
+        # Batch fetch tags for all items (articles and releases)
+        tags_map = get_articles_with_tags(article_ids, release_ids if release_ids else None)
 
         # Create rich table
         console = Console()
@@ -205,9 +222,18 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
         for article in articles:
             title = article.title or "No title"
             pub_date = article.pub_date or "No date"
-            source = article.feed_name or "Unknown"
+
+            # Show GitHub source or feed source
+            if article.source_type == "github":
+                source = f"{article.repo_name}@{article.release_tag}" if article.release_tag else article.repo_name
+            else:
+                source = article.feed_name or "Unknown"
+
+            # Get tags from batch-fetched map
             article_tags = tags_map.get(article.id, [])
             tags_str = ",".join(article_tags) if article_tags else "-"
+
+            # Use full ID if verbose, otherwise truncate to 8 chars
             id_display = article.id if verbose else article.id[:8]
 
             table.add_row(id_display, tags_str, title[:50], source[:20], pub_date[:10])
@@ -231,17 +257,37 @@ def article_view(ctx: click.Context, article_id: str, verbose: bool) -> None:
     Content is truncated to 2000 characters unless --verbose is specified.
     """
     try:
+        from src.db import get_release_detail
+
+        # First try article
         article = get_article_detail(article_id)
 
+        # If not found, try release
         if not article:
-            click.secho(f"Article not found: {article_id}", fg="red")
-            sys.exit(1)
+            release = get_release_detail(article_id)
+            if release:
+                # Format release as article-like dict for display
+                article = {
+                    "id": release["id"],
+                    "feed_name": release["repo_name"],
+                    "pub_date": release["published_at"],
+                    "tags": release["tags"],
+                    "link": release["html_url"],
+                    "title": release["name"] or release["tag_name"],
+                    "content": release["body"],
+                    "source_type": "github",
+                }
+            else:
+                click.secho(f"Article not found: {article_id}", fg="red")
+                sys.exit(1)
 
         console = Console()
 
         # Create metadata table
         meta_table = Table(show_header=False, box=None)
+        source_type = article.get("source_type", "feed")
         meta_table.add_row("Source:", article["feed_name"] or "Unknown")
+        meta_table.add_row("Type:", source_type.capitalize())
         meta_table.add_row("Date:", article["pub_date"] or "No date")
 
         # Tags
@@ -298,17 +344,27 @@ def open_in_browser(url: str) -> None:
 @click.argument("article_id")
 @click.pass_context
 def article_open(ctx: click.Context, article_id: str) -> None:
-    """Open article URL in default browser."""
+    """Open article URL in default browser. Works for both articles and releases."""
     try:
+        from src.db import get_release_detail
+
         article = get_article_detail(article_id)
 
+        # If not found, try release
         if not article:
-            click.secho(f"Article not found: {article_id}", fg="red")
-            sys.exit(1)
+            release = get_release_detail(article_id)
+            if release:
+                link = release["html_url"]
+                source_type = "release"
+            else:
+                click.secho(f"Article not found: {article_id}", fg="red")
+                sys.exit(1)
+        else:
+            link = article.get("link")
+            source_type = "article"
 
-        link = article.get("link")
         if not link:
-            click.secho("No link available for this article", fg="red")
+            click.secho(f"No link available for this {source_type}", fg="red")
             sys.exit(1)
 
         open_in_browser(link)
@@ -326,17 +382,37 @@ def article_open(ctx: click.Context, article_id: str) -> None:
 @article.command("tag")
 @click.argument("article_id", required=False)
 @click.argument("tag_name", required=False)
+@click.option("--auto", "auto_tag", is_flag=True, help="Run AI clustering to auto-tag articles")
 @click.option("--rules", "apply_rules", is_flag=True, help="Apply keyword/regex rules to untagged articles")
+@click.option("--eps", default=0.3, help="DBSCAN eps parameter for clustering")
+@click.option("--min-samples", default=3, help="DBSCAN min_samples parameter")
 @click.pass_context
-def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optional[str], apply_rules: bool) -> None:
-    """Tag an article manually or apply rules to untagged articles.
+def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optional[str], auto_tag: bool, apply_rules: bool, eps: float, min_samples: int) -> None:
+    """Tag an article manually or run auto-tagging.
 
     Manual: article tag <article-id> <tag-name>
+    Auto: article tag --auto [--eps 0.3 --min-samples 3]
     Rules: article tag --rules
     """
     verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
 
-    if apply_rules:
+    if auto_tag:
+        # Run AI clustering (D-10, D-11, D-12, D-13)
+        try:
+            click.secho("Running AI clustering for auto-tagging...", fg="cyan")
+            tag_map = run_auto_tagging(eps=eps, min_samples=min_samples)
+            if tag_map:
+                click.secho(f"Created {len(tag_map)} tag(s) from clustering:", fg="green")
+                for tag_name, article_ids in tag_map.items():
+                    click.secho(f"  [{tag_name}] - {len(article_ids)} articles")
+            else:
+                click.secho("No clusters found. Try with more articles.", fg="yellow")
+        except Exception as e:
+            click.secho(f"Error in clustering: {e}", err=True, fg="red")
+            logger.exception("Auto-tagging failed")
+            sys.exit(1)
+
+    elif apply_rules:
         # Apply keyword/regex rules to all untagged articles
         try:
             from src.db import get_connection
@@ -369,14 +445,33 @@ def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optiona
             sys.exit(1)
 
     elif article_id and tag_name:
-        # Manual tagging
+        # Manual tagging - auto-detect if article_id is a release or article
         try:
-            tagged = tag_article(article_id, tag_name)
-            if tagged:
-                click.secho(f"Tagged article {article_id} with '{tag_name}'", fg="green")
+            from src.db import get_connection
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            # Check if it's a GitHub release ID
+            cursor.execute("SELECT id FROM github_releases WHERE id = ? OR id LIKE ? || '%'", (article_id, article_id))
+            release_row = cursor.fetchone()
+
+            if release_row:
+                # It's a GitHub release
+                tagged = tag_github_release(release_row["id"], tag_name)
+                if tagged:
+                    click.secho(f"Tagged release {article_id} with '{tag_name}'", fg="green")
+                else:
+                    click.secho(f"Failed to tag release", fg="red")
+                    sys.exit(1)
             else:
-                click.secho(f"Failed to tag article", fg="red")
-                sys.exit(1)
+                # It's a feed article
+                tagged = tag_article(article_id, tag_name)
+                if tagged:
+                    click.secho(f"Tagged article {article_id} with '{tag_name}'", fg="green")
+                else:
+                    click.secho(f"Failed to tag article", fg="red")
+                    sys.exit(1)
+            conn.close()
         except Exception as e:
             click.secho(f"Error: {e}", err=True, fg="red")
             sys.exit(1)
@@ -475,15 +570,32 @@ def fetch(ctx: click.Context, fetch_all: bool) -> None:
                 # Per-feed error isolation: continue with next feed
                 click.secho(f"Warning: Failed to fetch {feed_obj.name}: {e}", fg="yellow")
 
+        # Refresh GitHub repos
+        github_repos = list_github_repos()
+        github_new_releases = 0
+        for r in github_repos:
+            try:
+                result = refresh_github_repo(r.id)
+                if result.get("new_release"):
+                    github_new_releases += 1
+                    if verbose:
+                        click.secho(f"New release for {r.name}: {result['release'].tag_name}")
+            except Exception as e:
+                error_count += 1
+                errors.append(f"{r.name} (GitHub): {e}")
+                click.secho(f"Warning: Failed to refresh {r.name}: {e}", fg="yellow")
+
         # Summary
         if error_count == 0:
             click.secho(
-                f"Fetched {total_new} articles from {success_count} feeds",
+                f"Fetched {total_new} articles from {success_count} feeds, "
+                f"{github_new_releases} new releases from {len(github_repos)} repos",
                 fg="green",
             )
         else:
             click.secho(
-                f"Fetched {total_new} articles from {success_count} feeds. {error_count} errors",
+                f"Fetched {total_new} articles from {success_count} feeds, "
+                f"{github_new_releases} new releases. {error_count} errors",
                 fg="yellow",
             )
             if verbose and errors:
@@ -529,6 +641,265 @@ def crawl(ctx: click.Context, url: str, ignore_robots: bool) -> None:
         click.secho(f"Error: Failed to crawl {url}: {e}", err=True, fg="red")
         logger.exception("Failed to crawl")
         sys.exit(1)
+
+
+@cli.group()
+@click.pass_context
+def repo(ctx: click.Context) -> None:
+    """Manage GitHub repositories."""
+    pass
+
+
+@repo.command("add")
+@click.argument("url")
+@click.pass_context
+def repo_add(ctx: click.Context, url: str) -> None:
+    """Add a GitHub repository to monitor.
+
+    Examples:
+
+        rss-reader repo add https://github.com/owner/repo
+
+        rss-reader repo add git@github.com:owner/repo.git
+    """
+    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+    try:
+        repo_obj = add_github_repo(url)
+        click.secho(f"Added GitHub repo: {repo_obj.name}", fg="green")
+        if verbose:
+            click.secho(f"Repo ID: {repo_obj.id}")
+            if repo_obj.last_tag:
+                click.secho(f"Latest release: {repo_obj.last_tag}")
+    except ValueError as e:
+        click.secho(f"Error: {e}", err=True, fg="red")
+        sys.exit(1)
+    except Exception as e:
+        click.secho(f"Error: Failed to add repo: {e}", err=True, fg="red")
+        logger.exception("Failed to add repo")
+        sys.exit(1)
+
+
+@repo.command("list")
+@click.pass_context
+def repo_list(ctx: click.Context) -> None:
+    """List all monitored GitHub repositories."""
+    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+    try:
+        repos = list_github_repos()
+        if not repos:
+            click.secho("No GitHub repos monitored yet. Use 'repo add <url>' to add one.")
+            return
+
+        click.secho("ID | Name | Latest Tag")
+        click.secho("-" * 60)
+
+        for r in repos:
+            tag = r.last_tag or "None"
+            if verbose:
+                click.secho(f"\n{r.id}")
+                click.secho(f"  Name: {r.name}")
+                click.secho(f"  Owner: {r.owner}")
+                click.secho(f"  Repo: {r.repo}")
+                click.secho(f"  Latest Tag: {tag}")
+                click.secho(f"  Last Fetched: {r.last_fetched or 'Never'}")
+            else:
+                click.secho(f"{r.id[:8]}... | {r.name[:40]} | {tag}")
+    except Exception as e:
+        click.secho(f"Error: Failed to list repos: {e}", err=True, fg="red")
+        logger.exception("Failed to list repos")
+        sys.exit(1)
+
+
+@repo.command("remove")
+@click.argument("repo_id")
+@click.pass_context
+def repo_remove(ctx: click.Context, repo_id: str) -> None:
+    """Remove a GitHub repository by ID."""
+    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+    try:
+        removed = remove_github_repo(repo_id)
+        if removed:
+            click.secho(f"Removed repo: {repo_id}", fg="green")
+        else:
+            click.secho(f"Repo not found: {repo_id}", fg="yellow")
+            sys.exit(1)
+    except Exception as e:
+        click.secho(f"Error: Failed to remove repo: {e}", err=True, fg="red")
+        logger.exception("Failed to remove repo")
+        sys.exit(1)
+
+
+@repo.command("refresh")
+@click.argument("repo_id", required=False)
+@click.pass_context
+def repo_refresh(ctx: click.Context, repo_id: Optional[str]) -> None:
+    """Refresh GitHub repo(s) to fetch latest releases.
+
+    If repo_id is provided, refreshes that specific repo.
+    Otherwise, refreshes all monitored GitHub repos.
+    """
+    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+    try:
+        if repo_id:
+            # Refresh single repo
+            result = refresh_github_repo(repo_id)
+            if result.get("new_release"):
+                release = result["release"]
+                click.secho(f"New release: {release.tag_name}", fg="green")
+                if verbose and release.name:
+                    click.secho(f"Title: {release.name}")
+            elif result.get("error"):
+                click.secho(f"Error: {result['error']}", fg="red")
+                if "rate limit" in result["error"].lower():
+                    click.secho("Hint: Set GITHUB_TOKEN environment variable for 5000 req/hour", fg="yellow")
+                sys.exit(1)
+            else:
+                click.secho(result.get("message", "No new release"), fg="yellow")
+        else:
+            # Refresh all repos
+            repos = list_github_repos()
+            if not repos:
+                click.secho("No GitHub repos monitored. Use 'repo add <url>' first.")
+                return
+
+            new_release_count = 0
+            for r in repos:
+                try:
+                    result = refresh_github_repo(r.id)
+                    if result.get("new_release"):
+                        new_release_count += 1
+                        click.secho(f"New release for {r.name}: {result['release'].tag_name}", fg="green")
+                    elif result.get("error"):
+                        click.secho(f"Error refreshing {r.name}: {result['error']}", fg="yellow")
+                except Exception as e:
+                    click.secho(f"Error refreshing {r.name}: {e}", fg="yellow")
+
+            if new_release_count > 0:
+                click.secho(f"\nFetched {new_release_count} new release(s)", fg="green")
+            else:
+                click.secho("No new releases found")
+
+    except RepoNotFoundError:
+        click.secho(f"Repo not found: {repo_id}", fg="red")
+        sys.exit(1)
+    except Exception as e:
+        click.secho(f"Error: Failed to refresh repos: {e}", err=True, fg="red")
+        logger.exception("Failed to refresh repos")
+        sys.exit(1)
+
+
+@repo.command("changelog")
+@click.argument("repo_id", required=False)
+@click.option("--refresh", is_flag=True, help="Refresh changelog before displaying")
+@click.pass_context
+def repo_changelog(ctx: click.Context, repo_id: Optional[str], refresh: bool) -> None:
+    """View or refresh changelog for a GitHub repository.
+
+    If repo_id is provided, shows changelog for that specific repo.
+    Without repo_id, prompts to select from available repos.
+
+    Use --refresh to fetch the latest changelog before displaying.
+    """
+    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+
+    try:
+        if repo_id:
+            # Single repo specified
+            _show_repo_changelog(repo_id, refresh, verbose)
+        else:
+            # List all repos and let user select one
+            repos = list_github_repos()
+            if not repos:
+                click.secho("No GitHub repos monitored. Use 'repo add <url>' first.")
+                return
+
+            click.secho("Select a repo to view changelog:")
+            for i, r in enumerate(repos, 1):
+                click.secho(f"  {i}. {r.name}")
+            click.secho()
+
+            # For now, show changelog for first repo with stored changelog
+            for r in repos:
+                changelog = get_repo_changelog(r.id)
+                if changelog:
+                    _display_changelog(r, changelog, verbose)
+                    return
+
+            click.secho("No changelogs stored yet. Use 'repo changelog <id> --refresh' to fetch.")
+
+    except RepoNotFoundError:
+        click.secho(f"Repo not found: {repo_id}", fg="red")
+        sys.exit(1)
+    except Exception as e:
+        click.secho(f"Error: {e}", err=True, fg="red")
+        logger.exception("Failed to get changelog")
+        sys.exit(1)
+
+
+def _show_repo_changelog(repo_id: str, refresh: bool, verbose: bool) -> None:
+    """Helper to show changelog for a specific repo.
+
+    Args:
+        repo_id: ID of the repo to show changelog for.
+        refresh: Whether to refresh before showing.
+        verbose: Whether to show verbose output.
+    """
+    repo = None
+    # Find repo name
+    repos = list_github_repos()
+    for r in repos:
+        if r.id == repo_id:
+            repo = r
+            break
+
+    if not repo:
+        click.secho(f"Repo not found: {repo_id}", fg="red")
+        sys.exit(1)
+
+    if refresh:
+        # Refresh changelog first
+        result = refresh_changelog(repo_id)
+        if result.get("error"):
+            click.secho(f"Error refreshing changelog: {result['error']}", fg="red")
+            # Fall through to show stored changelog if available
+        elif result.get("changelog_found"):
+            click.secho(f"Changelog refreshed: {result.get('filename', 'unknown')}", fg="green")
+        else:
+            click.secho(f"No changelog found: {result.get('message', 'unknown')}", fg="yellow")
+            return
+
+    # Get stored changelog
+    changelog = get_repo_changelog(repo_id)
+    if changelog:
+        _display_changelog(repo, changelog, verbose)
+    else:
+        click.secho(f"No changelog stored for {repo.name}. Use --refresh to fetch.", fg="yellow")
+
+
+def _display_changelog(repo, changelog: dict, verbose: bool) -> None:
+    """Display a changelog article.
+
+    Args:
+        repo: GitHubRepo object.
+        changelog: Dict with title, link, content, created_at.
+        verbose: Whether to show full content or just header.
+    """
+    click.secho(f"\n=== {changelog['title']} ===")
+    click.secho(f"Source: {changelog['link']}")
+    click.secho(f"Stored: {changelog['created_at']}")
+    click.secho()
+
+    if verbose:
+        # Show full content
+        click.secho(changelog['content'])
+    else:
+        # Show first 2000 characters
+        content = changelog['content']
+        if len(content) > 2000:
+            click.secho(content[:2000])
+            click.secho(f"\n... (truncated, use --verbose for full content)")
+        else:
+            click.secho(content)
 
 
 @cli.group()

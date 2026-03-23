@@ -62,6 +62,52 @@ class Article:
 
 
 @dataclass
+class GitHubRepo:
+    """Represents a monitored GitHub repository.
+
+    Attributes:
+        id: Unique identifier for the repo entry.
+        name: Display name (derived from repo name).
+        owner: GitHub owner (user or organization).
+        repo: Repository name.
+        last_fetched: ISO timestamp of last API check.
+        last_tag: Last seen release tag (for change detection).
+        created_at: ISO timestamp when repo was added.
+    """
+    id: str
+    name: str
+    owner: str
+    repo: str
+    created_at: str
+    last_fetched: Optional[str] = None
+    last_tag: Optional[str] = None
+
+
+@dataclass
+class GitHubRelease:
+    """Represents a GitHub release.
+
+    Attributes:
+        id: Unique identifier for the release.
+        repo_id: ID of the parent GitHubRepo.
+        tag_name: Version tag (e.g., "v1.2.3").
+        name: Release title (often same as tag_name).
+        body: Release notes in markdown.
+        html_url: URL to the release page.
+        published_at: ISO timestamp of release publication.
+        created_at: ISO timestamp when release was stored.
+    """
+    id: str
+    repo_id: str
+    tag_name: str
+    html_url: str
+    published_at: Optional[str] = None
+    name: Optional[str] = None
+    body: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+@dataclass
 class Tag:
     """Represents an article tag.
 
