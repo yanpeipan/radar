@@ -1,8 +1,8 @@
-# Feature Research: GitHub Monitoring (v1.1)
+# Feature Research: Article List Enhancements
 
-**Domain:** CLI tool for monitoring GitHub repositories (releases and changelogs)
+**Domain:** CLI tool - article list display and detail view enhancements
 **Researched:** 2026-03-23
-**Confidence:** MEDIUM (based on GitHub API documentation and existing tool patterns)
+**Confidence:** HIGH (based on established CLI conventions and existing codebase patterns)
 
 ## Feature Landscape
 
@@ -12,12 +12,10 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Add GitHub repo URL | Users want to add repos they care about | LOW | Parse owner/repo from GitHub URL formats |
-| Fetch latest release via GitHub API | Primary use case for repo monitoring | LOW | `GET /repos/{owner}/{repo}/releases/latest` |
-| Display release version + notes | Core information users want | LOW | `tag_name`, `body` (markdown) from API |
-| Periodic refresh with last-known state | Detect new releases since last check | MEDIUM | Store last seen version/tag, compare on refresh |
-| Changelog file scraping | Many repos document changes in CHANGELOG.md | MEDIUM | No GitHub API for changelogs - must scrape raw content |
-| Unified article-like display | Consistent UX with existing feed articles | LOW | Reuse existing display patterns |
+| Article ID in list view | Needed to reference specific articles for tagging/untagging | LOW | Show truncated ID (first 8 chars) like `feed list` does |
+| Explicit tags column | Tags currently shown as `[tag]` in title, hard to scan | LOW | Add separate column or `--verbose` already shows tags |
+| Detail view command | Want to see full article without opening browser | LOW | Reuse `get_article()` already exists in `articles.py` |
+| Open article link | Quick action to open article in browser | LOW | Use `open` command on macOS, `xdg-open` on Linux |
 
 ### Differentiators (Competitive Advantage)
 
@@ -25,10 +23,9 @@ Features that set the product apart. Not required, but valued.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Release-only vs full repo monitoring | Filter signal from noise (releases vs commits) | MEDIUM | Distinguishes "published a release" vs "pushed 50 commits" |
-| Changelog diff detection | See WHAT changed in new version beyond release notes | HIGH | Requires parsing changelog format, diffing sections |
-| Adaptive parsing for varied changelog formats | Handle CHANGELOG.md, HISTORY.md, Keep a Changelog, auto-generated | HIGH | Scrapling can help but format detection is complex |
-| GitHub token auth for higher rate limits | Avoid 60 req/hour cap (unauthenticated) | LOW | Use `GITHUB_TOKEN` env var, increases to 5000 req/hour |
+| Compact tag display in list | Visual scanning of topics without `--verbose` | LOW | Show tags inline after title or as separate column |
+| Full content display in detail | View article content without leaving CLI | MEDIUM | Content stored in DB, just need formatting |
+| Tag filtering in detail view | "Show me all articles with tag X" is natural | LOW | Already implemented in `article list --tag` |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
@@ -36,75 +33,68 @@ Features that seem good but create problems.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Monitor all repo commits | Want complete activity stream | Too noisy, GitHub API rate limits hit immediately | Releases only, or explicit "watch commits" opt-in |
-| Real-time webhook delivery | Want instant notifications | Requires server/public URL, defeats "local CLI" purpose | Periodic polling is sufficient for personal use |
-| Native GitHub notifications integration | Want to see in GitHub's UI | Outside scope, adds OAuth complexity | Keep as local-only tool |
-| Auto-discovery of changelog location | "Just find the changelog" | Many repos use different paths/names | User specifies explicit path or accept common defaults |
+| Pretty-printed HTML rendering | "Make it look like a webpage" | Terminal limitations, markdown is better for CLI | Show markdown-formatted content |
+| Pager/less integration | Long articles scroll too fast | Adds complexity, users can pipe to less | Support `article view --id X \| less` |
+| Color-coded tags by category | Visual organization | Arbitrary color assignment, no categories exist | Keep simple string tags |
+| Inline article content preview | See more without detail command | List becomes too long, defeats purpose | Detail view command |
 
 ## Feature Dependencies
 
 ```
-[Add Repo URL]
-    └──requires──> [Parse owner/repo from URL]
-                       └──requires──> [GitHub API: Fetch Release]
-                                          └──requires──> [Store Release State]
-                       └──requires──> [Changelog: Scrape File]
-                                          └──requires──> [Parse Changelog Format]
+[Detail View Command]
+    └──requires──> [get_article() function] (already exists in articles.py)
+    └──requires──> [Article ID display in list] (to know what ID to view)
 
-[Display Unified Output] ──enhances──> [Article Display]
-[Refresh All] ──enhances──> [Per-Release Refresh]
+[Tags in List View]
+    └──requires──> [get_article_tags() function] (already exists in db.py)
+    └──enhances──> [Article List Command]
 
-[GitHub Token Auth] ──conflicts──> [Unauthenticated Rate Limits]
+[Open Link in Browser]
+    └──requires──> [Platform-specific open command]
 ```
 
 ### Dependency Notes
 
-- **Add Repo URL requires Parse owner/repo:** GitHub URLs have multiple formats (`github.com/owner/repo`, `.git`, releases page)
-- **GitHub API requires token for scale:** 60 req/hour unauthenticated limits usability to ~5-10 repos
-- **Changelog scraping requires format detection:** Different projects use different conventions
+- **Detail view requires article ID:** Users need to know article IDs to use detail view - list must show IDs first
+- **Tags already available:** `get_article_tags()` exists and is already called in verbose mode - just need to expose in non-verbose
+- **No new database queries needed:** All required functions already exist
 
 ## MVP Definition
 
-### Launch With (v1.1)
+### Launch With
 
-Minimum viable product - what's needed to validate the concept.
+Minimum viable product for list enhancements.
 
-- [ ] **Add GitHub repo by URL** - Parse `github.com/{owner}/{repo}` format, store repo reference
-- [ ] **GitHub API release fetch** - `tag_name`, `name`, `body` (markdown), `published_at`, `html_url`
-- [ ] **Display releases like articles** - Unified format reusing existing display patterns
-- [ ] **Refresh to detect new releases** - Compare stored version vs API, surface new ones
-- [ ] **Basic changelog scraping** - Fetch `CHANGELOG.md` from default branch, display with release
+- [ ] **Article ID column in list** — Show truncated ID (8 chars) like `feed list` does, enabling reference for tagging
+- [ ] **Tags column in list view** — Show tags as comma-separated string in dedicated column (non-verbose)
+- [ ] **Article detail command** — `article view <id>` showing full title, source, date, tags, link, full description/content
 
-### Add After Validation (v1.x)
+### Add After Validation
 
 Features to add once core is working.
 
-- [ ] **GitHub token auth** - Set `GITHUB_TOKEN` env var, increase rate limit from 60 to 5000 req/hour
-- [ ] **Changelog diff per release** - Parse and show what changed between version N and N-1
-- [ ] **Configurable changelog path** - Support `HISTORY.md`, `CHANGELOG.rst`, user-specified paths
-- [ ] **Multiple changelog format detection** - Handle Keep a Changelog, conventional commits style
+- [ ] **Open in browser** — `article open <id>` to open article link in default browser
+- [ ] **Content column in detail view** — Show full `content` field if stored (vs just description)
+- [ ] **Markdown rendering** — Format content with basic markdown (headers, lists, code) in detail view
 
 ### Future Consideration (v2+)
 
 Features to defer until product-market fit is established.
 
-- [ ] **Release asset downloads** - Provide download links for `.whl`, `.tar.gz` binaries
-- [ ] **Watch specific tags** - Not just "latest", monitor particular major/minor versions
-- [ ] **Commit activity summary** - Optional: fetch commit history between releases
-- [ ] **Notification integration** - Native OS notifications when new release detected
+- [ ] **JSON output option** — `article list --format json` for scripting
+- [ ] **Export article** — Save article to file (markdown, HTML)
+- [ ] **Share article** — Copy link to clipboard
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Add repo by URL | HIGH | LOW | P1 |
-| GitHub API release fetch | HIGH | LOW | P1 |
-| Display releases | HIGH | LOW | P1 |
-| Refresh detection | HIGH | MEDIUM | P1 |
-| Changelog scraping (basic) | MEDIUM | MEDIUM | P2 |
-| GitHub token auth | MEDIUM | LOW | P2 |
-| Changelog diff | MEDIUM | HIGH | P3 |
-| Configurable changelog path | LOW | MEDIUM | P3 |
+| Article ID in list | HIGH | LOW | P1 |
+| Tags column in list | HIGH | LOW | P1 |
+| Detail view command | HIGH | LOW | P1 |
+| Open in browser | MEDIUM | LOW | P2 |
+| Full content in detail | MEDIUM | LOW | P2 |
+| Markdown rendering | MEDIUM | MEDIUM | P3 |
 
 **Priority key:**
 - P1: Must have for launch
@@ -115,83 +105,49 @@ Features to defer until product-market fit is established.
 
 Based on reading the existing codebase:
 
-| Existing Component | How GitHub Monitoring Extends It |
-|--------------------|----------------------------------|
-| `src/models.py` Feed/Article | Create `GitHubRepo` model with owner/repo, last_version; reuse Article display |
-| `src/cli.py` feed commands | Add `repo` command group: `repo add`, `repo list`, `repo refresh` |
-| `src/db.py` | Add tables for `repos` and `releases`, new columns for version tracking |
-| `src/feeds.py` refresh logic | Reuse conditional fetch pattern (ETag/Last-Modified) for GitHub API with `If-None-Match` |
-| `src/articles.py` list/search | Display releases alongside articles, unified format |
+| Existing Component | How Enhancements Extend It |
+|--------------------|---------------------------|
+| `src/articles.py` `get_article()` | Already exists, returns ArticleListItem - use for detail view |
+| `src/db.py` `get_article_tags()` | Already called in verbose mode - expose in non-verbose list |
+| `src/cli.py` `article_list` | Modify to show ID column and tags column in non-verbose mode |
+| `src/cli.py` `feed list` | Reuse ID truncation pattern: `{id[:8]}...` |
 
-**Key existing patterns to reuse:**
-- Feed storage with `etag`/`last_modified` for conditional fetching
-- Article storage with `guid` for dedup (use `tag_name` as guid for releases)
-- CLI display format for list/verbose output
-- Error isolation per-repo during batch refresh
+### Changes Required
 
-## Technical Considerations
+**`src/cli.py` - `article_list` command:**
+- Non-verbose output: Change from `{tag_str}{title[:50-len(tag_str)]}` to include ID and separate tags column
+- Current format: `{tag_str}{title[:50-len(tag_str)]} | {source[:25]} | {pub_date[:10]}`
+- New format: `{id[:8]} | {title[:40]} | {tags_str} | {source[:20]} | {pub_date[:10]}`
 
-### GitHub API Behavior
+**`src/cli.py` - New `article_view` command:**
+- Use `get_article(article_id)` to fetch single article
+- Display full details: title, all tags, source, date, link, description, content
+- Show content if available, fallback to description
 
-**Endpoints:**
-- Latest release: `GET https://api.github.com/repos/{owner}/{repo}/releases/latest`
-- All releases: `GET https://api.github.com/repos/{owner}/{repo}/releases?per_page=30`
-- Release by tag: `GET https://api.github.com/repos/{owner}/{repo}/releases/tags/{tag}`
+**`src/cli.py` - New `article_open` command (optional P2):**
+- Use `get_article(article_id)` to get link
+- Call `open` (macOS) or `xdg-open` (Linux) via `subprocess`
 
-**Response fields used:**
-- `tag_name`: Version string (e.g., "v1.2.3", "1.2.3")
-- `name`: Release title (often same as tag, can be empty)
-- `body`: Markdown release notes
-- `published_at`: ISO timestamp
-- `html_url`: Link to release page
-- `assets`: Download links (for future use)
+## CLI Convention Reference
 
-**Rate limits:**
-- Unauthenticated: 60 requests/hour per IP
-- Authenticated (token): 5,000 requests/hour
-- Implement `GITHUB_TOKEN` environment variable support
+Based on existing `feed list` and `repo list` patterns:
 
-**Conditional requests:**
-- Use `Accept: application/vnd.github+json` header
-- Respect `ETag` and `Last-Modified` headers
-- Send `If-None-Match` or `If-Modified-Since` for efficient polling
-
-### Changelog Scraping
-
-**Common file locations (in priority order):**
-1. `CHANGELOG.md` (most common)
-2. `CHANGELOG` (without extension)
-3. `HISTORY.md`
-4. `CHANGELOG.rst`
-5. `docs/changelog.md`
-
-**Raw file URLs:**
-- `https://raw.githubusercontent.com/{owner}/{repo}/main/CHANGELOG.md`
-- `https://raw.githubusercontent.com/{owner}/{repo}/master/CHANGELOG.md`
-
-**Format variations:**
-- Keep a Changelog (semantic headings: Added, Changed, Deprecated, etc.)
-- Auto-generated from conventional commits (git-cliff style)
-- Custom per-project formats (harder to parse)
-
-### Scrapling Integration
-
-The project plan mentions using Scrapling for changelog files. This is appropriate for:
-- Pages with JavaScript rendering
-- Adaptive parsing when HTML structure varies
-- Fallback when simple requests fail
-
-However, for static changelog files, `httpx` with raw GitHub content is sufficient and faster.
+| Pattern | Example | Usage |
+|---------|---------|-------|
+| Truncated ID | `{id[:8]}...` | Feed list, repo list - show enough to identify |
+| Verbose flag | `--verbose, -v` | Show expanded information |
+| Column separator | ` \| ` | Pipe with spaces between columns |
+| Header row | `click.secho("ID \| Name \| ...")` | Column headers |
+| Separator line | `click.secho("-" * 60)` | Visual divider |
 
 ## Sources
 
-- [GitHub REST API - Releases](https://docs.github.com/en/rest/repos/releases) (HIGH confidence)
-- [GitHub API Rate Limiting](https://docs.github.com/en/rest/rate-limit) (HIGH confidence)
-- [Keep a Changelog standard](https://keepachangelog.com/en/1.0.0/) (HIGH confidence)
-- [Scrapling GitHub repo](https://github.com/D4Vinci/Scrapling) (MEDIUM confidence - 31k stars, active)
-- Existing codebase: `src/models.py`, `src/cli.py`, `src/feeds.py`
+- Existing codebase: `src/cli.py` (article_list, feed_list, repo_list commands)
+- Existing codebase: `src/articles.py` (get_article function)
+- Existing codebase: `src/db.py` (get_article_tags function)
+- Click documentation: Column formatting in CLI (HIGH confidence)
 
 ---
 
-*Feature research for: GitHub monitoring v1.1*
+*Feature research for: Article List Enhancements*
 *Researched: 2026-03-23*

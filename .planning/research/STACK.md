@@ -1,7 +1,7 @@
 # Technology Stack: Personal Information System
 
 **Project Type:** CLI tool for RSS subscription and website crawling
-**Researched:** 2026-03-22 (v1.0), 2026-03-23 (v1.1 additions)
+**Researched:** 2026-03-22 (v1.0), 2026-03-23 (v1.1 additions), 2026-03-23 (v1.2 additions)
 **Confidence:** HIGH
 
 ## Recommended Stack
@@ -249,6 +249,95 @@ content = page.find(".markdown-body").text
 
 ---
 
+## v1.2 Addition: Article List Enhancements and Detail View
+
+### Rich Terminal Display
+
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **rich** | 13.x | Terminal formatting | All-in-one solution for tables, panels, markdown rendering. Single dependency handles both id/tags columns in list AND detail view. Drop-in enhancement with click integration. |
+
+**Installation:**
+```bash
+pip install rich
+```
+
+**For article list with id/tags columns:**
+```python
+from rich.console import Console
+from rich.table import Table
+
+console = Console()
+
+table = Table(show_header=True, header_style="bold magenta")
+table.add_column("ID", style="dim", width=8)
+table.add_column("Tags", max_width=15)
+table.add_column("Title")
+table.add_column("Source", max_width=20)
+table.add_column("Date", max_width=10)
+
+for article in articles:
+    tags = ",".join(get_article_tags(article.id)) or "-"
+    table.add_row(
+        article.id[:8],
+        tags,
+        article.title or "No title",
+        article.feed_name[:20],
+        (article.pub_date or "")[:10]
+    )
+
+console.print(table)
+```
+
+**For detail subcommand:**
+```python
+from rich.console import Console
+from rich.panel import Panel
+from rich.markdown import Markdown
+
+console = Console()
+
+# Option 1: Plain text panel
+console.print(Panel(article.content or article.description, title=article.title))
+
+# Option 2: If content is HTML, convert to markdown first
+import html2text
+h = html2text.HTML2Text()
+h.ignore_links = False
+markdown_content = h.handle(article.content)
+console.print(Panel(Markdown(markdown_content), title=article.title))
+```
+
+**Why rich over alternatives:**
+- `tabulate` - Only handles tables, no panels/colors for detail view
+- `textwrap` - Too low-level, manual formatting
+- `urwid` - Full TUI framework, overkill for this use case
+- `blessed` - Lower-level, less Pythonic API than rich
+
+### Supporting Library (Conditional)
+
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **html2text** | 2024.x | HTML to Markdown conversion | Only if `articles.content` stores raw HTML that needs conversion for terminal display |
+
+**Check before adding:** Examine stored article content. If `content` is already plain text or markdown, html2text is unnecessary.
+
+**Installation (if needed):**
+```bash
+pip install html2text
+```
+
+**Basic Usage:**
+```python
+import html2text
+
+h = html2text.HTML2Text()
+h.ignore_links = False  # Preserve links in output
+markdown = h.handle(html_content)
+```
+
+---
+
 ## Project Structure Best Practices
 
 ```
@@ -270,7 +359,7 @@ my_rss_tool/
 └── README.md
 ```
 
-**pyproject.toml dependencies (v1.1):**
+**pyproject.toml dependencies (v1.2):**
 ```toml
 [project]
 dependencies = [
@@ -280,6 +369,8 @@ dependencies = [
     "lxml>=5.0.0",
     "click>=8.1.0",
     "scrapling>=0.4.2",     # v1.1: Changelog scraping
+    "rich>=13.0.0",         # v1.2: Terminal display enhancement
+    # "html2text>=2024.0.0", # v1.2: Only if article.content is HTML
 ]
 requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 ```
@@ -299,6 +390,7 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 | CLI Framework | click | typer | Both are good. click has larger ecosystem and more examples. typer is more Pythonic but adds dependency on fastapi utilities. |
 | GitHub API Client | httpx (direct) | PyGithub | httpx handles REST API fine with simple Bearer token auth. PyGithub adds unnecessary dependency. |
 | Changelog Scraping | scrapling | Playwright only | scrapling is adaptive wrapper around Playwright with easier API. Keep Playwright for complex cases. |
+| Terminal Display | rich | tabulate + manual | rich handles both tables AND detail view (panels, markdown). Single dep over multiple. |
 
 ---
 
@@ -309,6 +401,8 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 | PyGithub | Adds another dependency when httpx handles REST perfectly. Bearer token auth is 5 lines. | httpx directly |
 | Python <3.10 with scrapling | scrapling 0.4.2 requires 3.10+ | Upgrade Python or use Playwright for JS rendering instead |
 | Unauthenticated GitHub API in production | 60 req/hr limit is restrictive | Use personal access token for 5000 req/hr |
+| tabulate for article list | Only handles tables, no detail view support | rich (handles both) |
+| Multiple display libraries | Complexity of managing tabulate + html2text + custom formatting | rich (all-in-one) |
 
 ---
 
@@ -319,6 +413,8 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 | scrapling 0.4.2 | Python >=3.10 | Hard requirement. Bumps project minimum from ~3.6 to 3.10. |
 | httpx 0.27.x | Python >=3.8 | Already in use. Compatible with scrapling. |
 | feedparser 6.0.x | Python >=3.6 | Existing. Works with Python 3.10+. |
+| rich 13.x | Python >=3.7 | Compatible with existing Python 3.10+ requirement. |
+| html2text 2024.x | Python >=3.8 | If needed. |
 
 ---
 
@@ -337,3 +433,5 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 - [PyPI: PyGithub](https://pypi.org/project/PyGithub/) — Version 2.8.1, Python >=3.8 (HIGH confidence)
 - [GitHub REST API: Releases](https://docs.github.com/en/rest/releases/releases) — Endpoint specs, auth headers (HIGH confidence)
 - [GitHub REST API: Contents](https://docs.github.com/en/rest/repos/contents) — File content endpoint (HIGH confidence)
+- [rich documentation](https://rich.readthedocs.io/) — Terminal formatting (MEDIUM confidence - training data)
+- [html2text PyPI](https://pypi.org/project/html2text/) — HTML to markdown (MEDIUM confidence - training data)

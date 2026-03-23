@@ -1,17 +1,17 @@
 # Project Research Summary
 
 **Project:** Personal Information System (个人资讯系统)
-**Domain:** CLI tool for RSS subscription and GitHub repository monitoring
+**Domain:** CLI tool for RSS subscription and website crawling
 **Researched:** 2026-03-23
-**Confidence:** MEDIUM-HIGH
+**Confidence:** HIGH
 
 ## Executive Summary
 
-This is a Python CLI tool for collecting, organizing, and monitoring information from RSS feeds and GitHub repositories. The system stores content in SQLite, providing a local-first, no-API personal information hub. For v1.1, the project extends GitHub releases and changelog monitoring by treating GitHub repos as a specialized feed type, reusing existing storage patterns.
+This is a Python CLI tool for collecting, organizing, and reading information from RSS feeds and websites. The system stores content locally in SQLite for offline reading and retrieval. The existing codebase has been through v1.0 and v1.1, with v1.2 (article list enhancements and detail view) currently in research phase.
 
-The recommended approach uses feedparser for RSS parsing, httpx for HTTP operations, BeautifulSoup4+lxml for HTML scraping, Scrapling for JavaScript-rendered pages, and click for CLI. GitHub integration uses the REST API directly with Bearer token auth (avoiding unnecessary dependencies like PyGithub). The architecture cleanly extends existing patterns by adding a `feed_type` column to discriminate between RSS, GitHub releases, and GitHub changelog sources.
+The recommended tech stack is mature and well-documented: feedparser for RSS parsing, httpx + BeautifulSoup4 + lxml for HTML scraping, Playwright/scrapling for JavaScript-rendered pages, sqlite3 for database, click for CLI framework, and rich for terminal formatting. Python >=3.10 is required due to scrapling dependency.
 
-Key risks: GitHub API rate limits (60/hour unauthenticated), changelog format variability, and potential Playwright browser installation failures. These must be addressed in Phase 1 with proper authentication, graceful degradation for missing changelogs, and verification of browser installation.
+Key risks identified through research: (1) N+1 query performance problem in tag display that must be fixed with JOIN or batch queries, (2) missing content field in article detail SELECT clause, (3) GitHub releases cannot be tagged due to schema limitation. These must be addressed during implementation to ship a complete feature.
 
 ## Key Findings
 
@@ -19,146 +19,159 @@ Key risks: GitHub API rate limits (60/hour unauthenticated), changelog format va
 
 **Summary from STACK.md**
 
-The project uses proven, well-documented Python libraries. The v1.1 addition introduces Scrapling (Python >=3.10 required) for GitHub changelog scraping alongside existing httpx-based GitHub API calls. Key decisions: use httpx directly for GitHub REST API (no PyGithub dependency), use Scrapling with Playwright as fallback for complex pages but simple HTTP for raw markdown files.
+All core technologies are well-established with HIGH confidence official documentation. The v1.2 addition introduces rich (13.x) for terminal display enhancement - handling both table formatting in list view AND panel/markdown rendering in detail view. html2text is conditional - only needed if `article.content` stores raw HTML.
 
 **Core technologies:**
 - **feedparser 6.0.x**: Universal RSS/Atom parser with bozo detection for malformed feeds
 - **httpx 0.27.x**: HTTP client for fetching pages and GitHub API calls with async support
 - **BeautifulSoup4 4.12.x + lxml 5.x**: HTML parsing with fast C-based backend
-- **Scrapling 0.4.2**: Adaptive web scraping with JS support (requires Python >=3.10)
-- **sqlite3** (built-in): Local database with WAL mode for concurrent access
+- **scrapling 0.4.2**: Adaptive web scraping with JS support (requires Python >=3.10)
+- **sqlite3** (built-in): Local database, no external dependencies
 - **click 8.1.x**: CLI framework with decorator-based commands
+- **rich 13.x**: Terminal formatting for tables, panels, markdown (v1.2 addition)
 
 ### Expected Features
 
 **Summary from FEATURES.md**
 
 **Must have (table stakes):**
-- Add GitHub repo by URL - Parse owner/repo from multiple GitHub URL formats
-- GitHub API release fetch - Fetch tag_name, name, body, published_at, html_url
-- Display releases like articles - Unified format with existing display patterns
-- Refresh detection - Compare stored version vs API to surface new releases
-- Basic changelog scraping - Fetch CHANGELOG.md from default branch
+- **Article ID column** - Show truncated ID (8 chars) to enable reference for tagging operations
+- **Tags column** - Separate column for tags (currently inline with title, hard to scan)
+- **Detail view command** - `article view <id>` showing full article without opening browser
 
 **Should have (competitive):**
-- GitHub token auth - Use GITHUB_TOKEN env var, increases rate limit from 60 to 5000 req/hour
-- Configurable changelog path - Support HISTORY.md, CHANGELOG.rst, user-specified paths
+- **Open in browser** - `article open <id>` to open article link in default browser
+- **Full content in detail** - Show stored `content` field (not just `description`)
 
 **Defer (v2+):**
-- Changelog diff detection - Show what changed between version N and N-1
-- Release asset downloads - Provide download links for binaries
-- Native OS notifications - Alert when new release detected
+- JSON output option for scripting (`article list --format json`)
+- Export article to file (markdown, HTML)
+- Share article (copy link to clipboard)
 
 ### Architecture Approach
 
 **Summary from ARCHITECTURE.md**
 
-The architecture extends existing patterns by introducing feed type discrimination. A `feed_type` column in the feeds table distinguishes between `rss`, `github_release`, and `github_changelog` sources while using unified article storage. Two new modules (github.py, changelog.py) handle specialized fetching while feeds.py minimal changes.
+The system follows a clear layered architecture: CLI commands (click) -> Business logic (articles.py) -> Data layer (db.py with sqlite3). Existing components already have most building blocks - `get_article()` and `get_article_tags()` exist but need enhancement. Minimal changes required: modify `article list` output formatting, add `get_article_detail()` function that includes content field, and resolve GitHub release tagging schema.
 
 **Major components:**
-1. **feeds.py** (existing, extend): Generic feed CRUD with dispatch to type-specific refresh
-2. **github.py** (NEW): GitHub API client handling releases, pagination, rate limit headers
-3. **changelog.py** (NEW): CHANGELOG.md fetcher using Scrapling or raw HTTP
-4. **db.py** (existing): SQLite with WAL mode, add feed_type column migration
-
-**Key patterns:**
-- **Feed Type Discrimination**: Single table with type column, dispatch to refresh logic
-- **GitHub API as Feed Fetcher**: Releases map directly to article schema
-- **Changelog as Single Article**: Store changelog with content hash for change detection
+1. **cli.py** (existing, MODIFY): Click commands, output formatting - add detail command, modify list display
+2. **articles.py** (existing, MODIFY): Article queries - add `get_article_detail()` function
+3. **db.py** (existing, NO CHANGE): Connection, schema, tag CRUD - `get_article_tags()` already exists
+4. **models.py** (existing, EXTEND): Dataclass definitions - add `ArticleDetail` if needed
 
 ### Critical Pitfalls
 
-**Top 5 from PITFALLS.md (both base and v1.1):**
+**Top 5 from PITFALLS.md:**
 
-1. **GitHub API Rate Limit Exhaustion** - 60 req/hour unauthenticated exhausts immediately with multiple repos. Prevention: Use GITHUB_TOKEN, check X-RateLimit-Remaining headers, cache responses for minimum 1 hour.
+1. **N+1 Query Problem** - Current code calls `get_article_tags()` per article in loop. For 20 articles = 21 queries. Fix with JOIN or batch query. Must address in Phase implementing article list with tags.
 
-2. **SQLite Concurrent Write Contention** - SQLite allows only one writer. Prevention: Enable WAL mode, use busy_timeout=5000, batch writes.
+2. **Missing Content Field** - `get_article()` SELECT omits `content` column even though it exists in DB. Detail view will show empty content. Add to SELECT clause when implementing detail view.
 
-3. **Malformed RSS/XML Feed Parsing** - Feeds fail silently. Prevention: Use feedparser with bozo detection, check bozo flag.
+3. **GitHub Releases Cannot Be Tagged** - `article_tags` table FK points to `articles.id`, but GitHub releases are in separate `github_releases` table. Schema change or error handling needed before v1.2 release.
 
-4. **Changelog File Not Found / Different Filenames** - CHANGELOG.md vs HISTORY.md vs CHANGES.md. Prevention: Check multiple common filenames, detect absence gracefully.
+4. **ID Column Width** - Truncated IDs (8 chars) shown in list don't work for commands like `article tag <id>`. Need `--verbose` flag for full ID display.
 
-5. **Missing GUID/Item Identity** - Duplicates or missed items. Prevention: Use GUID when present, fall back to link+pubDate hash, handle isPermaLink="false".
+5. **Tags Column Truncation** - Inline tags in title push title column to <20 chars when article has 3+ tags. Move tags to separate column or limit display with `+N` indicator.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on research, the article list enhancements and detail view should be split into 4 phases that address dependencies and avoid known pitfalls.
 
-### Phase 1: Project Foundation and GitHub API Base
-**Rationale:** Dependencies (Python >=3.10, Scrapling browser install) must be verified before feature work. GitHub API client is the foundation for all v1.1 features.
-**Delivers:** Working GitHub API client with token auth, rate limit handling, and release fetching.
-**Addresses:** Add repo by URL, GitHub API release fetch
-**Avoids:** GitHub API rate limit exhaustion (Pitfall 21), no auth token (Pitfall 26)
-**Research flag:** None needed - GitHub REST API is well-documented
+### Phase 1: List Display + N+1 Fix
+**Rationale:** Article list is the entry point. Must show IDs and tags properly but current implementation has N+1 performance issue. This phase fixes the foundation.
 
-### Phase 2: Release Refresh Integration
-**Rationale:** Must complete API client before integrating refresh logic into existing feeds system.
-**Delivers:** Feeds table with feed_type column, release articles stored with proper identity (tag_name as guid)
-**Uses:** github.py from Phase 1
-**Implements:** Feed Type Discrimination pattern
-**Avoids:** Missing GUID identity issues (Pitfall 2)
+**Delivers:**
+- `article list` with ID column (8 chars truncated) and separate tags column
+- N+1 query fix via JOIN or batch query in `list_articles_with_tags()`
+- `--verbose` flag showing full IDs for command usage
 
-### Phase 3: Changelog Fetcher
-**Rationale:** Changelog fetching is independent of release integration but depends on Scrapling installation verification.
-**Delivers:** changelog.py module with multi-filename detection, content hash for change detection, raw HTTP for .md files (no Scrapling needed)
-**Avoids:** Scrapling timeout on large files (Pitfall 25), changelog not found (Pitfall 23), parsing garbage (Pitfall 24)
+**Addresses:** Pitfall 1 (N+1), Pitfall 4 (ID truncation), Pitfall 5 (Tags truncation)
+**Uses:** rich for table formatting
+**Avoids:** Performance degradation as article count grows
 
-### Phase 4: Changelog Refresh Integration
-**Rationale:** Depends on changelog fetcher from Phase 3.
-**Delivers:** github_changelog feed_type handling, changelog articles with version detection
-**Avoids:** Mixed source confusion (Pitfall 26) - clearly label source
+### Phase 2: Detail View Command
+**Rationale:** Depends on Phase 1 (users need IDs shown in list to reference articles). Must include content field fetch.
 
-### Phase 5: CLI Integration and Unified Refresh
-**Rationale:** Final integration phase bringing everything together.
-**Delivers:** `github add`, `github add-changelog`, `github list` commands, unified `fetch --all` including GitHub sources
-**Avoids:** CLI interactive prompts in scripts (Pitfall 8)
+**Delivers:**
+- `article view <id>` command showing title, source, date, tags, link, description/content
+- `get_article_detail()` function that includes `content` in SELECT
+- Full content display (not just description)
+
+**Addresses:** Pitfall 2 (missing content field)
+**Uses:** rich for Panel/Markdown rendering
+
+### Phase 3: GitHub Release Tagging (Schema Decision)
+**Rationale:** Independent of list/detail views. Requires schema decision (Option A: new table, Option B: error handling, Option C: unify storage).
+
+**Delivers:**
+- Tags work for GitHub releases OR clear error message
+- Potential `github_release_tags` table migration if Option A
+
+**Addresses:** Pitfall 3 (GitHub release tagging)
+**Research flag:** May need `/gsd:research-phase` for migration strategy
+
+### Phase 4: Open in Browser + Polish
+**Rationale:** Independent enhancement. Add after core is stable.
+
+**Delivers:**
+- `article open <id>` command using `open` (macOS) / `xdg-open` (Linux)
+- Markdown rendering in detail view (optional)
+
+**Addresses:** Feature - open in browser, markdown rendering
 
 ### Phase Ordering Rationale
 
-- **Dependency order:** API client (1) before refresh integration (2), fetcher (3) before changelog integration (4)
-- **Risk mitigation:** Verify Scrapling/Playwright installation in Phase 1 before Phase 3-4 depend on it
-- **Architecture grouping:** GitHub releases (API) grouped separately from changelog (scraping) despite similar sources
-- **Pitfall alignment:** Each phase explicitly addresses specific pitfalls from research
+- **Phase 1 before 2:** Detail view needs IDs shown in list to be usable
+- **Phase 3 independent but flagged:** GitHub tagging is separate concern but must ship with solution (error or feature)
+- **Phase 4 last:** Polish features that don't block core functionality
+- **N+1 fix in Phase 1:** Performance issues cascade - fix early
+- **Each phase maps to specific pitfalls:** Prevention strategies are implemented in the phase where pitfall would occur
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 3 (Changelog Fetcher):** Format detection heuristics need validation with real-world changelogs
-
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (GitHub API Base):** Well-documented GitHub REST API, straightforward implementation
-- **Phase 2 (Release Refresh):** Follows existing feeds.py patterns, minimal new research
+- **Phase 1, 2:** Well-documented CLI conventions, existing codebase references
+- **Phase 4:** CLI patterns established in existing `feed list`, `repo list`
+
+Phases likely needing deeper research during planning:
+- **Phase 3:** GitHub release tagging schema decision. May need research for migration path if Option A chosen (adding `github_release_tags` table with backfill).
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Based on official documentation for all libraries |
-| Features | MEDIUM | GitHub monitoring features inferred from API docs and existing patterns; user validation needed |
-| Architecture | HIGH | Extends existing codebase patterns with well-understood approaches |
-| Pitfalls | MEDIUM-HIGH | Base RSS pitfalls HIGH confidence; GitHub-specific pitfalls MEDIUM due to rapid API changes |
+| Stack | HIGH | All technologies have official documentation, established in v1.0/v1.1 |
+| Features | HIGH | Based on existing codebase patterns and CLI conventions |
+| Architecture | HIGH | Clear layered design, existing components well-understood |
+| Pitfalls | HIGH | All identified via code inspection and known SQLite patterns |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Changelog format detection:** Real-world changelog formats vary more than Keep a Changelog standard. Needs testing with 5+ actual repositories during Phase 3.
-- **User validation:** MVP features are inferred from API capabilities, not validated user research. Consider user interviews before Phase 5.
-- **scrapling installation reliability:** Browser installation failure modes not fully documented. Test on clean system before Phase 3 begins.
+- **GitHub release tagging schema:** Not decided yet. Options presented but implementation path needs planning decision. Flag for Phase 3.
+- **html2text dependency:** May be needed if `article.content` stores HTML. Check stored content format before adding dependency.
+- **scrapling vs Playwright for changelog:** scrapling is chosen but Playwright fallback exists if scrapling causes issues. Monitor during implementation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
 - [feedparser Documentation](https://feedparser.readthedocs.io/en/latest/) - RSS/Atom parsing
-- [GitHub REST API - Releases](https://docs.github.com/en/rest/releases/releases) - Release endpoint specs
-- [GitHub REST API - Rate Limits](https://docs.github.com/en/rest/rate-limit/rate-limit) - Auth and limits
-- [Scrapling PyPI](https://pypi.org/project/scrapling/) - Python >=3.10 requirement
-- [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) - Format standard
-- [SQLite Documentation](https://docs.python.org/3/library/sqlite3.html) - WAL mode, busy_timeout
+- [BeautifulSoup4 Documentation](https://www.crummy.com/software/BeautifulSoup/bs4/doc/) - HTML parsing
+- [Playwright for Python](https://playwright.dev/python/docs/intro) - Browser automation
+- [httpx Documentation](https://www.python-httpx.org/) - HTTP client
+- [Python sqlite3 Documentation](https://docs.python.org/3/library/sqlite3.html) - Database
+- [Click Documentation](https://click.palletsprojects.com/en/8.1.x/) - CLI framework
+- [scrapling PyPI](https://pypi.org/project/scrapling/) - Changelog scraping (Python >=3.10)
+- [GitHub REST API: Releases](https://docs.github.com/en/rest/releases/releases) - API specs, auth headers
+- [SQLite Query Planner](https://www.sqlite.org/queryplanner.html) - N+1 prevention
+- [rich documentation](https://rich.readthedocs.io/) - Terminal formatting
 
-### Secondary (MEDIUM confidence)
-- [Scrapling GitHub repo](https://github.com/D4Vinci/Scrapling) - 31k stars, active development
-- [RSS Board Feed Validator](https://www.rssboard.org/) - Common feed problems
+### Codebase References
+- `src/cli.py` - Existing CLI patterns (feed list, repo list)
+- `src/articles.py` - Article queries, `get_article()` function
+- `src/db.py` - `get_article_tags()` function, schema
 
 ---
 *Research completed: 2026-03-23*
