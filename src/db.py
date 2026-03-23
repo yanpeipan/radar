@@ -144,6 +144,30 @@ def init_db() -> None:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_github_releases_repo_id ON github_releases(repo_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_github_releases_published ON github_releases(published_at)")
 
+        # Tags table for article categorization
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tags (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Article tags table (many-to-many)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS article_tags (
+                article_id TEXT NOT NULL,
+                tag_id TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (article_id, tag_id),
+                FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Index for tag lookups
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_article_tags_tag_id ON article_tags(tag_id)")
+
         # Add repo_id column for GitHub changelog association (Phase 5)
         # This is a migration-safe check - only add if column doesn't exist
         cursor.execute("PRAGMA table_info(articles)")
