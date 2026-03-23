@@ -32,7 +32,7 @@
 
 - [x] **CLI-01**: fetch --all 使用 Registry — `fetch --all` 遍历 `ProviderRegistry`，每个 provider 调用 `crawl` + `parse`
 - [ ] **CLI-02**: feed add 自动路由 — `feed add <url>` 通过 `ProviderRegistry.discover()` 自动选择匹配 provider，无需用户指定类型
-- [ ] **CLI-03**: 删除 repo 命令 — 删除 `repo add`、`repo list`、`repo remove`、`repo refresh` 命令，统一由 `feed` 命令处理
+- [x] **CLI-03**: 删除 repo 命令 — 删除 `repo add`、`repo list`、`repo remove`、`repo refresh` 命令，统一由 `feed` 命令处理
 - [ ] **CLI-04**: feed list 显示 provider type — `feed list` 输出增加 provider type 列（如 RSS / GitHub）
 
 ## Out of Scope
@@ -61,7 +61,7 @@
 | TAG-02 | Phase 13 | Complete |
 | CLI-01 | Phase 14 | Complete |
 | CLI-02 | Phase 14 | Pending |
-| CLI-03 | Phase 14 | Pending |
+| CLI-03 | Phase 14 | Complete |
 | CLI-04 | Phase 14 | Pending |
 
 **Coverage:**

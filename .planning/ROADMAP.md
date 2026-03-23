@@ -107,12 +107,25 @@ Plans:
 3. `repo add`, `repo list`, `repo remove`, `repo refresh` commands are deleted (统一到 feed 命令)
 4. `feed list` output includes provider_type column showing "RSS" or "GitHub"
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [x] 14-01-PLAN.md — fetch --all via ProviderRegistry (CLI-01)
 - [ ] 14-02-PLAN.md — feed add/list via ProviderRegistry + provider_type display (CLI-02, CLI-04)
-- [ ] 14-03-PLAN.md — Delete repo command group (CLI-03)
+- [x] 14-03-PLAN.md — Delete repo command group (CLI-03)
+
+---
+
+### Phase 15: PyGithub Refactor
+
+**Goal:** Replace custom GitHub API implementation (src/github.py) with PyGithub library
+
+**Depends on:** Phase 14 (or Phase 13 if CLI work overlaps)
+
+**Success Criteria** (what must be TRUE):
+1. All GitHub API calls use PyGithub library
+2. src/github.py is deleted
+3. GitHub Provider still works via Provider interface
 
 ---
 
@@ -134,7 +147,8 @@ Plans:
 | 11. GitHub Release Tagging | 1/1 | ✅ Complete | 2026-03-23 |
 | 12. Provider Core Infrastructure | 2/2 | Complete    | 2026-03-23 |
 | 13. Provider Implementations | 2/2 | Complete    | 2026-03-23 |
-| 14. CLI Integration | 1/3 | In Progress|  |
+| 14. CLI Integration | 2/3 | In Progress|  |
+| 15. PyGithub Refactor | 0/0 | Not started|  |
 
 ---
 _For completed milestone details, see `.planning/milestones/`_
