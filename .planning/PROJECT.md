@@ -19,9 +19,12 @@
 - SQLite 本地存储，FTS5 全文搜索
 - ~10 个 Python 源文件，约 2,800 行代码
 
-**Next Milestone: v1.3 (TBD)**
-- Schema unification: 去掉 github_repos 表并入 feeds
-- Requires requirements definition via `/gsd:new-milestone`
+**Next Milestone: v1.3 Provider Architecture**
+- Provider 插件架构（动态加载 providers/）
+- Tag Parser 插件架构（动态加载 tags/）
+- feeds 表加 metadata JSON 字段
+- github_repos 表删除，数据迁移到 feeds.metadata
+- CLI 重构：删除 repo 命令，统一到 feed
 
 ## Requirements
 
@@ -76,6 +79,9 @@
 | robots.txt lazy 模式 | 默认忽略，需要时强制遵守 | ✅ Good |
 | 固定 2s 限速 | 简单可靠，避免被封禁 | ✅ Good |
 | Scrapling 引入 | JS 渲染和 adaptive parsing 支持 | ✅ Good (v1.1) |
+| Provider 插件架构 | 动态加载 + match 路由，支持多种 URL 类型 | ✅ Good (v1.3) |
+| Tag Parser 插件链 | 多 parser 结果并集去重，支持扩展 | ✅ Good (v1.3) |
+| github_repos 并入 feeds | metadata JSON 字段存储 provider 特定数据 | ✅ Good (v1.3) |
 
 ## Tech Stack
 
@@ -101,4 +107,4 @@
 
 ---
 
-*Last updated: 2026-03-23 after v1.2 Article List Enhancements shipped*
+*Last updated: 2026-03-23 after v1.2 shipped; v1.3 started*

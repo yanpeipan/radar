@@ -1,15 +1,9 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: v1.2 milestone complete
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-23T09:36:51.697Z"
-progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 5
-  completed_plans: 5
+milestone: v1.3
+milestone_name: provider-architecture
+status: Defining requirements
+last_updated: "2026-03-23"
 ---
 
 # Project State
@@ -19,20 +13,12 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Phase 11 — github-release-tagging
+**Current focus:** Phase 12 — Provider Architecture (planning)
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-
-### Phase Status
-
-| Phase | Status | Plans | Completed |
-|-------|--------|-------|-----------|
-| 9. Enhanced Article List | Complete | 1/1 | 2026-03-23 |
-| 10. Article Detail View | Ready to execute | 1/1 | - |
-| 11. GitHub Release Tagging | Not started | 0/1 | - |
+Phase: Not started (defining requirements)
+Plan: —
 
 ## Performance Metrics
 
@@ -44,9 +30,13 @@ Plan: Not started
 
 - 4 phases, 10 plans, ~1 day
 
-**v1.2 (current):**
+**v1.2 velocity:**
 
-- 3 phases planned
+- 4 phases, 5 plans, ~1 day
+
+**v1.3 (current):**
+
+- Provider architecture refactor
 
 ## Accumulated Context
 
@@ -54,58 +44,19 @@ Plan: Not started
 
 Decisions are logged in PROJECT.md Key Decisions table.
 
-**v1.0 decisions:**
-
-- GUID fallback chain: guid -> link -> SHA256(link:pubDate) ensures unique article IDs
-- Bozo detection via feed.bozo flag logs malformed XML but continues processing
-- INSERT OR IGNORE + UNIQUE(feed_id, guid) handles duplicate articles silently
-- Shadow FTS5 approach: articles_fts virtual table indexes title, description, content with porter tokenizer
-- FTS5 query syntax exposed directly (space-separated = AND)
-- Multiple keywords default to AND behavior
-- Results sorted by bm25 ranking (relevance)
-- Same format as article list command (title | feed | date columns)
-- article search subcommand with --limit and --feed-id filter options
-- crawl command accepts URL argument and --ignore-robots flag
-- CLI echoes errors in red, no-content in yellow, success in green
-
-**v1.1 decisions:**
-
-- GitHub Releases using GitHub API
-- GitHub Changelog using Scrapling web scraping
-- UNION ALL pattern for combining feed articles and GitHub releases in list_articles
-- LIKE search for GitHub releases (body not in FTS5) - avoids schema changes
-- Tag auto-creation: When tagging an article with non-existent tag, tag is automatically created
-- OR tag filtering: Multiple tags in filter use OR logic
-- Keyword/regex tag rules stored in ~/.radar/tag-rules.yaml with case-insensitive matching
-
-**v1.2 decisions:**
-
-- Using `rich` library for terminal table formatting (Phase 9)
-- Detail view via rich Panel/Markdown rendering (Phase 10)
-- GitHub release tagging requires schema decision (Phase 11)
-- [Phase 11]: Auto-detect release vs article: article_tag checks github_releases table first using LIKE pattern match for truncated IDs
-- [Phase 11]: UNION ALL pattern: combines feed articles and GitHub releases with matching schema via CAST(NULL) for absent columns
-- [Phase 11]: Batch tag fetch: get_articles_with_tags returns tags for both article_ids and release_ids in single call
-
 ### Technical Notes
 
-**Phase 9 (Enhanced Article List):**
+**Provider Architecture (v1.3):**
 
-- N+1 query problem: current `article list` calls `get_article_tags()` per article
-- Fix: JOIN or batch query in `list_articles_with_tags()`
-- Truncated ID (8 chars) for display, full ID (32 chars) for commands
-
-**Phase 10 (Detail View):**
-
-- `get_article()` missing `content` field in SELECT clause
-- Must add `content` to SELECT when implementing detail view
-- Open in browser: `open` (macOS) / `xdg-open` (Linux)
-
-**Phase 11 (GitHub Release Tagging):**
-
-- `article_tags` table FK points to `articles.id`
-- GitHub releases are in separate `github_releases` table
-- Schema change or error handling needed before tagging works
+- Plugin directory: `src/providers/` and `src/tags/`
+- Discovery: `glob()` + dynamic import, alphabetical order
+- Rule: Providers must not import each other (avoid circular deps)
+- Provider interface: match/priority/crawl/parse/tag_parsers/parse_tags
+- Crawl failure: log.error and continue to next provider
+- Tag merging: union of all tag parsers, deduplicated
+- Default RSS: match() returns False, only used as fallback
+- Database: feeds.metadata JSON field for provider-specific data
+- github_repos table to be dropped after migration
 
 ### Blockers/Concerns
 
@@ -113,6 +64,5 @@ None identified.
 
 ## Session Continuity
 
-Last session: 2026-03-23T09:04:23.545Z
-Stopped at: Completed 11-01-PLAN.md
-Resume file: None
+Last session: 2026-03-23
+Stopped at: v1.3 milestone started
