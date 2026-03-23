@@ -87,9 +87,11 @@ def init_db() -> None:
         """)
 
         # Articles table: stores individual feed items
+        # Note: id is NOT PRIMARY KEY - same article can exist in multiple feeds
+        # with UNIQUE(feed_id, id) constraint
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS articles (
-                id TEXT PRIMARY KEY,
+                id TEXT NOT NULL,
                 feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
                 title TEXT,
                 link TEXT,
@@ -98,7 +100,7 @@ def init_db() -> None:
                 description TEXT,
                 content TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(feed_id, guid)
+                UNIQUE(feed_id, id)
             )
         """)
 

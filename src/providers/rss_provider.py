@@ -38,12 +38,17 @@ class RSSProvider:
 
         Returns:
             True if URL returns application/rss+xml, application/atom+xml,
-            or application/xml Content-Type.
+            or application/xml Content-Type. Also returns True for 403 errors
+            to allow fallback to Scrapling for Cloudflare-protected feeds.
         """
         import httpx
 
         try:
             response = httpx.head(url, timeout=10.0, follow_redirects=True)
+            # Check for 403 - Cloudflare may block HEAD but allow GET with Scrapling
+            if response.status_code == 403:
+                logger.debug("RSSProvider.match(%s) got 403 on HEAD, allowing match for crawl fallback", url)
+                return True
             content_type = response.headers.get("content-type", "").lower()
             # Check for RSS/Atom content types
             if "application/rss" in content_type:
@@ -53,6 +58,14 @@ class RSSProvider:
             # Also accept generic XML types for feeds
             if "application/xml" in content_type or "text/xml" in content_type:
                 return True
+            return False
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 403:
+                # 403 on HEAD doesn't mean it's not a feed (Cloudflare may block HEAD but allow GET)
+                # Return True to allow crawl() to try with Scrapling fallback
+                logger.debug("RSSProvider.match(%s) got 403 on HEAD, allowing match for crawl fallback", url)
+                return True
+            logger.debug("RSSProvider.match(%s) failed with HTTP error: %s", url, e)
             return False
         except Exception as e:
             logger.debug("RSSProvider.match(%s) failed: %s", url, e)
@@ -76,6 +89,7 @@ class RSSProvider:
             List of feedparser entry dicts, or empty list on error.
         """
         import feedparser
+        import httpx
 
         from src.feeds import fetch_feed_content, parse_feed
 
@@ -97,8 +111,58 @@ class RSSProvider:
 
             logger.debug("RSSProvider.crawl(%s) returned %d entries", url, len(entries))
             return entries
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 403:
+                # Fallback to Scrapling for Cloudflare-protected feeds
+                logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
+                return self._crawl_with_scrapling(url)
+            logger.error("RSSProvider.crawl(%s) HTTP error: %s", url, e)
+            return []
         except Exception as e:
             logger.error("RSSProvider.crawl(%s) failed: %s", url, e)
+            return []
+
+    def _crawl_with_scrapling(self, url: str) -> List[Raw]:
+        """Fetch RSS feed using Scrapling to bypass Cloudflare protection.
+
+        Args:
+            url: URL of the feed to crawl.
+
+        Returns:
+            List of feedparser entry dicts, or empty list on error.
+        """
+        import feedparser
+
+        from src.feeds import parse_feed
+
+        try:
+            from scrapling import Fetcher
+
+            scraper = Fetcher()
+            response = scraper.get(url)
+
+            # Scrapling returns bytes in response.body
+            content = response.body
+            if not content:
+                logger.warning("Scrapling returned empty content for %s", url)
+                return []
+
+            # Parse full feed to get feed-level metadata (title)
+            parsed = feedparser.parse(content)
+            if parsed.feed:
+                self._feed_title = parsed.feed.get("title")
+
+            entries, bozo_flag, bozo_exception = parse_feed(content, url)
+            if bozo_flag and bozo_exception:
+                logger.warning("Malformed feed at %s (Scrapling): %s", url, bozo_exception)
+
+            logger.debug("RSSProvider._crawl_with_scrapling(%s) returned %d entries", url, len(entries))
+            return entries
+        except ImportError:
+            logger.warning("Scrapling not installed, skipping Cloudflare fallback for %s", url)
+            return []
+        except Exception as e:
+            logger.error("RSSProvider._crawl_with_scrapling(%s) failed: %s", url, e)
             return []
 
     def parse(self, raw: Raw) -> Article:

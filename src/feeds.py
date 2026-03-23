@@ -161,6 +161,55 @@ def fetch_feed_content(
     return response.content, new_etag, new_last_modified, status_code
 
 
+def fetch_feed_content_with_scrapling_fallback(
+    url: str,
+    etag: Optional[str] = None,
+    last_modified: Optional[str] = None,
+) -> tuple[Optional[bytes], Optional[str], Optional[str], int]:
+    """Fetch feed content with Scrapling fallback for Cloudflare-protected feeds.
+
+    First tries httpx, then falls back to Scrapling if 403 is returned.
+    This is needed because Cloudflare may block httpx HEAD/GET requests but allow
+    Scrapling's browser-like requests.
+
+    Args:
+        url: The URL of the feed to fetch.
+        etag: Optional ETag header for conditional fetching.
+        last_modified: Optional Last-Modified header for conditional fetching.
+
+    Returns:
+        A tuple of (content, etag, last_modified, status_code).
+        content is None if status is 304 (not modified).
+        Raises exception only if both httpx and Scrapling fail.
+    """
+    try:
+        content, new_etag, new_last_modified, status_code = fetch_feed_content(
+            url, etag, last_modified
+        )
+        return content, new_etag, new_last_modified, status_code
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 403:
+            logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
+            try:
+                from scrapling import Fetcher
+                scraper = Fetcher()
+                response = scraper.get(url)
+                # Scrapling returns bytes in response.body
+                content = response.body
+                if content:
+                    logger.info("Scrapling successfully fetched %s", url)
+                    return content, None, None, 200
+            except ImportError:
+                logger.warning("Scrapling not installed, cannot fallback for %s", url)
+            except Exception as scraper_err:
+                logger.error("Scrapling failed for %s: %s", url, scraper_err)
+        # Re-raise if not a 403, or if Scrapling also failed
+        raise
+    except Exception:
+        # Re-raise other exceptions
+        raise
+
+
 def parse_feed(
     content: bytes,
     url: str,
@@ -435,7 +484,7 @@ def refresh_feed(feed_id: str) -> dict:
         return result
 
     try:
-        content, etag, last_modified, status_code = fetch_feed_content(
+        content, etag, last_modified, status_code = fetch_feed_content_with_scrapling_fallback(
             feed.url,
             etag=feed.etag,
             last_modified=feed.last_modified,

@@ -30,6 +30,11 @@ ml = [
     "safetensors>=0.4.3",
     "transformers>=4.40.0",
 ]
+cloudflare = [
+    "scrapling>=0.4.0",
+    "curl-cffi>=0.14.0",
+    "browserforge>=1.2.0",
+]
 
 [project.scripts]
 rss-reader = "src.cli:cli"
