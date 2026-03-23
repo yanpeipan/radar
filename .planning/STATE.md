@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Milestone complete
-stopped_at: Completed 07-02-PLAN.md
-last_updated: "2026-03-23T04:54:54.793Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-03-23T05:28:09.791Z"
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 19
-  completed_plans: 19
+  total_phases: 9
+  completed_phases: 8
+  total_plans: 21
+  completed_plans: 20
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Phase 06 — unified-display-refresh-integration
+**Current focus:** Phase 08 — github-url-metadata
 
 ## Current Position
 
-Milestone: v1.1 (shipped)
-Next: `/gsd:new-milestone` to start v1.2
+Phase: 08 (github-url-metadata) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Next: `/gsd:new-milestone` to start v1.2
 | Phase 06-unified-display-refresh-integration P06-02 | 5 | 3 tasks | 1 files |
 | Phase 06-unified-display-refresh-integration P06-03 | 1 | 1 tasks | 1 files |
 | Phase 07-tagging-system P07-01 | 4 | 7 tasks | 4 files |
+| Phase 08 P01 | 5 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 07-tagging-system]: Tag auto-creation: When tagging an article with non-existent tag, tag is automatically created
 - [Phase 07-tagging-system]: OR tag filtering: Multiple tags in filter use OR logic (article has tag A OR tag B)
 - [Phase 07]: Keyword/regex tag rules stored in ~/.radar/tag-rules.yaml with case-insensitive matching
+- [Phase 08]: D-GH01: Detect GitHub URL type BEFORE fetching using URL pattern matching
+- [Phase 08]: D-GH02: Use GitHub Contents API for blob URLs to get file metadata
+- [Phase 08]: D-GH03: Title format {owner}/{repo} / {H1} or {owner}/{repo} / {filename}
+- [Phase 08]: D-GH04: Use GitHub Commits API for pub_date on commits URLs
+- [Phase 08]: D-GH05: Graceful fallback on GitHub API failure (rate limit, network error)
 
 ### Pending Todos
 
@@ -92,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T04:45:37.889Z
-Stopped at: Completed 07-02-PLAN.md
+Last session: 2026-03-23T05:28:09.786Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
