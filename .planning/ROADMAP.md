@@ -42,7 +42,9 @@
   2. User sees tags displayed in a separate dedicated column (not inline with title)
   3. `article list` with 20+ articles loads in under 1 second (N+1 fix verified)
   4. User can run `article list --verbose` to see full 32-char article IDs
-**Plans:** TBD
+**Plans:** 1/1
+**Plan list:**
+- [ ] 09-01-PLAN.md -- Enhanced article list with rich table, ID column, tags column, N+1 fix
 **UI hint:** yes
 
 ### Phase 10: Article Detail View
