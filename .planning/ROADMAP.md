@@ -20,7 +20,7 @@
   - [x] **Phase 8.1: Unified Feed Add** — Support GitHub URLs in feed add with changelog integration (gap closure) (completed 2026-03-23)
 - [x] **Phase 9: Enhanced Article List** — Show IDs and tags in list with N+1 query fix (v1.2)
 - [x] **Phase 10: Article Detail View** — View full article details and open in browser (v1.2) (completed 2026-03-23)
-- [ ] **Phase 11: GitHub Release Tagging** — Unified tagging for GitHub releases (v1.2)
+- [x] **Phase 11: GitHub Release Tagging** — Unified tagging for GitHub releases (v1.2) (completed 2026-03-23)
 
 ### Phase 8.1: Unified Feed Add (gap closure)
 **Goal:** `python -m src.cli feed add` 支持 GitHub blob URL，自动委派给 changelog 流程
@@ -70,9 +70,9 @@
   2. User can run `article tag <article-id>` to tag a feed article (existing behavior preserved)
   3. `article list --tag <tag>` shows both feed articles and GitHub releases with that tag
   4. Tag CRUD operations work uniformly for both article types
-**Plans:** 1/1
+**Plans:** 1/1 plans complete
 **Plan list:**
-- [ ] 11-01-PLAN.md -- GitHub release tagging with unified tagging commands
+- [x] 11-01-PLAN.md -- GitHub release tagging with unified tagging commands
 
 ---
 
@@ -91,7 +91,7 @@
 | 8.1 Unified Feed Add | 1/1 | Complete   | 2026-03-23 |
 | 9. Enhanced Article List | 1/1 | Complete   | 2026-03-23 |
 | 10. Article Detail View | 1/1 | Complete    | 2026-03-23 |
-| 11. GitHub Release Tagging | 0/1 | Not started | - |
+| 11. GitHub Release Tagging | 1/1 | Complete   | 2026-03-23 |
 
 ---
 _For completed milestone details, see `.planning/milestones/`_

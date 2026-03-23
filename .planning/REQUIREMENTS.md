@@ -37,8 +37,8 @@ See `.planning/milestones/` for archived requirement sets.
 
 ### GitHub Release Tagging
 
-- [ ] **GITHUB-01**: User can tag GitHub releases using `article tag <id>`
-- [ ] **GITHUB-02**: Tags work for both feed articles and GitHub releases (unified tagging)
+- [x] **GITHUB-01**: User can tag GitHub releases using `article tag <id>`
+- [x] **GITHUB-02**: Tags work for both feed articles and GitHub releases (unified tagging)
 
 ### Open in Browser
 

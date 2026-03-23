@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-03-23T08:39:21.486Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-23T09:04:23.549Z"
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Phase 10 — article-detail-view
+**Current focus:** Phase 11 — github-release-tagging
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
+Phase: 11 (github-release-tagging) — EXECUTING
+Plan: 1 of 1
 
 ### Phase Status
 
@@ -83,6 +83,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Using `rich` library for terminal table formatting (Phase 9)
 - Detail view via rich Panel/Markdown rendering (Phase 10)
 - GitHub release tagging requires schema decision (Phase 11)
+- [Phase 11]: Auto-detect release vs article: article_tag checks github_releases table first using LIKE pattern match for truncated IDs
+- [Phase 11]: UNION ALL pattern: combines feed articles and GitHub releases with matching schema via CAST(NULL) for absent columns
+- [Phase 11]: Batch tag fetch: get_articles_with_tags returns tags for both article_ids and release_ids in single call
 
 ### Technical Notes
 
@@ -110,6 +113,6 @@ None identified.
 
 ## Session Continuity
 
-Last session: 2026-03-23T08:32:29.754Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-03-23T09:04:23.545Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
