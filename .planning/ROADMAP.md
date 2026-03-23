@@ -14,6 +14,7 @@
 - [x] **Phase 5: Changelog Detection + Scraping** (v1.1)
 - [x] **Phase 6: Unified Display + Refresh Integration** (v1.1)
 - [x] **Phase 7: Tagging System** — Article tags, filtering, and label management (v1.1)
+- [ ] **Phase 8: GitHub URL Metadata** — Improved metadata extraction for GitHub URLs (blob title format, commits pub_date)
 
 ---
 
