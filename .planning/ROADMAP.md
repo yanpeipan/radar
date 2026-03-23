@@ -18,7 +18,7 @@
 - [x] **Phase 7: Tagging System** — Article tags, filtering, and label management (v1.1)
 - [x] **Phase 8: GitHub URL Metadata** — Improved metadata extraction for GitHub URLs (v1.1)
   - [x] **Phase 8.1: Unified Feed Add** — Support GitHub URLs in feed add with changelog integration (gap closure) (completed 2026-03-23)
-- [ ] **Phase 9: Enhanced Article List** — Show IDs and tags in list with N+1 query fix (v1.2)
+- [x] **Phase 9: Enhanced Article List** — Show IDs and tags in list with N+1 query fix (v1.2)
 - [ ] **Phase 10: Article Detail View** — View full article details and open in browser (v1.2)
 - [ ] **Phase 11: GitHub Release Tagging** — Unified tagging for GitHub releases (v1.2)
 
@@ -44,7 +44,7 @@
   4. User can run `article list --verbose` to see full 32-char article IDs
 **Plans:** 1/1
 **Plan list:**
-- [ ] 09-01-PLAN.md -- Enhanced article list with rich table, ID column, tags column, N+1 fix
+- [x] 09-01-PLAN.md -- Enhanced article list with rich table, ID column, tags column, N+1 fix
 **UI hint:** yes
 
 ### Phase 10: Article Detail View
@@ -85,7 +85,7 @@
 | 7. Tagging System | Complete | ✅ | 2026-03-23 |
 | 8. GitHub URL Metadata | Complete | ✅ | 2026-03-23 |
 | 8.1 Unified Feed Add | 1/1 | Complete   | 2026-03-23 |
-| 9. Enhanced Article List | 0/1 | Not started | - |
+| 9. Enhanced Article List | 1/1 | Complete   | 2026-03-23 |
 | 10. Article Detail View | 0/1 | Not started | - |
 | 11. GitHub Release Tagging | 0/1 | Not started | - |
 
