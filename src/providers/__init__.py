@@ -67,16 +67,27 @@ def discover(url: str) -> List[ContentProvider]:
 
 
 def discover_or_default(url: str) -> List[ContentProvider]:
-    """Find providers matching a URL.
+    """Find providers matching a URL, or return RSS provider as fallback.
+
+    This implements the fallback mechanism: if no provider matches,
+    the RSS provider is returned as fallback since it can handle generic
+    feed URLs (RSS/Atom) even if content-type validation failed.
 
     Args:
         url: URL to match against providers.
 
     Returns:
-        List of matching providers sorted by priority (descending).
-        Empty list if no providers match.
+        List with matching providers sorted by priority (descending),
+        or single RSSProvider if no matches found.
     """
-    return discover(url)
+    matched = discover(url)
+    if not matched:
+        # Fall back to RSSProvider which can attempt to fetch any URL as feed
+        for p in PROVIDERS:
+            if p.__class__.__name__ == "RSSProvider":
+                matched = [p]
+                break
+    return matched
 
 
 def get_all_providers() -> List[ContentProvider]:
