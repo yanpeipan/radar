@@ -42,7 +42,7 @@
 
 ### v1.3 Provider Architecture
 
-- [ ] **Phase 12: Provider Core Infrastructure** — Provider Protocol, Registry, Error Isolation, Fallback, DB migrations
+- [x] **Phase 12: Provider Core Infrastructure** — Provider Protocol, Registry, Error Isolation, Fallback, DB migrations (completed 2026-03-23)
 - [ ] **Phase 13: Provider Implementations + Tag Parsers** — RSS Provider, GitHub Provider, Tag Parser chaining
 - [ ] **Phase 14: CLI Integration** — fetch/feed commands wired to Registry, repo command deletion
 
@@ -63,11 +63,11 @@
 4. Unknown URL types fall back to default RSS provider (priority=0) without errors
 5. `feeds` table has `metadata` TEXT column storing JSON, `github_repos` data migrated, `github_repos` table deleted
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 12-01-PLAN.md — Provider Protocol and Registry (PROVIDER-01, PROVIDER-02, PROVIDER-03, PROVIDER-04)
-- [ ] 12-02-PLAN.md — Database migrations for feeds.metadata and github_repos (DB-01, DB-02, DB-03)
+- [x] 12-01-PLAN.md — Provider Protocol and Registry (PROVIDER-01, PROVIDER-02, PROVIDER-03, PROVIDER-04)
+- [x] 12-02-PLAN.md — Database migrations for feeds.metadata and github_repos (DB-01, DB-02, DB-03)
 
 ---
 
@@ -123,7 +123,7 @@ Plans:
 | 9. Enhanced Article List | 1/1 | ✅ Complete | 2026-03-23 |
 | 10. Article Detail View | 1/1 | ✅ Complete | 2026-03-23 |
 | 11. GitHub Release Tagging | 1/1 | ✅ Complete | 2026-03-23 |
-| 12. Provider Core Infrastructure | 0/2 | Not started | - |
+| 12. Provider Core Infrastructure | 2/2 | Complete   | 2026-03-23 |
 | 13. Provider Implementations | 0/? | Not started | - |
 | 14. CLI Integration | 0/? | Not started | - |
 

@@ -7,10 +7,10 @@
 
 ### Provider Infrastructure
 
-- [ ] **PROVIDER-01**: Provider Registry — 动态加载 `src/providers/` 下的 provider，按 priority 排序，封装为 `ProviderRegistry` 单例
-- [ ] **PROVIDER-02**: Provider Protocol — 定义 `match(url) / priority() / crawl(url) / parse(raw) / tag_parsers() / parse_tags(article)` 接口，用 `@runtime_checkable` 的 `Protocol`
-- [ ] **PROVIDER-03**: Error Isolation — 单个 provider 失败（crawl/parse 异常）log.error 并继续下一个 provider，不影响主流程
-- [ ] **PROVIDER-04**: Provider Fallback — 无 provider 匹配时使用默认 RSS provider（match() 返回 False，priority() 返回 0）
+- [x] **PROVIDER-01**: Provider Registry — 动态加载 `src/providers/` 下的 provider，按 priority 排序，封装为 `ProviderRegistry` 单例
+- [x] **PROVIDER-02**: Provider Protocol — 定义 `match(url) / priority() / crawl(url) / parse(raw) / tag_parsers() / parse_tags(article)` 接口，用 `@runtime_checkable` 的 `Protocol`
+- [x] **PROVIDER-03**: Error Isolation — 单个 provider 失败（crawl/parse 异常）log.error 并继续下一个 provider，不影响主流程
+- [x] **PROVIDER-04**: Provider Fallback — 无 provider 匹配时使用默认 RSS provider（match() 返回 False，priority() 返回 0）
 
 ### Provider Implementations
 
@@ -24,9 +24,9 @@
 
 ### Database
 
-- [ ] **DB-01**: feeds.metadata 字段 — `feeds` 表新增 `metadata` TEXT 字段（JSON），存储 provider 特定数据（如 github_token）
-- [ ] **DB-02**: github_repos 数据迁移 — 将 `github_repos` 表的 owner/repo/token 数据迁移到对应 `feeds.metadata`，然后删除 `github_repos` 表
-- [ ] **DB-03**: github_releases 保留 — `github_releases` 表保留不变（文章级联通过 `feed_id` 关联）
+- [x] **DB-01**: feeds.metadata 字段 — `feeds` 表新增 `metadata` TEXT 字段（JSON），存储 provider 特定数据（如 github_token）
+- [x] **DB-02**: github_repos 数据迁移 — 将 `github_repos` 表的 owner/repo/token 数据迁移到对应 `feeds.metadata`，然后删除 `github_repos` 表
+- [x] **DB-03**: github_releases 保留 — `github_releases` 表保留不变（文章级联通过 `feed_id` 关联）
 
 ### CLI Integration
 
@@ -48,13 +48,13 @@
 
 | Requirement | Phase | Status |
 |------------|-------|--------|
-| PROVIDER-01 | Phase 12 | Pending |
-| PROVIDER-02 | Phase 12 | Pending |
-| PROVIDER-03 | Phase 12 | Pending |
-| PROVIDER-04 | Phase 12 | Pending |
-| DB-01 | Phase 12 | Pending |
-| DB-02 | Phase 12 | Pending |
-| DB-03 | Phase 12 | Pending |
+| PROVIDER-01 | Phase 12 | Complete |
+| PROVIDER-02 | Phase 12 | Complete |
+| PROVIDER-03 | Phase 12 | Complete |
+| PROVIDER-04 | Phase 12 | Complete |
+| DB-01 | Phase 12 | Complete |
+| DB-02 | Phase 12 | Complete |
+| DB-03 | Phase 12 | Complete |
 | PROVIDER-05 | Phase 13 | Pending |
 | PROVIDER-06 | Phase 13 | Pending |
 | TAG-01 | Phase 13 | Pending |
