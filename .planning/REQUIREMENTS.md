@@ -5,99 +5,23 @@
 
 ## v1 Requirements
 
-### GitHub Monitoring
-
-- [x] **GH-01**: User can add a GitHub repository URL to monitor
-- [x] **GH-02**: System fetches release information using GitHub API (tag_name, body, published_at, html_url)
-- [x] **GH-03**: System supports GitHub token authentication via environment variable (GITHUB_TOKEN)
-- [x] **GH-04**: System handles GitHub API rate limits gracefully (60 req/hour unauthenticated, 5000 req/hour with token)
-- [x] **GH-05**: System detects changelog files (CHANGELOG.md, HISTORY.md, etc.) via raw.githubusercontent.com
-- [x] **GH-06**: System scrapes changelog content and stores as article
-- [x] **GH-07**: New releases and changelog changes are displayed in unified format
-- [x] **GH-08**: System reuses existing refresh mechanism (fetch --all includes GitHub sources)
-
-### Feed Management
-
-- [ ] **FEED-01**: User can add RSS/Atom feed by URL
-- [ ] **FEED-02**: User can list all subscribed feeds
-- [ ] **FEED-03**: User can remove a feed
-- [ ] **FEED-04**: User can refresh a feed to fetch new articles
-
-### Content Fetching
-
-- [ ] **FETCH-01**: System can parse RSS 2.0 and Atom feeds
-- [ ] **FETCH-02**: System extracts title, link, guid, pubDate, description from articles
-- [ ] **FETCH-03**: System handles malformed XML gracefully (bozo detection)
-- [ ] **FETCH-04**: System stores articles in SQLite with UNIQUE(feed_id, guid) deduplication
-- [ ] **FETCH-05**: System supports conditional fetching (ETag/Last-Modified)
-
-### Web Crawling
-
-- [ ] **CRAWL-01**: User can add a website URL to crawl
-- [ ] **CRAWL-02**: System fetches HTML and extracts article-like content
-- [ ] **CRAWL-03**: System respects robots.txt directives
-- [ ] **CRAWL-04**: System implements rate limiting (1-2s delay between requests)
-
-### Storage
-
-- [ ] **STOR-01**: SQLite database with WAL mode enabled
-- [ ] **STOR-02**: Feeds table with name, url, last_fetched, etag, modified
-- [ ] **STOR-03**: Articles table with feed_id, title, link, guid, pubDate, content
-- [ ] **STOR-04**: FTS5 virtual table for full-text search
-
-### CLI Interface
-
-- [ ] **CLI-01**: `feed add <url>` - Add a new feed
-- [ ] **CLI-02**: `feed list` - List all feeds
-- [ ] **CLI-03**: `feed remove <id>` - Remove a feed
-- [ ] **CLI-04**: `crawl <url>` - Fetch and store content from URL
-- [ ] **CLI-05**: `article list` - List recent articles
-- [ ] **CLI-06**: `article search <query>` - Search articles via FTS5
-- [ ] **CLI-07**: `fetch --all` - Refresh all feeds
-
-## Traceability
+All v1.0 and v1.1 requirements have been completed and archived in milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GH-01 | Phase 4 | Complete |
-| GH-02 | Phase 4 | Complete |
-| GH-03 | Phase 4 | Complete |
-| GH-04 | Phase 4 | Complete |
-| GH-05 | Phase 5 | Complete |
-| GH-06 | Phase 5 | Complete |
-| GH-07 | Phase 6 | Complete |
-| GH-08 | Phase 6 | Complete |
-| FEED-01 | Phase 1 (v1.0) | Complete |
-| FEED-02 | Phase 1 (v1.0) | Complete |
-| FEED-03 | Phase 1 (v1.0) | Complete |
-| FEED-04 | Phase 1 (v1.0) | Complete |
-| FETCH-01 | Phase 1 (v1.0) | Complete |
-| FETCH-02 | Phase 1 (v1.0) | Complete |
-| FETCH-03 | Phase 1 (v1.0) | Complete |
-| FETCH-04 | Phase 1 (v1.0) | Complete |
-| FETCH-05 | Phase 1 (v1.0) | Complete |
-| CRAWL-01 | Phase 3 (v1.0) | Complete |
-| CRAWL-02 | Phase 3 (v1.0) | Complete |
-| CRAWL-03 | Phase 3 (v1.0) | Complete |
-| CRAWL-04 | Phase 3 (v1.0) | Complete |
-| STOR-01 | Phase 1 (v1.0) | Complete |
-| STOR-02 | Phase 1 (v1.0) | Complete |
-| STOR-03 | Phase 1 (v1.0) | Complete |
-| STOR-04 | Phase 2 (v1.0) | Complete |
-| CLI-01 | Phase 1 (v1.0) | Complete |
-| CLI-02 | Phase 1 (v1.0) | Complete |
-| CLI-03 | Phase 1 (v1.0) | Complete |
-| CLI-04 | Phase 3 (v1.0) | Complete |
-| CLI-05 | Phase 1 (v1.0) | Complete |
-| CLI-06 | Phase 2 (v1.0) | Complete |
-| CLI-07 | Phase 1 (v1.0) | Complete |
+| GH-01 through GH-08 | Phase 4-6 (v1.1) | Complete |
+| FEED-01 through FEED-04 | Phase 1 (v1.0) | Complete |
+| FETCH-01 through FETCH-05 | Phase 1 (v1.0) | Complete |
+| CRAWL-01 through CRAWL-04 | Phase 3 (v1.0) | Complete |
+| STOR-01 through STOR-04 | Phase 1-2 (v1.0) | Complete |
+| CLI-01 through CLI-07 | Phase 1-3 (v1.0) | Complete |
 
-**Coverage:**
-- v1 requirements: 35 total
-- Mapped to phases: 35
-- Unmapped: 0
+See `.planning/milestones/` for archived requirement sets.
+
+## Active Development
+
+No active requirements — milestone complete. Use `/gsd:new-milestone` to start a new milestone.
 
 ---
 
-*Requirements defined: 2026-03-23*
-*Last updated: 2026-03-23 after v1.1 requirements definition*
+*Requirements reset: 2026-03-23 after v1.1 milestone shipped*

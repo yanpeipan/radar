@@ -10,22 +10,14 @@
 
 ## Current State
 
-**Shipped: v1.0 MVP** (2026-03-22)
-- CLI 工具，支持 feed 订阅和网页抓取
+**Shipped: v1.1 GitHub Monitoring** (2026-03-23)
+- CLI 工具，支持 feed 订阅、网页抓取、GitHub 仓库监控
+- GitHub Releases 和 Changelog 统一展示
 - SQLite 本地存储，FTS5 全文搜索
-- 7 个 Python 源文件，约 1,282 行代码
+- 7 个 Python 源文件，约 1,700 行代码
 
-**Milestone: v1.1 (in progress)**
-- Phase 4 complete — GitHub API client + Releases integration (GH-01, GH-02, GH-03, GH-04)
-- Phase 5 complete — Changelog detection + scraping (GH-05, GH-06)
-
-**Goal:** 用户可以监控 GitHub 仓库的 releases 和 changelog 变化
-
-**Target features:**
-- GitHub Releases：用 GitHub API 获取版本号 + release notes
-- GitHub Changelog：用 Scrapling 网页抓取监控 CHANGELOG.md 文件变化
-- 手动添加 GitHub 仓库 URL，定期检查新版本
-- 统一展示（releases 和 changelog 展示方式一致）
+**Milestone: v1.2 (next)**
+- 待定 — 使用 `/gsd:new-milestone` 开始新里程碑
 
 ## Requirements
 
@@ -40,15 +32,18 @@
 - [x] 用户可以刷新订阅源获取最新内容 — v1.0
 - [x] 系统支持条件刷新（ETag/Last-Modified）— v1.0
 
-### Active (v1.1)
+### Validated (v1.1)
 
-**GitHub 监控：**
-- [ ] GH-01: 用户可以添加 GitHub 仓库 URL 监控
-- [ ] GH-02: 系统用 GitHub API 获取 releases 信息
-- [ ] GH-03: 系统用 Scrapling 获取 changelog 文件内容
-- [ ] GH-04: 新版本变化统一展示
+- [x] 用户可以添加 GitHub 仓库 URL 监控 — v1.1
+- [x] 系统用 GitHub API 获取 releases 信息 — v1.1
+- [x] 系统用 Scrapling 获取 changelog 文件内容 — v1.1
+- [x] 新版本变化统一展示 — v1.1
 
-**后续功能（暂不纳入 v1.1）：**
+### Active (v1.2)
+
+_待定义 — 使用 `/gsd:new-milestone` 开始新里程碑_
+
+### Backlog
 - [ ] OPML 导入/导出
 - [ ] 标记已读/未读状态
 - [ ] 文章书签功能
@@ -83,7 +78,7 @@
 - **Feed 解析**: feedparser 6.0.x
 - **HTML 提取**: readability-lxml 0.8.4.1, BeautifulSoup4 4.12.x
 - **robots.txt**: robotexclusionrulesparser 1.7.1
-- **网页抓取 (v1.1)**: Scrapling (adaptive, JS 支持)
+- **网页抓取**: Scrapling (adaptive, JS 支持)
 - **数据库**: sqlite3 (内置)
 
 ## Context
@@ -100,4 +95,4 @@
 
 ---
 
-*Last updated: 2026-03-23 after Phase 4 complete*
+*Last updated: 2026-03-23 after v1.1 GitHub Monitoring shipped*
