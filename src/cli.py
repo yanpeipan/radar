@@ -6,6 +6,8 @@ Provides commands for feed management and article listing.
 from __future__ import annotations
 
 import logging
+import platform
+import subprocess
 import sys
 from typing import Optional
 
@@ -288,6 +290,54 @@ def article_view(ctx: click.Context, article_id: str, verbose: bool) -> None:
     except Exception as e:
         click.secho(f"Error: Failed to view article: {e}", err=True, fg="red")
         logger.exception("Failed to view article")
+        sys.exit(1)
+
+
+def open_in_browser(url: str) -> None:
+    """Open a URL in the default browser.
+
+    Args:
+        url: The URL to open.
+
+    Raises:
+        RuntimeError: If the platform is not supported.
+    """
+    system = platform.system()
+    if system == "Darwin":
+        subprocess.run(["open", url])
+    elif system == "Linux":
+        subprocess.run(["xdg-open", url])
+    elif system == "Windows":
+        subprocess.run(["start", "", url], shell=True)
+    else:
+        raise RuntimeError(f"Unsupported platform: {system}")
+
+
+@article.command("open")
+@click.argument("article_id")
+@click.pass_context
+def article_open(ctx: click.Context, article_id: str) -> None:
+    """Open article URL in default browser."""
+    try:
+        article = get_article_detail(article_id)
+        if not article:
+            click.secho(f"Article not found: {article_id}", fg="red")
+            sys.exit(1)
+
+        link = article.get("link")
+        if not link:
+            click.secho("No link available for this article", fg="red")
+            sys.exit(1)
+
+        open_in_browser(link)
+        click.secho(f"Opened {link} in browser", fg="green")
+
+    except RuntimeError as e:
+        click.secho(f"Error: {e}", err=True, fg="red")
+        sys.exit(1)
+    except Exception as e:
+        click.secho(f"Error: Failed to open article: {e}", err=True, fg="red")
+        logger.exception("Failed to open article")
         sys.exit(1)
 
 
