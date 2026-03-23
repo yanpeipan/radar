@@ -18,7 +18,8 @@
 - Phase 13 complete: RSS/GitHub providers + Tag parser chaining
   - RSSProvider (priority=50) and GitHubProvider (priority=100) wrapping feeds/github.py
   - TagParser registry with chain_tag_parsers() and DefaultTagParser
-- Phase 14 next: CLI Integration (wire CLI to ProviderRegistry)
+- Phase 14 complete: CLI wired to ProviderRegistry (fetch --all, feed add/list via discover_or_default, repo commands deleted)
+- Phase 15 next: PyGithub Refactor (replace custom GitHub API with PyGithub library)
 
 **Shipped: v1.2 Article List Enhancements** (2026-03-23)
 - CLI 工具，支持 feed 订阅、网页抓取、GitHub 仓库监控
@@ -29,12 +30,9 @@
 - SQLite 本地存储，FTS5 全文搜索
 - ~10 个 Python 源文件，约 2,800 行代码
 
-**Next Milestone: v1.3 Provider Architecture**
-- Provider 插件架构（动态加载 providers/）
-- Tag Parser 插件架构（动态加载 tags/）
-- feeds 表加 metadata JSON 字段
-- github_repos 表删除，数据迁移到 feeds.metadata
-- CLI 重构：删除 repo 命令，统一到 feed
+**Next Milestone: v1.3 Provider Architecture** (Phase 15 remaining)
+- Phase 15: PyGithub Refactor — replace custom GitHub API with PyGithub library
+- Phases 12-14 complete: Provider architecture, providers, CLI integration done
 
 ## Requirements
 
@@ -117,4 +115,4 @@
 
 ---
 
-*Last updated: 2026-03-23 after phase 13 complete*
+*Last updated: 2026-03-23 after phase 14 complete*
