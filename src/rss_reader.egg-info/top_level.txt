@@ -1,4 +1,14 @@
 __init__
+ai_tagging
+articles
+cli
+config
+crawl
 db
 feeds
+github_ops
+github_utils
 models
+providers
+tag_rules
+tags

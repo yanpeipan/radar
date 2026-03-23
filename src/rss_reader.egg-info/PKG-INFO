@@ -8,5 +8,23 @@ Requires-Dist: httpx>=0.28.0
 Requires-Dist: click>=8.1.0
 Requires-Dist: beautifulsoup4>=4.12.0
 Requires-Dist: lxml>=6.0.0
+Requires-Dist: rich>=13.0.0
+Requires-Dist: PyGithub>=2.0.0
+Requires-Dist: dynaconf>=3.2.13
+Requires-Dist: readability-lxml>=0.8.4.1
+Requires-Dist: robotexclusionrulesparser>=1.7.1
+Requires-Dist: platformdirs>=4.9.4
+Requires-Dist: numpy>=2.2.6
+Requires-Dist: scikit-learn>=1.7.2
+Requires-Dist: pyyaml>=6.0.3
 Provides-Extra: test
 Requires-Dist: pytest>=7.0.0; extra == "test"
+Provides-Extra: ml
+Requires-Dist: sentence-transformers>=3.0.0; extra == "ml"
+Requires-Dist: torch>=2.0.0; extra == "ml"
+Requires-Dist: safetensors>=0.4.3; extra == "ml"
+Requires-Dist: transformers>=4.40.0; extra == "ml"
+Provides-Extra: cloudflare
+Requires-Dist: scrapling>=0.4.0; extra == "cloudflare"
+Requires-Dist: curl-cffi>=0.14.0; extra == "cloudflare"
+Requires-Dist: browserforge>=1.2.0; extra == "cloudflare"

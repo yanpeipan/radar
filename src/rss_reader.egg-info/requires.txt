@@ -3,6 +3,26 @@ httpx>=0.28.0
 click>=8.1.0
 beautifulsoup4>=4.12.0
 lxml>=6.0.0
+rich>=13.0.0
+PyGithub>=2.0.0
+dynaconf>=3.2.13
+readability-lxml>=0.8.4.1
+robotexclusionrulesparser>=1.7.1
+platformdirs>=4.9.4
+numpy>=2.2.6
+scikit-learn>=1.7.2
+pyyaml>=6.0.3
+
+[cloudflare]
+scrapling>=0.4.0
+curl-cffi>=0.14.0
+browserforge>=1.2.0
+
+[ml]
+sentence-transformers>=3.0.0
+torch>=2.0.0
+safetensors>=0.4.3
+transformers>=4.40.0
 
 [test]
 pytest>=7.0.0
