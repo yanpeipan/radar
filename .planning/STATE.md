@@ -1,12 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Article List Enhancements
-status: Milestone started
-stopped_at: Roadmap created
-last_updated: "2026-03-23"
+milestone: v1.0
+milestone_name: milestone
+status: planning
+stopped_at: Phase 8.1 context gathered
+last_updated: "2026-03-23T06:12:16.351Z"
+last_activity: 2026-03-23 — Roadmap created
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -40,12 +41,15 @@ See: .planning/PROJECT.md
 ## Performance Metrics
 
 **v1.0 velocity:**
+
 - 3 phases, 9 plans, ~3 hours
 
 **v1.1 velocity:**
+
 - 4 phases, 10 plans, ~1 day
 
 **v1.2 (current):**
+
 - 3 phases planned
 
 ## Accumulated Context
@@ -55,6 +59,7 @@ See: .planning/PROJECT.md
 Decisions are logged in PROJECT.md Key Decisions table.
 
 **v1.0 decisions:**
+
 - GUID fallback chain: guid -> link -> SHA256(link:pubDate) ensures unique article IDs
 - Bozo detection via feed.bozo flag logs malformed XML but continues processing
 - INSERT OR IGNORE + UNIQUE(feed_id, guid) handles duplicate articles silently
@@ -68,6 +73,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - CLI echoes errors in red, no-content in yellow, success in green
 
 **v1.1 decisions:**
+
 - GitHub Releases using GitHub API
 - GitHub Changelog using Scrapling web scraping
 - UNION ALL pattern for combining feed articles and GitHub releases in list_articles
@@ -77,6 +83,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Keyword/regex tag rules stored in ~/.radar/tag-rules.yaml with case-insensitive matching
 
 **v1.2 decisions:**
+
 - Using `rich` library for terminal table formatting (Phase 9)
 - Detail view via rich Panel/Markdown rendering (Phase 10)
 - GitHub release tagging requires schema decision (Phase 11)
@@ -84,16 +91,19 @@ Decisions are logged in PROJECT.md Key Decisions table.
 ### Technical Notes
 
 **Phase 9 (Enhanced Article List):**
+
 - N+1 query problem: current `article list` calls `get_article_tags()` per article
 - Fix: JOIN or batch query in `list_articles_with_tags()`
 - Truncated ID (8 chars) for display, full ID (32 chars) for commands
 
 **Phase 10 (Detail View):**
+
 - `get_article()` missing `content` field in SELECT clause
 - Must add `content` to SELECT when implementing detail view
 - Open in browser: `open` (macOS) / `xdg-open` (Linux)
 
 **Phase 11 (GitHub Release Tagging):**
+
 - `article_tags` table FK points to `articles.id`
 - GitHub releases are in separate `github_releases` table
 - Schema change or error handling needed before tagging works
@@ -104,6 +114,6 @@ None identified.
 
 ## Session Continuity
 
-Last session: 2026-03-23
-Stopped at: Roadmap created, ready for `/gsd:plan-phase 9`
-Resume file: None
+Last session: 2026-03-23T06:12:16.345Z
+Stopped at: Phase 8.1 context gathered
+Resume file: .planning/phases/08.1-unified-feed-add/08.1-CONTEXT.md
