@@ -162,6 +162,72 @@ def get_article(article_id: str) -> Optional[ArticleListItem]:
         conn.close()
 
 
+def get_article_detail(article_id: str) -> Optional[dict]:
+    """Get full article details including content and tags.
+
+    Args:
+        article_id: The ID of the article (can be truncated 8-char or full 32-char).
+
+    Returns:
+        Dict with all article fields plus 'tags' key containing list of tag names.
+        Returns None if article not found.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        # First try exact match
+        cursor.execute(
+            """
+            SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link, a.guid,
+                   a.pub_date, a.description, a.content, 'feed' as source_type
+            FROM articles a
+            JOIN feeds f ON a.feed_id = f.id
+            WHERE a.id = ?
+            """,
+            (article_id,),
+        )
+        row = cursor.fetchone()
+
+        # If not found and length == 8, try truncated ID match
+        if not row and len(article_id) == 8:
+            cursor.execute(
+                """
+                SELECT a.id, a.feed_id, f.name as feed_name, a.title, a.link, a.guid,
+                       a.pub_date, a.description, a.content, 'feed' as source_type
+                FROM articles a
+                JOIN feeds f ON a.feed_id = f.id
+                WHERE a.id LIKE ? || '%'
+                LIMIT 1
+                """,
+                (article_id,),
+            )
+            row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        # Fetch tags for the article
+        from src.db import get_article_tags
+        tags = get_article_tags(row["id"])
+
+        return {
+            "id": row["id"],
+            "feed_id": row["feed_id"],
+            "feed_name": row["feed_name"],
+            "title": row["title"],
+            "link": row["link"],
+            "guid": row["guid"],
+            "pub_date": row["pub_date"],
+            "description": row["description"],
+            "content": row["content"],
+            "source_type": row["source_type"],
+            "tags": tags,
+        }
+    finally:
+        conn.close()
+
+
 def search_articles(
     query: str,
     limit: int = 20,
