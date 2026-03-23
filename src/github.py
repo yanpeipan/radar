@@ -280,6 +280,65 @@ class RepoNotFoundError(Exception):
     pass
 
 
+def get_or_create_github_repo(owner: str, repo: str) -> GitHubRepo:
+    """Get existing GitHub repo or create new entry if not exists.
+
+    Args:
+        owner: GitHub owner (user or org)
+        repo: Repository name
+
+    Returns:
+        GitHubRepo object (existing or newly created)
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM github_repos WHERE owner = ? AND repo = ?",
+            (owner, repo),
+        )
+        row = cursor.fetchone()
+        if row:
+            return GitHubRepo(
+                id=row["id"],
+                name=row["name"],
+                owner=row["owner"],
+                repo=row["repo"],
+                last_fetched=row["last_fetched"],
+                last_tag=row["last_tag"],
+                created_at=row["created_at"],
+            )
+    finally:
+        conn.close()
+
+    # Create new entry
+    repo_id = generate_repo_id()
+    name = f"{owner}/{repo}"
+    now = datetime.now(timezone.utc).isoformat()
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """INSERT INTO github_repos (id, name, owner, repo, last_fetched, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (repo_id, name, owner, repo, now, now),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return GitHubRepo(
+        id=repo_id,
+        name=name,
+        owner=owner,
+        repo=repo,
+        last_fetched=now,
+        last_tag=None,
+        created_at=now,
+    )
+
+
 def generate_repo_id() -> str:
     """Generate a unique ID for a new GitHub repo."""
     return str(uuid.uuid4())
@@ -569,7 +628,7 @@ def detect_changelog_file(owner: str, repo: str) -> Optional[tuple[str, str]]:
                 response = httpx.head(url, headers=headers, timeout=10.0, follow_redirects=True)
                 if response.status_code == 200:
                     return (filename, branch)
-            except httpx.RequestError:
+            except (httpx.RequestError, OSError):
                 continue
     return None
 
@@ -597,7 +656,7 @@ def fetch_changelog_content(owner: str, repo: str, filename: str, branch: str) -
         response = httpx.get(url, headers=headers, timeout=15.0, follow_redirects=True)
         if response.status_code == 200:
             return response.text
-    except httpx.RequestError:
+    except (httpx.RequestError, OSError):
         pass
     return None
 
@@ -605,7 +664,7 @@ def fetch_changelog_content(owner: str, repo: str, filename: str, branch: str) -
 def store_changelog_as_article(repo_id: str, repo_name: str, content: str, filename: str, source_url: str) -> str:
     """Store changelog content as an article.
 
-    Creates a new article entry in the database with repo_id association.
+    Creates a new article or updates existing article with same guid.
     The article's guid is prefixed with "changelog:" to distinguish from feed articles.
 
     Args:
@@ -616,12 +675,11 @@ def store_changelog_as_article(repo_id: str, repo_name: str, content: str, filen
         source_url: URL to the raw changelog file.
 
     Returns:
-        ID of the created article.
+        ID of the created or updated article.
     """
     import uuid
     from src.db import get_connection
 
-    article_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
     # Create a unique guid for this changelog
@@ -630,32 +688,47 @@ def store_changelog_as_article(repo_id: str, repo_name: str, content: str, filen
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO articles (id, feed_id, repo_id, title, link, guid, pub_date, content, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                article_id,
-                None,  # feed_id is NULL for GitHub-sourced content
-                repo_id,
-                f"{repo_name} Changelog",
-                source_url,
-                guid,
-                now,  # Use current time as pub_date
-                content,
-                now,
-            ),
-        )
-
-        # Sync changelog to FTS5 for search
-        cursor.execute(
-            """
-            INSERT INTO articles_fts(rowid, title, description, content)
-            SELECT id, title, NULL as description, content FROM articles WHERE id = ?
-            """,
-            (article_id,),
-        )
+        # Check if article exists
+        cursor.execute("SELECT id FROM articles WHERE guid = ?", (guid,))
+        existing = cursor.fetchone()
+        if existing:
+            # UPDATE existing article - keep same article_id
+            article_id = existing["id"]
+            cursor.execute(
+                """UPDATE articles SET content = ?, link = ?, pub_date = ?
+                   WHERE guid = ?""",
+                (content, source_url, now, guid),
+            )
+            # Update FTS5 entry
+            cursor.execute(
+                """INSERT OR REPLACE INTO articles_fts(rowid, title, description, content)
+                   SELECT rowid, title, description, content FROM articles WHERE id = ?""",
+                (article_id,),
+            )
+        else:
+            # INSERT new article
+            article_id = str(uuid.uuid4())
+            cursor.execute(
+                """INSERT INTO articles (id, feed_id, repo_id, title, link, guid, pub_date, content, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    article_id,
+                    "",  # feed_id is empty string for GitHub-sourced content
+                    repo_id,
+                    f"{repo_name} Changelog",
+                    source_url,
+                    guid,
+                    now,  # Use current time as pub_date
+                    content,
+                    now,
+                ),
+            )
+            # Sync changelog to FTS5 for search
+            cursor.execute(
+                """INSERT INTO articles_fts(rowid, title, description, content)
+                   SELECT rowid, title, NULL as description, content FROM articles WHERE id = ?""",
+                (article_id,),
+            )
 
         conn.commit()
         return article_id
