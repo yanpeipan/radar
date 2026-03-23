@@ -20,6 +20,7 @@
 - ~10 个 Python 源文件，约 2,800 行代码
 
 **Next Milestone: v1.3 (TBD)**
+- Schema unification: 去掉 github_repos 表并入 feeds
 - Requires requirements definition via `/gsd:new-milestone`
 
 ## Requirements
@@ -42,10 +43,11 @@
 - [x] 系统用 Scrapling 获取 changelog 文件内容 — v1.1
 - [x] 新版本变化统一展示 — v1.1
 
-### Active (v1.2)
+### Validated (v1.2)
 
-- [ ] 用户可以在 article list 中看到 id 和 tags 列 — v1.2
-- [ ] 用户可以查看文章详情（detail 子命令）— v1.2
+- [x] 用户可以在 article list 中看到 id 和 tags 列 — v1.2
+- [x] 用户可以查看文章详情（detail 子命令）— v1.2
+- [x] GitHub releases 可以通过 article tag 命令打标签 — v1.2
 
 ### Backlog
 - [ ] OPML 导入/导出
@@ -99,4 +101,4 @@
 
 ---
 
-*Last updated: 2026-03-23 after v1.1 GitHub Monitoring shipped; v1.2 started*
+*Last updated: 2026-03-23 after v1.2 Article List Enhancements shipped*

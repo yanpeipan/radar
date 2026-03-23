@@ -4,25 +4,45 @@
 
 - ✅ **v1.0 MVP** — Phases 1-3 (shipped 2026-03-22)
 - ✅ **v1.1 GitHub Monitoring + Tagging** — Phases 4-8 (shipped 2026-03-23)
-- ⏳ **v1.2 Article List Enhancements** — Phases 9-11 (next)
+- ✅ **v1.2 Article List Enhancements** — Phases 8.1-11 (shipped 2026-03-23)
+- ⏳ **v1.3** — (planned)
 
 ## Phases
 
-- [x] **Phase 1: Foundation** - Storage, feed parsing, CLI interface (v1.0)
-- [x] **Phase 2: Search & Refresh** - FTS5 search, feed refresh mechanism (v1.0)
-- [x] **Phase 3: Web Crawling** - Website crawling with robots.txt, rate limiting (v1.0)
-  - [x] **Phase 3.1: Fix httpx User-Agent** — Add browser UA header to fix 403 errors (gap closure)
-- [x] **Phase 4: GitHub API Client + Releases Integration** (v1.1)
-- [x] **Phase 5: Changelog Detection + Scraping** (v1.1)
-- [x] **Phase 6: Unified Display + Refresh Integration** (v1.1)
-- [x] **Phase 7: Tagging System** — Article tags, filtering, and label management (v1.1)
-- [x] **Phase 8: GitHub URL Metadata** — Improved metadata extraction for GitHub URLs (v1.1)
-  - [x] **Phase 8.1: Unified Feed Add** — Support GitHub URLs in feed add with changelog integration (gap closure) (completed 2026-03-23)
-- [x] **Phase 9: Enhanced Article List** — Show IDs and tags in list with N+1 query fix (v1.2)
-- [x] **Phase 10: Article Detail View** — View full article details and open in browser (v1.2) (completed 2026-03-23)
-- [x] **Phase 11: GitHub Release Tagging** — Unified tagging for GitHub releases (v1.2) (completed 2026-03-23)
+<details>
+<summary>✅ v1.0 MVP (Phases 1-3) — SHIPPED 2026-03-22</summary>
 
-### Phase 8.1: Unified Feed Add (gap closure)
+- [x] Phase 1: Foundation (v1.0)
+- [x] Phase 2: Search & Refresh (v1.0)
+- [x] Phase 3: Web Crawling (v1.0)
+  - [x] Phase 3.1: Fix httpx User-Agent (gap closure)
+
+</details>
+
+<details>
+<summary>✅ v1.1 GitHub Monitoring + Tagging (Phases 4-8) — SHIPPED 2026-03-23</summary>
+
+- [x] Phase 4: GitHub API Client + Releases Integration
+- [x] Phase 5: Changelog Detection + Scraping
+- [x] Phase 6: Unified Display + Refresh Integration
+- [x] Phase 7: Tagging System
+- [x] Phase 8: GitHub URL Metadata
+
+</details>
+
+<details>
+<summary>✅ v1.2 Article List Enhancements (Phases 8.1-11) — SHIPPED 2026-03-23</summary>
+
+- [x] Phase 8.1: Unified Feed Add (gap closure)
+- [x] Phase 9: Enhanced Article List
+- [x] Phase 10: Article Detail View
+- [x] Phase 11: GitHub Release Tagging
+
+</details>
+
+### v1.3 (Planned)
+
+
 **Goal:** `python -m src.cli feed add` 支持 GitHub blob URL，自动委派给 changelog 流程
 **Depends on:** Phase 5 (changelog detection), Phase 8 (GitHub URL metadata)
 **Problem:** `feed add` 不检测 GitHub URL，直接当 RSS 解析导致 403/422 错误

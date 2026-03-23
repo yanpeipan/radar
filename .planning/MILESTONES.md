@@ -1,5 +1,18 @@
 # Milestones
 
+## v1.2 Article List Enhancements (Shipped: 2026-03-23)
+
+**Phases completed:** 4 phases, 5 plans, 11 tasks
+
+**Key accomplishments:**
+
+- GitHub blob URL feeds now work via `feed add` - routes to changelog storage, `fetch --all` refreshes without error
+- Unified store_article() function in db.py replacing 70+ lines of inline SQL in store_changelog_as_article()
+- Rich table formatting with batch tag fetching - N+1 query problem fixed
+- GitHub releases can now be tagged using article tag commands with auto-detection
+
+---
+
 ## v1.0 MVP (Shipped: 2026-03-22)
 
 **Phases completed:** 3 phases, 9 plans, 12 tasks
