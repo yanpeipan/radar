@@ -23,6 +23,8 @@ from src.db import (
     tag_article,
 )
 from src.tag_rules import add_rule, remove_rule, list_rules
+from src.tags import run_auto_tagging
+from src.tag_rules import apply_rules_to_article
 from src.feeds import (
     FeedNotFoundError,
     add_feed,
@@ -227,21 +229,87 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
 
 
 @article.command("tag")
-@click.argument("article_id")
-@click.argument("tag_name")
+@click.argument("article_id", required=False)
+@click.argument("tag_name", required=False)
+@click.option("--auto", "auto_tag", is_flag=True, help="Run AI clustering to auto-tag articles")
+@click.option("--rules", "apply_rules", is_flag=True, help="Apply keyword/regex rules to untagged articles")
+@click.option("--eps", default=0.3, help="DBSCAN eps parameter for clustering")
+@click.option("--min-samples", default=3, help="DBSCAN min_samples parameter")
 @click.pass_context
-def article_tag(ctx: click.Context, article_id: str, tag_name: str) -> None:
-    """Tag an article with a tag (D-04)."""
+def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optional[str], auto_tag: bool, apply_rules: bool, eps: float, min_samples: int) -> None:
+    """Tag an article manually or run auto-tagging.
+
+    Manual: article tag <article-id> <tag-name>
+    Auto: article tag --auto [--eps 0.3 --min-samples 3]
+    Rules: article tag --rules
+    """
     verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
-    try:
-        tagged = tag_article(article_id, tag_name)
-        if tagged:
-            click.secho(f"Tagged article {article_id} with '{tag_name}'", fg="green")
-        else:
-            click.secho(f"Failed to tag article", fg="red")
+
+    if auto_tag:
+        # Run AI clustering (D-10, D-11, D-12, D-13)
+        try:
+            click.secho("Running AI clustering for auto-tagging...", fg="cyan")
+            tag_map = run_auto_tagging(eps=eps, min_samples=min_samples)
+            if tag_map:
+                click.secho(f"Created {len(tag_map)} tag(s) from clustering:", fg="green")
+                for tag_name, article_ids in tag_map.items():
+                    click.secho(f"  [{tag_name}] - {len(article_ids)} articles")
+            else:
+                click.secho("No clusters found. Try with more articles.", fg="yellow")
+        except Exception as e:
+            click.secho(f"Error in clustering: {e}", err=True, fg="red")
+            logger.exception("Auto-tagging failed")
             sys.exit(1)
-    except Exception as e:
-        click.secho(f"Error: {e}", err=True, fg="red")
+
+    elif apply_rules:
+        # Apply keyword/regex rules to all untagged articles
+        try:
+            from src.db import get_connection
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT a.id, a.title, a.description FROM articles a
+                LEFT JOIN article_tags at ON a.id = at.article_id
+                WHERE at.article_id IS NULL
+            """)
+            untagged = cursor.fetchall()
+            conn.close()
+
+            if not untagged:
+                click.secho("No untagged articles found.", fg="yellow")
+                return
+
+            click.secho(f"Applying rules to {len(untagged)} untagged articles...", fg="cyan")
+            applied_count = 0
+            for row in untagged:
+                matched = apply_rules_to_article(row["id"], row["title"], row["description"])
+                if matched:
+                    applied_count += 1
+                    if verbose:
+                        click.secho(f"  {row['title'][:40]} -> {', '.join(matched)}")
+
+            click.secho(f"Applied rules to {applied_count} article(s)", fg="green")
+        except Exception as e:
+            click.secho(f"Error applying rules: {e}", err=True, fg="red")
+            sys.exit(1)
+
+    elif article_id and tag_name:
+        # Manual tagging (D-04)
+        try:
+            tagged = tag_article(article_id, tag_name)
+            if tagged:
+                click.secho(f"Tagged article {article_id} with '{tag_name}'", fg="green")
+            else:
+                click.secho(f"Failed to tag article", fg="red")
+                sys.exit(1)
+        except Exception as e:
+            click.secho(f"Error: {e}", err=True, fg="red")
+            sys.exit(1)
+
+    else:
+        click.secho("Usage: article tag <article-id> <tag-name>", fg="yellow")
+        click.secho("   or: article tag --auto [--eps 0.3 --min-samples 3]")
+        click.secho("   or: article tag --rules")
         sys.exit(1)
 
 
