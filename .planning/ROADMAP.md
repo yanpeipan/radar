@@ -16,6 +16,9 @@
 - [x] **Phase 7: Tagging System** — Article tags, filtering, and label management (v1.1)
 - [ ] **Phase 8: GitHub URL Metadata** — Improved metadata extraction for GitHub URLs (blob title format, commits pub_date)
 
+**Plans:**
+- [ ] 08-01-PLAN.md — GitHub URL detection, metadata fetching, crawl_url integration
+
 ---
 
 _For completed milestone details, see `.planning/milestones/`_
