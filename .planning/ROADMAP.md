@@ -13,6 +13,9 @@
 - [x] **Phase 4: GitHub API Client + Releases Integration** (v1.1)
 - [x] **Phase 5: Changelog Detection + Scraping** (v1.1)
 - [x] **Phase 6: Unified Display + Refresh Integration** (v1.1)
+- [ ] **Phase 7: Tagging System** — Article tags, filtering, and label management
+  - [x] `.planning/phases/07-tagging-system/07-01-PLAN.md` — Core Infrastructure (tag model, schema, CLI)
+  - [x] `.planning/phases/07-tagging-system/07-02-PLAN.md` — Auto Tagging (rules, AI clustering)
 
 ---
 
