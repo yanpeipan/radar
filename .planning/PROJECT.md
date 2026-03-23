@@ -10,7 +10,7 @@
 
 ## Current State
 
-**In Progress: v1.3 Provider Architecture** (2026-03-23)
+**Shipped: v1.3 Provider Architecture** (2026-03-24)
 - Phase 12 complete: Provider plugin architecture foundation + DB migrations
   - ContentProvider & TagParser Protocols with @runtime_checkable
   - ProviderRegistry with dynamic provider loading
@@ -19,7 +19,9 @@
   - RSSProvider (priority=50) and GitHubProvider (priority=100) wrapping feeds/github.py
   - TagParser registry with chain_tag_parsers() and DefaultTagParser
 - Phase 14 complete: CLI wired to ProviderRegistry (fetch --all, feed add/list via discover_or_default, repo commands deleted)
-- Phase 15 next: PyGithub Refactor (replace custom GitHub API with PyGithub library)
+- Phase 15 complete: PyGithub Refactor — custom GitHub API replaced with PyGithub library
+  - src/github.py deleted, src/github_utils.py + src/github_ops.py created
+  - GitHubProvider and crawl.py now use PyGithub for all GitHub API calls
 
 **Shipped: v1.2 Article List Enhancements** (2026-03-23)
 - CLI 工具，支持 feed 订阅、网页抓取、GitHub 仓库监控
@@ -29,10 +31,6 @@
 - GitHub release tagging with unified tagging commands
 - SQLite 本地存储，FTS5 全文搜索
 - ~10 个 Python 源文件，约 2,800 行代码
-
-**Next Milestone: v1.3 Provider Architecture** (Phase 15 remaining)
-- Phase 15: PyGithub Refactor — replace custom GitHub API with PyGithub library
-- Phases 12-14 complete: Provider architecture, providers, CLI integration done
 
 ## Requirements
 
@@ -100,6 +98,7 @@
 - **robots.txt**: robotexclusionrulesparser 1.7.1
 - **网页抓取**: Scrapling (adaptive, JS 支持)
 - **数据库**: sqlite3 (内置)
+- **GitHub API**: PyGithub 2.x
 
 ## Context
 
@@ -115,4 +114,4 @@
 
 ---
 
-*Last updated: 2026-03-23 after phase 14 complete*
+*Last updated: 2026-03-24 after phase 15 complete*
