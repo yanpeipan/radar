@@ -19,8 +19,8 @@
 
 ### Tag Parser
 
-- [ ] **TAG-01**: Tag Parser Chaining — 支持多个 TagParser 链式执行，结果并集去重，接口：`parse_tags(article) -> List[Tag]`
-- [ ] **TAG-02**: Default Tag Parser — `src/tags/default_tag_parser.py` 实现，基于现有 tag_rules.py 逻辑，支持 AI-powered tagging
+- [x] **TAG-01**: Tag Parser Chaining — 支持多个 TagParser 链式执行，结果并集去重，接口：`parse_tags(article) -> List[Tag]`
+- [x] **TAG-02**: Default Tag Parser — `src/tags/default_tag_parser.py` 实现，基于现有 tag_rules.py 逻辑，支持 AI-powered tagging
 
 ### Database
 
@@ -57,8 +57,8 @@
 | DB-03 | Phase 12 | Complete |
 | PROVIDER-05 | Phase 13 | Complete |
 | PROVIDER-06 | Phase 13 | Complete |
-| TAG-01 | Phase 13 | Pending |
-| TAG-02 | Phase 13 | Pending |
+| TAG-01 | Phase 13 | Complete |
+| TAG-02 | Phase 13 | Complete |
 | CLI-01 | Phase 14 | Pending |
 | CLI-02 | Phase 14 | Pending |
 | CLI-03 | Phase 14 | Pending |

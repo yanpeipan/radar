@@ -43,7 +43,7 @@
 ### v1.3 Provider Architecture
 
 - [x] **Phase 12: Provider Core Infrastructure** — Provider Protocol, Registry, Error Isolation, Fallback, DB migrations (completed 2026-03-23)
-- [ ] **Phase 13: Provider Implementations + Tag Parsers** — RSS Provider, GitHub Provider, Tag Parser chaining
+- [x] **Phase 13: Provider Implementations + Tag Parsers** — RSS Provider, GitHub Provider, Tag Parser chaining (completed 2026-03-23)
 - [ ] **Phase 14: CLI Integration** — fetch/feed commands wired to Registry, repo command deletion
 
 ---
@@ -85,11 +85,11 @@ Plans:
 3. Tag parser chaining runs multiple TagParsers and returns union with duplicates removed
 4. Default tag parser applies existing tag_rules.py logic for auto-tagging
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 13-01-PLAN.md — RSS and GitHub providers implementing ContentProvider (PROVIDER-05, PROVIDER-06)
-- [ ] 13-02-PLAN.md — Tag parser registry and DefaultTagParser (TAG-01, TAG-02)
+- [x] 13-02-PLAN.md — Tag parser registry and DefaultTagParser (TAG-01, TAG-02)
 
 ---
 
@@ -128,7 +128,7 @@ Plans:
 | 10. Article Detail View | 1/1 | ✅ Complete | 2026-03-23 |
 | 11. GitHub Release Tagging | 1/1 | ✅ Complete | 2026-03-23 |
 | 12. Provider Core Infrastructure | 2/2 | Complete    | 2026-03-23 |
-| 13. Provider Implementations | 1/2 | In Progress|  |
+| 13. Provider Implementations | 2/2 | Complete   | 2026-03-23 |
 | 14. CLI Integration | 0/? | Not started | - |
 
 ---
