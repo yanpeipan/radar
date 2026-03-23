@@ -11,9 +11,11 @@ from typing import Optional
 
 import click
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
-from src.articles import list_articles, search_articles
+from src.articles import get_article_detail, list_articles, search_articles
 from src.crawl import crawl_url
 from src.db import (
     add_tag,
@@ -233,6 +235,59 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
     except Exception as e:
         click.secho(f"Error: Failed to list articles: {e}", err=True, fg="red")
         logger.exception("Failed to list articles")
+        sys.exit(1)
+
+
+@article.command("view")
+@click.argument("article_id")
+@click.option("--verbose", is_flag=True, help="Show full content without truncation")
+@click.pass_context
+def article_view(ctx: click.Context, article_id: str, verbose: bool) -> None:
+    """View full article details including content.
+
+    Shows title, source/feed, date, tags, link, and full content.
+    Content is truncated to 2000 characters unless --verbose is specified.
+    """
+    try:
+        article = get_article_detail(article_id)
+        if not article:
+            click.secho(f"Article not found: {article_id}", fg="red")
+            sys.exit(1)
+
+        console = Console()
+
+        # Create metadata table
+        meta_table = Table(show_header=False, box=None)
+        meta_table.add_row("Source:", article["feed_name"] or "Unknown")
+        meta_table.add_row("Date:", article["pub_date"] or "No date")
+
+        # Tags
+        tags_str = ", ".join(article["tags"]) if article["tags"] else "-"
+        meta_table.add_row("Tags:", tags_str)
+
+        # Link
+        link = article["link"] or "No link"
+        meta_table.add_row("Link:", link)
+
+        # Display panel with title
+        title = article["title"] or "No title"
+        subtitle = f"{article['feed_name']} | {article['pub_date'] or 'No date'}"
+        panel = Panel(meta_table, title=title, subtitle=subtitle)
+        console.print(panel)
+
+        # Display content
+        if article["content"]:
+            content = article["content"] if verbose else article["content"][:2000]
+            if not verbose and len(article["content"]) > 2000:
+                content += "\n\n... (truncated, use --verbose for full content)"
+            console.print()
+            console.print(content)
+        else:
+            console.print("\n[yellow]No content available[/yellow]")
+
+    except Exception as e:
+        click.secho(f"Error: Failed to view article: {e}", err=True, fg="red")
+        logger.exception("Failed to view article")
         sys.exit(1)
 
 
