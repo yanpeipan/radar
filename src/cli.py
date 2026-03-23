@@ -81,13 +81,36 @@ def feed(ctx: click.Context) -> None:
 @click.argument("url")
 @click.pass_context
 def feed_add(ctx: click.Context, url: str) -> None:
-    """Add a new feed by URL."""
+    """Add a new feed by URL (auto-detects provider type)."""
     verbose = ctx.parent and ctx.parent.obj.get("verbose")
     try:
-        feed_obj = add_feed(url)
-        click.secho(f"Added feed: {feed_obj.name} ({feed_obj.url})", fg="green")
+        # Use discover_or_default to discover provider and validate URL
+        providers = discover_or_default(url)
+        if not providers:
+            raise ValueError(f"No provider available for URL: {url}")
+
+        provider = providers[0]  # highest priority match
+        provider_name = provider.__class__.__name__.replace("Provider", "")
+
+        # Crawl to validate URL and get initial data
+        raw_items = provider.crawl(url)
+        if not raw_items:
+            raise ValueError(f"Failed to fetch content from {url}")
+
+        # Parse first item to get feed metadata
+        article = provider.parse(raw_items[0])
+
+        # Create feed entry using provider name as type hint
+        feed_obj = _create_feed_with_provider(
+            url=url,
+            name=article.get("title") or url,
+            provider_name=provider_name,
+        )
+
+        click.secho(f"Added feed: {feed_obj.name} ({provider_name})", fg="green")
         if verbose:
             click.secho(f"Feed ID: {feed_obj.id}")
+            click.secho(f"Provider: {provider_name}")
     except ValueError as e:
         click.secho(f"Error: {e}", err=True, fg="red")
         sys.exit(1)
@@ -97,10 +120,68 @@ def feed_add(ctx: click.Context, url: str) -> None:
         sys.exit(1)
 
 
+def _create_feed_with_provider(url: str, name: str, provider_name: str):
+    """Create a new feed with provider type stored in metadata.
+
+    Args:
+        url: The feed URL.
+        name: The feed name (from article title or URL).
+        provider_name: The provider type (RSS or GitHub).
+
+    Returns:
+        The created Feed object.
+    """
+    from src.db import get_connection
+    from src.feeds import generate_feed_id
+    from datetime import datetime, timezone
+    import json
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Ensure metadata column exists (migration)
+    try:
+        cursor.execute("ALTER TABLE feeds ADD COLUMN metadata TEXT")
+    except Exception:
+        pass  # Column already exists
+
+    # Check if feed already exists
+    cursor.execute("SELECT id FROM feeds WHERE url = ?", (url,))
+    existing = cursor.fetchone()
+    if existing:
+        raise ValueError(f"Feed already exists: {url}")
+
+    feed_id = generate_feed_id()
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Store provider type in metadata JSON
+    metadata = json.dumps({"provider_type": provider_name})
+
+    cursor.execute(
+        """INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at, metadata)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (feed_id, name, url, None, None, now, now, metadata),
+    )
+    conn.commit()
+    conn.close()
+
+    from src.models import Feed as FeedModel
+    return FeedModel(
+        id=feed_id,
+        name=name,
+        url=url,
+        etag=None,
+        last_modified=None,
+        last_fetched=now,
+        created_at=now,
+        metadata=metadata,
+    )
+
+
 @feed.command("list")
 @click.pass_context
 def feed_list(ctx: click.Context) -> None:
-    """List all subscribed feeds."""
+    """List all subscribed feeds with provider type."""
     verbose = ctx.parent and ctx.parent.obj.get("verbose")
     try:
         feeds = list_feeds()
@@ -108,29 +189,50 @@ def feed_list(ctx: click.Context) -> None:
             click.secho("No feeds subscribed yet. Use 'feed add <url>' to add one.")
             return
 
-        # Print table header
-        click.secho("ID  | Name | URL | Articles | Last Fetched")
-        click.secho("-" * 80)
-
-        for f in feeds:
-            last_fetched = f.last_fetched or "Never"
-            if verbose:
+        if verbose:
+            # Verbose output
+            click.secho("ID  | Name | URL | Provider | Articles | Last Fetched")
+            click.secho("-" * 90)
+            for f in feeds:
+                last_fetched = f.last_fetched or "Never"
+                provider_type = _get_provider_type(f.url)
                 click.secho(
                     f"{f.id}\n"
                     f"  Name: {f.name}\n"
                     f"  URL: {f.url}\n"
+                    f"  Provider: {provider_type}\n"
                     f"  Articles: {getattr(f, 'articles_count', 0)}\n"
                     f"  Last Fetched: {last_fetched}"
                 )
-            else:
+        else:
+            # Compact table output
+            click.secho("ID  | Name | URL | Type | Articles | Last Fetched")
+            click.secho("-" * 90)
+            for f in feeds:
+                last_fetched = f.last_fetched or "Never"
+                provider_type = _get_provider_type(f.url)
                 click.secho(
-                    f"{f.id} | {f.name[:30]} | {f.url[:40]} | "
+                    f"{f.id} | {f.name[:30]} | {f.url[:40]} | {provider_type} | "
                     f"{getattr(f, 'articles_count', 0)} | {last_fetched[:10]}"
                 )
     except Exception as e:
         click.secho(f"Error: Failed to list feeds: {e}", err=True, fg="red")
         logger.exception("Failed to list feeds")
         sys.exit(1)
+
+
+def _get_provider_type(url: str) -> str:
+    """Determine provider type from URL pattern.
+
+    Args:
+        url: The feed URL.
+
+    Returns:
+        "GitHub" if URL contains github.com, "RSS" otherwise.
+    """
+    if "github.com" in url.lower():
+        return "GitHub"
+    return "RSS"
 
 
 @feed.command("remove")
