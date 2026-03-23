@@ -10,6 +10,7 @@
 - [x] **Phase 1: Foundation** - Storage, feed parsing, CLI interface (v1.0)
 - [x] **Phase 2: Search & Refresh** - FTS5 search, feed refresh mechanism (v1.0)
 - [x] **Phase 3: Web Crawling** - Website crawling with robots.txt, rate limiting (v1.0)
+  - [x] **Phase 3.1: Fix httpx User-Agent** — Add browser UA header to fix 403 errors (gap closure)
 - [x] **Phase 4: GitHub API Client + Releases Integration** (v1.1)
 - [x] **Phase 5: Changelog Detection + Scraping** (v1.1)
 - [x] **Phase 6: Unified Display + Refresh Integration** (v1.1)
