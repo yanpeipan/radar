@@ -123,7 +123,7 @@ Plans:
 | 9. Enhanced Article List | 1/1 | ✅ Complete | 2026-03-23 |
 | 10. Article Detail View | 1/1 | ✅ Complete | 2026-03-23 |
 | 11. GitHub Release Tagging | 1/1 | ✅ Complete | 2026-03-23 |
-| 12. Provider Core Infrastructure | 2/2 | Complete   | 2026-03-23 |
+| 12. Provider Core Infrastructure | 2/2 | Complete    | 2026-03-23 |
 | 13. Provider Implementations | 0/? | Not started | - |
 | 14. CLI Integration | 0/? | Not started | - |
 
