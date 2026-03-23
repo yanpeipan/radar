@@ -10,6 +10,8 @@ import sys
 from typing import Optional
 
 import click
+from rich.console import Console
+from rich.table import Table
 
 from src.articles import list_articles, search_articles
 from src.crawl import crawl_url
@@ -178,23 +180,35 @@ def article(ctx: click.Context) -> None:
 @click.option("--feed-id", default=None, help="Filter by feed ID")
 @click.option("--tag", default=None, help="Filter by tag name")
 @click.option("--tags", default=None, help="Filter by multiple tags (comma-separated, OR logic)")
+@click.option("--verbose", is_flag=True, help="Show full article IDs (32 chars)")
 @click.pass_context
-def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Optional[str], tags: Optional[str]) -> None:
+def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Optional[str], tags: Optional[str], verbose: bool) -> None:
     """List recent articles from all feeds or a specific feed.
 
     Use --tag to filter by a single tag.
     Use --tags a,b for multiple tags (OR logic - shows articles with ANY of the tags).
+    Use --verbose to show full 32-char article IDs instead of truncated 8-char IDs.
     """
-    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
+    verbose = verbose or (ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False)
     try:
-        from src.articles import list_articles_with_tags
+        from src.articles import list_articles_with_tags, get_articles_with_tags
         articles = list_articles_with_tags(limit=limit, feed_id=feed_id, tag=tag, tags=tags)
         if not articles:
             click.secho("No articles found. Add some feeds and fetch them first.")
             return
 
-        click.secho("Title | Source | Date")
-        click.secho("-" * 80)
+        # Batch fetch tags for all articles (fixes N+1 query problem)
+        article_ids = [a.id for a in articles if hasattr(a, 'id')]
+        tags_map = get_articles_with_tags(article_ids)
+
+        # Create rich table
+        console = Console()
+        table = Table(show_header=True, header_style="bold magenta")
+        table.add_column("ID", style="dim", width=8 if not verbose else 36)
+        table.add_column("Tags", max_width=12, overflow="ellipsis")
+        table.add_column("Title")
+        table.add_column("Source", max_width=20)
+        table.add_column("Date", max_width=10)
 
         for article in articles:
             title = article.title or "No title"
@@ -206,22 +220,16 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
             else:
                 source = article.feed_name or "Unknown"
 
-            # Get tags for this article
-            article_tags = get_article_tags(article.id) if hasattr(article, 'id') else []
-            tag_str = "".join(f"[{t}]" for t in article_tags)
+            # Get tags from batch-fetched map
+            article_tags = tags_map.get(article.id, [])
+            tags_str = ",".join(article_tags) if article_tags else "-"
 
-            if verbose:
-                click.secho(f"\nTitle: {title}")
-                click.secho(f"Tags: {', '.join(article_tags) if article_tags else 'None'}")
-                click.secho(f"Source: {source}")
-                click.secho(f"Date: {pub_date}")
-                if article.link:
-                    click.secho(f"Link: {article.link}")
-                if article.description:
-                    desc_preview = article.description[:100] + "..." if len(article.description) > 100 else article.description
-                    click.secho(f"Description: {desc_preview}")
-            else:
-                click.secho(f"{tag_str}{title[:50-len(tag_str)]} | {source[:25]} | {pub_date[:10]}")
+            # Use full ID if verbose, otherwise truncate to 8 chars
+            id_display = article.id if verbose else article.id[:8]
+
+            table.add_row(id_display, tags_str, title[:50], source[:20], pub_date[:10])
+
+        console.print(table)
     except Exception as e:
         click.secho(f"Error: Failed to list articles: {e}", err=True, fg="red")
         logger.exception("Failed to list articles")
