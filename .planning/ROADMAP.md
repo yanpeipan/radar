@@ -70,7 +70,9 @@
   2. User can run `article tag <article-id>` to tag a feed article (existing behavior preserved)
   3. `article list --tag <tag>` shows both feed articles and GitHub releases with that tag
   4. Tag CRUD operations work uniformly for both article types
-**Plans:** TBD
+**Plans:** 1/1
+**Plan list:**
+- [ ] 11-01-PLAN.md -- GitHub release tagging with unified tagging commands
 
 ---
 
@@ -92,5 +94,4 @@
 | 11. GitHub Release Tagging | 0/1 | Not started | - |
 
 ---
-
 _For completed milestone details, see `.planning/milestones/`_
