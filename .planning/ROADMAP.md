@@ -88,7 +88,7 @@
 | 8. GitHub URL Metadata | Complete | ✅ | 2026-03-23 |
 | 8.1 Unified Feed Add | 1/1 | Complete   | 2026-03-23 |
 | 9. Enhanced Article List | 1/1 | Complete   | 2026-03-23 |
-| 10. Article Detail View | 1/1 | Complete   | 2026-03-23 |
+| 10. Article Detail View | 1/1 | Complete    | 2026-03-23 |
 | 11. GitHub Release Tagging | 0/1 | Not started | - |
 
 ---
