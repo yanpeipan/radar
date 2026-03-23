@@ -33,6 +33,7 @@ from src.db import (
 )
 from src.tag_rules import add_rule, remove_rule, list_rules, edit_rule
 from src.tag_rules import apply_rules_to_article
+from src.providers import discover_or_default
 
 # Import run_auto_tagging from src/tags.py module (not the src/tags/ package)
 # This uses importlib.machinery to explicitly load the module by file path
@@ -51,16 +52,6 @@ from src.feeds import (
     list_feeds,
     refresh_feed,
     remove_feed,
-)
-from src.github import (
-    add_github_repo,
-    list_github_repos,
-    remove_github_repo,
-    refresh_github_repo,
-    refresh_changelog,
-    get_repo_changelog,
-    RepoNotFoundError,
-    RateLimitError,
 )
 
 logger = logging.getLogger(__name__)
@@ -570,44 +561,52 @@ def fetch(ctx: click.Context, fetch_all: bool) -> None:
 
         for feed_obj in feeds:
             try:
-                result = refresh_feed(feed_obj.id)
-                new_articles = result.get("new_articles", 0)
-                total_new += new_articles
+                # Use discover_or_default to find provider for this feed URL
+                providers = discover_or_default(feed_obj.url)
+                if not providers:
+                    click.secho(f"Warning: No provider for {feed_obj.name}", fg="yellow")
+                    continue
+
+                provider = providers[0]  # highest priority match
+                provider_name = provider.__class__.__name__.replace("Provider", "")
+
+                # Crawl using the discovered provider
+                raw_items = provider.crawl(feed_obj.url)
+                if not raw_items:
+                    if verbose:
+                        click.secho(f"No items from {feed_obj.name} via {provider_name}")
+                    continue
+
+                # Parse and store each item
+                for raw in raw_items:
+                    article = provider.parse(raw)
+                    # Store article (reuse existing pattern from refresh_feed)
+                    new_article = _store_article_from_provider(
+                        feed_id=feed_obj.id,
+                        article=article,
+                        provider_name=provider_name,
+                    )
+                    if new_article:
+                        total_new += 1
+
                 success_count += 1
                 if verbose:
-                    click.secho(f"Fetched {new_articles} articles from {feed_obj.name}")
+                    click.secho(f"Fetched {len(raw_items)} items from {feed_obj.name} via {provider_name}")
+
             except Exception as e:
                 error_count += 1
                 errors.append(f"{feed_obj.name}: {e}")
-                # Per-feed error isolation: continue with next feed
                 click.secho(f"Warning: Failed to fetch {feed_obj.name}: {e}", fg="yellow")
-
-        # Refresh GitHub repos
-        github_repos = list_github_repos()
-        github_new_releases = 0
-        for r in github_repos:
-            try:
-                result = refresh_github_repo(r.id)
-                if result.get("new_release"):
-                    github_new_releases += 1
-                    if verbose:
-                        click.secho(f"New release for {r.name}: {result['release'].tag_name}")
-            except Exception as e:
-                error_count += 1
-                errors.append(f"{r.name} (GitHub): {e}")
-                click.secho(f"Warning: Failed to refresh {r.name}: {e}", fg="yellow")
 
         # Summary
         if error_count == 0:
             click.secho(
-                f"Fetched {total_new} articles from {success_count} feeds, "
-                f"{github_new_releases} new releases from {len(github_repos)} repos",
+                f"Fetched {total_new} articles from {success_count} feeds",
                 fg="green",
             )
         else:
             click.secho(
-                f"Fetched {total_new} articles from {success_count} feeds, "
-                f"{github_new_releases} new releases. {error_count} errors",
+                f"Fetched {total_new} articles from {success_count} feeds. {error_count} errors",
                 fg="yellow",
             )
             if verbose and errors:
@@ -618,6 +617,55 @@ def fetch(ctx: click.Context, fetch_all: bool) -> None:
         click.secho(f"Error: Failed to fetch feeds: {e}", err=True, fg="red")
         logger.exception("Failed to fetch feeds")
         sys.exit(1)
+
+
+def _store_article_from_provider(feed_id: str, article: dict, provider_name: str) -> bool:
+    """Store an article from provider parse() result.
+
+    Args:
+        feed_id: The feed ID to associate with.
+        article: Article dict from provider.parse().
+        provider_name: Name of provider for logging.
+
+    Returns:
+        True if new article was stored, False if duplicate or error.
+    """
+    from src.db import get_connection
+    from src.feeds import generate_article_id
+    from datetime import datetime, timezone
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Generate article ID if not provided
+        article_id = article.get("guid") or generate_article_id(article)
+
+        now = datetime.now(timezone.utc).isoformat()
+
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO articles (id, feed_id, title, link, guid, pub_date, description, content, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                article_id,
+                feed_id,
+                article.get("title"),
+                article.get("link"),
+                article.get("guid") or article_id,
+                article.get("pub_date"),
+                article.get("description"),
+                article.get("content"),
+                now,
+            ),
+        )
+        conn.commit()
+        conn.close()
+        return cursor.rowcount > 0
+    except Exception as e:
+        logger.warning(f"Failed to store article from {provider_name}: {e}")
+        return False
 
 
 @cli.command("crawl")
