@@ -44,7 +44,7 @@
 
 - [x] **Phase 12: Provider Core Infrastructure** — Provider Protocol, Registry, Error Isolation, Fallback, DB migrations (completed 2026-03-23)
 - [x] **Phase 13: Provider Implementations + Tag Parsers** — RSS Provider, GitHub Provider, Tag Parser chaining (completed 2026-03-23)
-- [ ] **Phase 14: CLI Integration** — fetch/feed commands wired to Registry, repo command deletion
+- [x] **Phase 14: CLI Integration** — fetch/feed commands wired to Registry, repo command deletion (completed 2026-03-23)
 
 ---
 
@@ -107,11 +107,11 @@ Plans:
 3. `repo add`, `repo list`, `repo remove`, `repo refresh` commands are deleted (统一到 feed 命令)
 4. `feed list` output includes provider_type column showing "RSS" or "GitHub"
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 14-01-PLAN.md — fetch --all via ProviderRegistry (CLI-01)
-- [ ] 14-02-PLAN.md — feed add/list via ProviderRegistry + provider_type display (CLI-02, CLI-04)
+- [x] 14-02-PLAN.md — feed add/list via ProviderRegistry + provider_type display (CLI-02, CLI-04)
 - [x] 14-03-PLAN.md — Delete repo command group (CLI-03)
 
 ---
@@ -147,7 +147,7 @@ Plans:
 | 11. GitHub Release Tagging | 1/1 | ✅ Complete | 2026-03-23 |
 | 12. Provider Core Infrastructure | 2/2 | Complete    | 2026-03-23 |
 | 13. Provider Implementations | 2/2 | Complete    | 2026-03-23 |
-| 14. CLI Integration | 2/3 | In Progress|  |
+| 14. CLI Integration | 3/3 | Complete   | 2026-03-23 |
 | 15. PyGithub Refactor | 0/0 | Not started|  |
 
 ---
