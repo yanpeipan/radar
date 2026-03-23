@@ -56,7 +56,9 @@
   2. User can run `article open <id>` to open article URL in default browser
   3. Detail view shows `content` field (not just `description`)
   4. View command works with truncated ID (8 chars) or full ID
-**Plans:** TBD
+**Plans:** 1/1
+**Plan list:**
+- [ ] 10-01-PLAN.md -- Article detail view with `article view` and `article open` commands
 **UI hint:** yes
 
 ### Phase 11: GitHub Release Tagging
@@ -86,7 +88,7 @@
 | 8. GitHub URL Metadata | Complete | ✅ | 2026-03-23 |
 | 8.1 Unified Feed Add | 1/1 | Complete   | 2026-03-23 |
 | 9. Enhanced Article List | 1/1 | Complete   | 2026-03-23 |
-| 10. Article Detail View | 0/1 | Not started | - |
+| 10. Article Detail View | 1/1 | Not started | - |
 | 11. GitHub Release Tagging | 0/1 | Not started | - |
 
 ---
