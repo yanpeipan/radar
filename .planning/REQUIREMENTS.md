@@ -14,8 +14,8 @@
 
 ### Provider Implementations
 
-- [ ] **PROVIDER-05**: RSS Provider — 封装现有 `feeds.py` 的 RSS/Atom 处理逻辑，实现 `ContentProvider` 接口，priority=50
-- [ ] **PROVIDER-06**: GitHub Provider — 封装现有 `github.py` 的 GitHub releases/changelog 处理逻辑，实现 `ContentProvider` 接口，priority=100
+- [x] **PROVIDER-05**: RSS Provider — 封装现有 `feeds.py` 的 RSS/Atom 处理逻辑，实现 `ContentProvider` 接口，priority=50
+- [x] **PROVIDER-06**: GitHub Provider — 封装现有 `github.py` 的 GitHub releases/changelog 处理逻辑，实现 `ContentProvider` 接口，priority=100
 
 ### Tag Parser
 
@@ -55,8 +55,8 @@
 | DB-01 | Phase 12 | Complete |
 | DB-02 | Phase 12 | Complete |
 | DB-03 | Phase 12 | Complete |
-| PROVIDER-05 | Phase 13 | Pending |
-| PROVIDER-06 | Phase 13 | Pending |
+| PROVIDER-05 | Phase 13 | Complete |
+| PROVIDER-06 | Phase 13 | Complete |
 | TAG-01 | Phase 13 | Pending |
 | TAG-02 | Phase 13 | Pending |
 | CLI-01 | Phase 14 | Pending |
