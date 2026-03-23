@@ -488,6 +488,36 @@ def get_github_repo(repo_id: str) -> Optional[GitHubRepo]:
         conn.close()
 
 
+def get_github_repo_by_owner_repo(owner: str, repo: str) -> Optional[GitHubRepo]:
+    """Get a GitHub repo by owner and repo name.
+
+    Args:
+        owner: The GitHub owner (user or org)
+        repo: The repository name
+
+    Returns:
+        GitHubRepo object or None if not found.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM github_repos WHERE owner = ? AND repo = ?", (owner, repo))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return GitHubRepo(
+            id=row["id"],
+            name=row["name"],
+            owner=row["owner"],
+            repo=row["repo"],
+            last_fetched=row["last_fetched"],
+            last_tag=row["last_tag"],
+            created_at=row["created_at"],
+        )
+    finally:
+        conn.close()
+
+
 def remove_github_repo(repo_id: str) -> bool:
     """Remove a GitHub repo and its releases.
 
@@ -677,63 +707,20 @@ def store_changelog_as_article(repo_id: str, repo_name: str, content: str, filen
     Returns:
         ID of the created or updated article.
     """
-    import uuid
-    from src.db import get_connection
-
-    now = datetime.now(timezone.utc).isoformat()
-
     # Create a unique guid for this changelog
     guid = f"changelog:{repo_name}:{filename}"
+    title = f"{repo_name} / {filename}"
 
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        # Check if article exists
-        cursor.execute("SELECT id FROM articles WHERE guid = ?", (guid,))
-        existing = cursor.fetchone()
-        if existing:
-            # UPDATE existing article - keep same article_id
-            article_id = existing["id"]
-            cursor.execute(
-                """UPDATE articles SET content = ?, link = ?, pub_date = ?
-                   WHERE guid = ?""",
-                (content, source_url, now, guid),
-            )
-            # Update FTS5 entry
-            cursor.execute(
-                """INSERT OR REPLACE INTO articles_fts(rowid, title, description, content)
-                   SELECT rowid, title, description, content FROM articles WHERE id = ?""",
-                (article_id,),
-            )
-        else:
-            # INSERT new article
-            article_id = str(uuid.uuid4())
-            cursor.execute(
-                """INSERT INTO articles (id, feed_id, repo_id, title, link, guid, pub_date, content, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    article_id,
-                    "",  # feed_id is empty string for GitHub-sourced content
-                    repo_id,
-                    f"{repo_name} Changelog",
-                    source_url,
-                    guid,
-                    now,  # Use current time as pub_date
-                    content,
-                    now,
-                ),
-            )
-            # Sync changelog to FTS5 for search
-            cursor.execute(
-                """INSERT INTO articles_fts(rowid, title, description, content)
-                   SELECT rowid, title, NULL as description, content FROM articles WHERE id = ?""",
-                (article_id,),
-            )
-
-        conn.commit()
-        return article_id
-    finally:
-        conn.close()
+    # Use unified store_article function
+    from src.db import store_article
+    return store_article(
+        guid=guid,
+        title=title,
+        content=content,
+        link=source_url,
+        repo_id=repo_id,
+        feed_id=None,
+    )
 
 
 def get_repo_changelog(repo_id: str) -> Optional[dict]:
