@@ -18,7 +18,7 @@ import httpx
 from src.db import get_connection, get_db_path
 from src.models import Article, Feed
 from src.crawl import is_github_blob_url
-from src.github import (
+from src.github_ops import (
     get_or_create_github_repo,
     fetch_changelog_content,
     store_changelog_as_article,
