@@ -17,9 +17,21 @@
 - [x] **Phase 6: Unified Display + Refresh Integration** (v1.1)
 - [x] **Phase 7: Tagging System** — Article tags, filtering, and label management (v1.1)
 - [x] **Phase 8: GitHub URL Metadata** — Improved metadata extraction for GitHub URLs (v1.1)
+  - [ ] **Phase 8.1: Unified Feed Add** — Support GitHub URLs in feed add with changelog integration (gap closure)
 - [ ] **Phase 9: Enhanced Article List** — Show IDs and tags in list with N+1 query fix (v1.2)
 - [ ] **Phase 10: Article Detail View** — View full article details and open in browser (v1.2)
 - [ ] **Phase 11: GitHub Release Tagging** — Unified tagging for GitHub releases (v1.2)
+
+### Phase 8.1: Unified Feed Add (gap closure)
+**Goal:** `python -m src.cli feed add` 支持 GitHub blob URL，自动委派给 changelog 流程
+**Depends on:** Phase 5 (changelog detection), Phase 8 (GitHub URL metadata)
+**Problem:** `feed add` 不检测 GitHub URL，直接当 RSS 解析导致 403/422 错误
+**Success Criteria:**
+  1. `feed add https://github.com/{owner}/{repo}/blob/{branch}/CHANGELOG.md` 成功添加
+  2. `feed add https://github.com/{owner}/{repo}/blob/{branch}/README.md` 成功添加
+  3. `fetch --all` 对 GitHub URL feed 不报错
+**Plans:** 1 plan
+**UI hint:** no
 
 ### Phase 9: Enhanced Article List
 **Goal:** Users can see article IDs and tags as separate columns in article list
@@ -70,6 +82,7 @@
 | 6. Unified Display | Complete | ✅ | 2026-03-23 |
 | 7. Tagging System | Complete | ✅ | 2026-03-23 |
 | 8. GitHub URL Metadata | Complete | ✅ | 2026-03-23 |
+| 8.1 Unified Feed Add | 0/1 | Not started | - |
 | 9. Enhanced Article List | 0/1 | Not started | - |
 | 10. Article Detail View | 0/1 | Not started | - |
 | 11. GitHub Release Tagging | 0/1 | Not started | - |
