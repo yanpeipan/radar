@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: uvloop并发支持
-status: Milestone complete
-stopped_at: Roadmap created for v1.6 — 3 phases derived from 3 requirements
-last_updated: "2026-03-24T21:24:51.379Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 27-provider-unit-tests 27-01 plan
+last_updated: "2026-03-24T21:42:28.081Z"
 progress:
-  total_phases: 27
-  completed_phases: 26
-  total_plans: 47
-  completed_plans: 46
+  total_phases: 28
+  completed_phases: 27
+  total_plans: 48
+  completed_plans: 47
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (v1.7 milestone started)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Phase 26 — pytest
+**Current focus:** Phase 27 — provider-unit-tests
 
 ## Current Position
 
-Phase: 26
-Plan: Not started
+Phase: 27 (provider-unit-tests) — EXECUTING
+Plan: 1 of 1
 
 ## v1.7 Phase Structure
 
@@ -103,6 +103,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 24]: article_tags and article_embeddings reference article_id via FK - must update together
 - [Phase 24]: Migration must use UPDATE not DELETE+INSERT to preserve FTS rowid linkage
 - [Phase 23]: store_article() line 334 and add_tag() line 181 need uuid->nanoid replacement
+- [Phase 27-01]: Used unittest.mock.patch for httpx mocking at module level (src.providers.rss_provider.httpx.head)
+- [Phase 27-01]: Async mocking via async function returning coroutine for httpx.AsyncClient.get()
 
 ### Technical Notes
 
@@ -142,8 +144,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-25T01:00:00.000Z
-Stopped at: Roadmap created for v1.6 — 3 phases derived from 3 requirements
+Last session: 2026-03-24T21:42:28.075Z
+Stopped at: Completed 27-provider-unit-tests 27-01 plan
 
 ## Quick Tasks Completed
 
@@ -174,3 +176,4 @@ Stopped at: Roadmap created for v1.6 — 3 phases derived from 3 requirements
 | Phase 19 P19-02 | 1 | 2 tasks | 2 files |
 | Phase 20 P01 | 72 | 3 tasks | 1 files |
 | Phase 21 P01 | <1 | 4 tasks | 4 files |
+| Phase 27-provider-unit-tests P01 | 200 | 3 tasks | 1 files |
