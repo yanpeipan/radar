@@ -64,7 +64,7 @@
 ### 🚧 v1.5 uvloop并发支持 (Phases 19-22)
 
 - [x] **Phase 19: uvloop Setup + crawl_async Protocol** - Foundation for async crawling ✅ 2026-03-25
-- [ ] **Phase 20: RSSProvider Async HTTP** - httpx.AsyncClient for RSS feeds
+- [x] **Phase 20: RSSProvider Async HTTP** - httpx.AsyncClient for RSS feeds (completed 2026-03-24)
 - [ ] **Phase 21: Concurrent Fetch + SQLite Serialization** - Semaphore + asyncio.to_thread
 - [ ] **Phase 22: CLI Integration** - uvloop.run() + --concurrency parameter
 
@@ -94,7 +94,7 @@
   3. AsyncClient is properly closed after use (context manager or explicit cleanup)
   4. RSS feeds are fetched concurrently during fetch_all_async()
 **Plans**: 1 plan
-  - [ ] 20-01-PLAN.md — RSSProvider async HTTP with httpx.AsyncClient
+  - [x] 20-01-PLAN.md — RSSProvider async HTTP with httpx.AsyncClient
 
 ### Phase 21: Concurrent Fetch + SQLite Serialization
 **Goal**: Concurrent feed fetching with asyncio.Semaphore and serialized SQLite writes
@@ -142,7 +142,7 @@
 | 17. Anti-屎山 Refactoring | 2/2 | Complete | 2026-03-24 |
 | 18. Storage Layer Enforcement | 1/1 | Complete | 2026-03-24 |
 | 19. uvloop Setup + crawl_async Protocol | 0/2 | Not started | - |
-| 20. RSSProvider Async HTTP | 0/1 | Not started | - |
+| 20. RSSProvider Async HTTP | 1/1 | Complete   | 2026-03-24 |
 | 21. Concurrent Fetch + SQLite Serialization | 0/1 | Not started | - |
 | 22. CLI Integration | 0/1 | Not started | - |
 
