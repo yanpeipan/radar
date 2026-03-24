@@ -12,8 +12,8 @@ Requirements for uvloop async concurrency milestone.
 - [x] **UVLP-01**: uvloop.install() 在应用启动时调用，Linux/macOS自动使用uvloop，Windows降级到asyncio
 - [x] **UVLP-02**: ContentProvider 协议添加 crawl_async() 方法，默认实现使用 run_in_executor 包装同步 crawl()
 - [x] **UVLP-03**: RSSProvider 实现 crawl_async()，使用 httpx.AsyncClient 进行异步HTTP请求
-- [ ] **UVLP-04**: fetch_all_async() 函数使用 asyncio.Semaphore 控制并发数，默认10
-- [ ] **UVLP-05**: SQLite写入通过 asyncio.to_thread() 串行化，避免数据库锁冲突
+- [x] **UVLP-04**: fetch_all_async() 函数使用 asyncio.Semaphore 控制并发数，默认10
+- [x] **UVLP-05**: SQLite写入通过 asyncio.to_thread() 串行化，避免数据库锁冲突
 - [ ] **UVLP-06**: fetch --all 命令通过 uvloop.run() 调用异步fetch逻辑
 - [ ] **UVLP-07**: CLI增加 --concurrency 参数，可配置并发数（默认10）
 
@@ -33,8 +33,8 @@ Requirements for uvloop async concurrency milestone.
 | UVLP-01 | Phase 19 | Complete |
 | UVLP-02 | Phase 19 | Complete |
 | UVLP-03 | Phase 20 | Complete |
-| UVLP-04 | Phase 21 | Pending |
-| UVLP-05 | Phase 21 | Pending |
+| UVLP-04 | Phase 21 | Complete |
+| UVLP-05 | Phase 21 | Complete |
 | UVLP-06 | Phase 22 | Pending |
 | UVLP-07 | Phase 22 | Pending |
 

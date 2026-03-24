@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: uvloop并发支持
-status: Ready to plan
-stopped_at: Completed 20-01-PLAN.md (RSSProvider async HTTP)
-last_updated: "2026-03-24T19:14:23.033Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 21-01-PLAN.md (Concurrent Fetch + SQLite Serialization)
+last_updated: "2026-03-24T19:25:27.372Z"
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (v1.5 milestone started)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Phase 20 — rssprovider-async-http
+**Current focus:** Phase 21 — concurrent-fetch-sqlite-serialization
 
 ## Current Position
 
-Phase: 21
-Plan: Not started
+Phase: 21 (concurrent-fetch-sqlite-serialization) — EXECUTING
+Plan: 1 of 1
 
 ## v1.5 Phase Structure
 
@@ -85,6 +85,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 17-anti-refactoring]: RSSProvider.feed_meta uses httpx.get with 5s timeout instead of crawl()
 - [Phase 18]: Added get_all_embeddings() and get_articles_without_embeddings() helper functions to storage to eliminate remaining get_db() calls in ai_tagging.py
 - [Phase 18]: Storage layer enforcement: get_db() is internal to src/storage/ only - no direct database calls outside storage layer
+- [Phase 21]: Used asyncio.Lock singleton + asyncio.to_thread() for SQLite write serialization (UVLP-05)
+- [Phase 21]: Used asyncio.Semaphore for concurrency limiting, default 10 (UVLP-04)
 
 ### Technical Notes
 
@@ -116,8 +118,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-24T19:12:35.379Z
-Stopped at: Completed 20-01-PLAN.md (RSSProvider async HTTP)
+Last session: 2026-03-24T19:25:27.367Z
+Stopped at: Completed 21-01-PLAN.md (Concurrent Fetch + SQLite Serialization)
 
 ## Quick Tasks Completed
 
@@ -145,3 +147,4 @@ Stopped at: Completed 20-01-PLAN.md (RSSProvider async HTTP)
 | Phase 19 P19-01 | 53 | 3 tasks | 3 files |
 | Phase 19 P19-02 | 1 | 2 tasks | 2 files |
 | Phase 20 P01 | 72 | 3 tasks | 1 files |
+| Phase 21 P01 | <1 | 4 tasks | 4 files |
