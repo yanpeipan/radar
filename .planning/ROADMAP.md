@@ -143,7 +143,7 @@
 | 18. Storage Layer Enforcement | 1/1 | Complete | 2026-03-24 |
 | 19. uvloop Setup + crawl_async Protocol | 0/2 | Not started | - |
 | 20. RSSProvider Async HTTP | 1/1 | Complete    | 2026-03-24 |
-| 21. Concurrent Fetch + SQLite Serialization | 1/1 | Complete   | 2026-03-24 |
+| 21. Concurrent Fetch + SQLite Serialization | 1/1 | Complete    | 2026-03-24 |
 | 22. CLI Integration | 0/1 | Not started | - |
 
 ---
