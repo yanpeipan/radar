@@ -1,32 +1,38 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: uvloop并发支持
-status: Milestone complete — v1.5 shipped
-stopped_at: Completed Phase 22 CLI Integration — v1.5 milestone shipped
-last_updated: "2026-03-25T00:00:00.000Z"
+milestone: v1.6
+milestone_name: nanoid ID生成
+status: Milestone started — defining requirements
+stopped_at: New milestone v1.6 initialized
+last_updated: "2026-03-25T01:00:00.000Z"
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 3
-  completed_plans: 3
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (v1.5 milestone started)
+See: .planning/PROJECT.md (v1.6 milestone started)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Phase 22 — cli-integration
+**Current focus:** v1.6 — nanoid ID生成
 
 ## Current Position
 
-Phase: 22 (cli-integration) — EXECUTING
-Plan: 1 of 1
+Phase: Not started (defining requirements)
+Plan: None
 
-## v1.5 Phase Structure
+## v1.6 Phase Structure
+
+| Phase | Goal | Requirements |
+|-------|------|--------------|
+| TBD | nanoid Implementation | NANO-01 |
+| TBD | Migration Script | NANO-02 |
+| TBD | Verification | NANO-03 |
 
 | Phase | Goal | Requirements |
 |-------|------|--------------|

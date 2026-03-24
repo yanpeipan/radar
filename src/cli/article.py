@@ -79,12 +79,9 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
             click.secho("No articles found. Add some feeds and fetch them first.")
             return
 
-        # Separate article IDs and release IDs
-        article_ids = [a.id for a in articles if a.source_type == "feed"]
-        release_ids = [a.id for a in articles if a.source_type == "github"]
-
-        # Batch fetch tags for all items (articles and releases)
-        tags_map = get_articles_with_tags(article_ids, release_ids if release_ids else None)
+        # Batch fetch tags for all articles
+        article_ids = [a.id for a in articles]
+        tags_map = get_articles_with_tags(article_ids)
 
         # Create rich table
         console = Console()
@@ -99,11 +96,7 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
             title = article.title or "No title"
             pub_date = article.pub_date or "No date"
 
-            # Show GitHub source or feed source
-            if article.source_type == "github":
-                source = f"{article.repo_name}@{article.release_tag}" if article.release_tag else article.repo_name
-            else:
-                source = article.feed_name or "Unknown"
+            source = article.feed_name or "Unknown"
 
             # Get tags from batch-fetched map
             article_tags = tags_map.get(article.id, [])
@@ -316,11 +309,7 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
             title = article.title or "No title"
             pub_date = article.pub_date or "No date"
 
-            # Show GitHub source or feed source
-            if article.source_type == "github":
-                source = f"{article.repo_name}@{article.release_tag}" if article.release_tag else article.repo_name
-            else:
-                source = article.feed_name or "Unknown"
+            source = article.feed_name or "Unknown"
 
             if verbose:
                 click.secho(f"\nTitle: {title}")

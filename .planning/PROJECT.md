@@ -8,15 +8,14 @@
 
 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
 
-## Current Milestone: v1.5 uvloop并发支持
+## Current Milestone: v1.6 nanoid ID生成
 
-**Goal:** 引入MagicStack/uvloop实现并发抓取，默认10倍速提升
+**Goal:** 使用nanoid替代uuid.uuid4()生成更短、URL-safe的article ID，修复历史遗留的URL-like ID问题
 
 **Target features:**
-- uvloop作为事件循环，提升asyncio性能
-- 可配置的并发数（默认10x）
-- httpx异步客户端
-- SQLite写入保持串行（规避锁冲突）
+- nanoid替代uuid生成article id（更短：21字符 vs 36字符）
+- 迁移脚本修复历史数据（~2479条URL-like IDs）
+- nanoid已安装（v3.16.0），无需新增依赖
 
 ---
 
@@ -59,7 +58,13 @@
 
 ## Requirements
 
-### Active (v1.5)
+### Active (v1.6)
+
+- [ ] NANO-01: store_article()使用nanoid.generate()替代uuid.uuid4()
+- [ ] NANO-02: 生成迁移脚本，修复~2479条URL-like ID的历史数据
+- [ ] NANO-03: 验证所有article相关操作（CRUD、tagging、search）正常
+
+### Validated (v1.5)
 
 - [x] UVLP-01: uvloop作为asyncio事件循环，提升I/O性能
 - [x] UVLP-02: httpx异步客户端支持并发请求
@@ -130,6 +135,7 @@
 | asyncio.Lock + to_thread | SQLite writes serialized via asyncio.Lock + asyncio.to_thread() — prevents "database is locked" | ✅ Good (v1.5) |
 | uvloop.run() in CLI | `fetch --all` wraps async fetch with uvloop.run() for event loop optimization | ✅ Good (v1.5) |
 | --concurrency CLI参数 | Click IntRange(1, 100) validation, passed to fetch_all_async() Semaphore | ✅ Good (v1.5) |
+| nanoid替代uuid | 使用nanoid.generate()替代uuid.uuid4()生成更短（21字符）URL-safe的article ID | ✅ Good (v1.6) |
 
 ## Tech Stack
 
@@ -156,4 +162,4 @@
 
 ---
 
-*Last updated: 2026-03-25 after Phase 22 complete (UVLP-06, UVLP-07) — v1.5 milestone shipped*
+*Last updated: 2026-03-25 — v1.6 nanoid ID生成 milestone started*

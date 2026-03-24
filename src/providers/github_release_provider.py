@@ -109,6 +109,21 @@ class GitHubReleaseProvider:
             logger.error("GitHubReleaseProvider.crawl(%s) failed: %s", url, e)
             return []
 
+    async def crawl_async(self, url: str) -> List[Raw]:
+        """Asynchronous crawl using thread pool executor.
+
+        Since GitHub API calls via PyGithub are synchronous, this method
+        runs crawl() in a thread pool to avoid blocking the event loop.
+
+        Args:
+            url: GitHub repository URL.
+
+        Returns:
+            List of release dicts from crawl().
+        """
+        import asyncio
+        return await asyncio.to_thread(self.crawl, url)
+
     def parse(self, raw: Raw) -> Article:
         """Convert GitHub release dict to Article dict.
 
