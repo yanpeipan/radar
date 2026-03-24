@@ -6,6 +6,7 @@ Priority is 50 (higher than DefaultProvider at 0, lower than GitHubReleaseProvid
 from __future__ import annotations
 
 import logging
+from contextvars import ContextVar
 from typing import List
 
 from src.providers import PROVIDERS
@@ -13,6 +14,9 @@ from src.providers.base import Article, ContentProvider, Raw, TagParser
 from src.tags import chain_tag_parsers
 
 logger = logging.getLogger(__name__)
+
+# Thread-safe context variable for feed title (avoids instance state race conditions)
+_feed_title_var: ContextVar[str | None] = ContextVar("feed_title", default=None)
 
 
 class RSSProvider:
@@ -23,12 +27,12 @@ class RSSProvider:
     """
 
     def __init__(self) -> None:
-        self._feed_title: str | None = None
+        pass
 
     @property
     def feed_title(self) -> str | None:
-        """Return the feed title from the last crawl() call, or None."""
-        return self._feed_title
+        """Return the feed title from the last crawl() call in this context, or None."""
+        return _feed_title_var.get()
 
     def match(self, url: str) -> bool:
         """Check if URL points to RSS/Atom feed via Content-Type header.
@@ -93,7 +97,7 @@ class RSSProvider:
 
         from src.feeds import fetch_feed_content, parse_feed
 
-        self._feed_title = None
+        _feed_title_var.set(None)
         try:
             content, etag, last_modified, status_code = fetch_feed_content(url)
             if content is None:
@@ -103,7 +107,7 @@ class RSSProvider:
             # Parse full feed to get feed-level metadata (title)
             parsed = feedparser.parse(content)
             if parsed.feed:
-                self._feed_title = parsed.feed.get("title")
+                _feed_title_var.set(parsed.feed.get("title"))
 
             entries, bozo_flag, bozo_exception = parse_feed(content, url)
             if bozo_flag and bozo_exception:
@@ -149,7 +153,7 @@ class RSSProvider:
             # Parse full feed to get feed-level metadata (title)
             parsed = feedparser.parse(content)
             if parsed.feed:
-                self._feed_title = parsed.feed.get("title")
+                _feed_title_var.set(parsed.feed.get("title"))
 
             entries, bozo_flag, bozo_exception = parse_feed(content, url)
             if bozo_flag and bozo_exception:
@@ -231,7 +235,7 @@ class RSSProvider:
         from src.config import get_timezone
         from datetime import datetime
 
-        # crawl() already parses feed and sets self._feed_title
+        # crawl() already parses feed and sets _feed_title_var
         entries = self.crawl(url)
         if not entries:
             raise ValueError(f"No entries in feed {url}")
@@ -240,7 +244,7 @@ class RSSProvider:
 
         return Feed(
             id="",  # ID not assigned - this is metadata only
-            name=self._feed_title or url,
+            name=_feed_title_var.get() or url,
             url=url,
             etag=None,
             last_modified=None,
