@@ -11,6 +11,7 @@
 ## Current State
 
 **Shipped: v1.4 Storage Layer Enforcement** (2026-03-25)
+- Phase 17 complete: Anti-屎山 refactoring — cli.py (798 lines) split into `src/cli/` package with 5 modules; DB context manager adopted
 - Phase 18 complete: All database operations centralized in `src/storage/sqlite.py`
   - `get_db()` is now internal to storage layer only
   - AI tagging, feed, article, crawl, and CLI modules all delegate to storage functions
@@ -101,7 +102,9 @@
 | Tag Parser 插件链 | 多 parser 结果并集去重，支持扩展 | ✅ Good (v1.3) |
 | github_repos 并入 feeds | metadata JSON 字段存储 provider 特定数据 | ✅ Good (v1.3) |
 | GitHubReleaseProvider | 独立 provider，priority=200 优于 GitHubProvider | ✅ Good (v1.4) |
-| db.py to src/storage/sqlite | Database module moved to src/storage/ directory for better organization; _get_connection made truly private | | (v1.4) |
+| cli.py → src/cli/ | 包结构拆分，单一职责，便于维护和测试 | ✅ Good (v1.4) |
+| Storage layer enforcement | get_db() internal to src/storage/ only，所有模块调用 storage functions | ✅ Good (v1.4) |
+| feed_meta() httpx优化 | 使用 httpx.get + feedparser 替代 crawl()，5s timeout | ✅ Good (v1.4) |
 
 ## Tech Stack
 
@@ -128,4 +131,4 @@
 
 ---
 
-*Last updated: 2026-03-25 after phase 18 complete*
+*Last updated: 2026-03-25 after v1.4 milestone shipped*
