@@ -103,7 +103,8 @@
   4. article open <8-char-prefix> works for new articles
   5. Tag operations (add/remove) work on new articles
   6. Search returns new articles correctly
-**Plans**: TBD
+**Plans**: 1 plan
+  - [ ] 25-PLAN.md - Verify nanoid article operations
 
 ## Progress
 
@@ -130,7 +131,7 @@
 | 18. Storage Layer Enforcement | 1/1 | Complete | 2026-03-24 |
 | 23. nanoid Code Changes | 1/1 | ✅ Complete | 2026-03-25 |
 | 24. Migration Script | 0/1 | Deferred | - |
-| 25. Verification | 0/1 | Not started | - |
+| 25. Verification | 0/1 | In progress | - |
 
 ---
 _For completed milestone details, see `.planning/milestones/`_
