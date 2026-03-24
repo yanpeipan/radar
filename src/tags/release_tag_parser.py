@@ -43,7 +43,7 @@ class ReleaseTagParser:
         link = article.get("link", "")
         if link:
             try:
-                from src.github_utils import parse_github_url
+                from src.utils.github import parse_github_url
                 owner, _ = parse_github_url(link)
                 self._add_tag(tags, seen, owner)
             except (ValueError, Exception):

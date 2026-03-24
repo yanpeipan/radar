@@ -79,7 +79,7 @@ class GitHubReleaseProvider:
         Returns:
             List with single release dict, or empty list if no release or error.
         """
-        from src.github_utils import parse_github_url
+        from src.utils.github import parse_github_url
 
         try:
             owner, repo = parse_github_url(url)
@@ -174,7 +174,7 @@ class GitHubReleaseProvider:
         Returns:
             Feed object with name and url populated.
         """
-        from src.github_utils import parse_github_url
+        from src.utils.github import parse_github_url
         from src.models import Feed
         from src.application.config import get_timezone
         from datetime import datetime
