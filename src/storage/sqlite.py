@@ -343,3 +343,54 @@ def store_article(
 
         conn.commit()
         return article_id
+
+
+def _load_vec_extension(conn: sqlite3.Connection) -> None:
+    """Load sqlite-vec extension."""
+    conn.enable_load_extension(True)
+    try:
+        conn.load_extension("vec0")
+    except sqlite3.OperationalError:
+        pass  # vec0 may not be available
+
+
+def _ensure_embeddings_table() -> None:
+    """Create article_embeddings table if not exists."""
+    with get_db() as conn:
+        _load_vec_extension(conn)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS article_embeddings (
+                article_id TEXT PRIMARY KEY,
+                embedding BLOB
+            )
+        """)
+        conn.commit()
+
+
+def store_embedding(article_id: str, embedding) -> None:
+    """Store article embedding in sqlite-vec."""
+    import numpy as np
+    _ensure_embeddings_table()
+    with get_db() as conn:
+        _load_vec_extension(conn)
+        cursor = conn.cursor()
+        embedding_bytes = embedding.tobytes()
+        cursor.execute("""
+            INSERT OR REPLACE INTO article_embeddings (article_id, embedding)
+            VALUES (?, ?)
+        """, (article_id, embedding_bytes))
+        conn.commit()
+
+
+def get_article_embedding(article_id: str):
+    """Retrieve stored embedding for an article."""
+    import numpy as np
+    with get_db() as conn:
+        _load_vec_extension(conn)
+        cursor = conn.cursor()
+        cursor.execute("SELECT embedding FROM article_embeddings WHERE article_id = ?", (article_id,))
+        row = cursor.fetchone()
+        if row:
+            return np.frombuffer(row["embedding"], dtype=np.float32)
+        return None
