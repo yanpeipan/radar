@@ -4,6 +4,7 @@ from src.storage.sqlite import (
     get_db,
     init_db,
     store_article,
+    store_article_async,
     add_tag,
     list_tags,
     remove_tag,
