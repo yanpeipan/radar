@@ -81,5 +81,16 @@
 Plans:
 - [x] 16-01-PLAN.md — Create GitHubReleaseProvider (priority 200) and ReleaseTagParser
 
+### Phase 17: Anti-屎山 Refactoring
+
+**Goal:** Implement Phase 2 of docs/feed.md target architecture — split cli.py, fix feed_meta(), adopt DB context manager
+**Requirements**: (none mapped)
+**Depends on:** None
+**Plans:** 2/2 plans created
+
+Plans:
+- [x] 17-01-PLAN.md — CLI package split (cli.py → cli/)
+- [x] 17-02-PLAN.md — DB context manager + feed_meta fix
+
 ---
 _For completed milestone details, see `.planning/milestones/`_
