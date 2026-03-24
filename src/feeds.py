@@ -18,12 +18,6 @@ import httpx
 
 from src.db import get_connection
 from src.models import Article, Feed
-from src.crawl import is_github_blob_url
-from src.github_ops import (
-    get_or_create_github_repo,
-    fetch_changelog_content,
-    store_changelog_as_article,
-)
 from src.providers import discover_or_default
 
 # Browser-like User-Agent header to avoid 403 bot blocks
@@ -47,75 +41,6 @@ def generate_feed_id() -> str:
         A new UUID string.
     """
     return str(uuid.uuid4())
-
-
-def add_github_blob_feed(url: str, github_blob: tuple[str, str, str, str]) -> Feed:
-    """Add a feed from GitHub blob URL, storing changelog content as article.
-
-    Args:
-        url: The GitHub blob URL
-        github_blob: Tuple of (owner, repo, branch, path) from is_github_blob_url()
-
-    Returns:
-        The created Feed object.
-
-    Raises:
-        ValueError: If content fetch fails or no github_repo could be created.
-    """
-    owner, repo, branch, path = github_blob
-    filename = path.split('/')[-1] if '/' in path else path
-
-    # D-04, D-06: Ensure github_repo entry exists for store_changelog_as_article()
-    github_repo = get_or_create_github_repo(owner, repo)
-
-    # D-06: Fetch content for the explicit path
-    content = fetch_changelog_content(owner, repo, filename, branch)
-    if not content:
-        # D-07: No content -> clear error, do NOT add feed
-        raise ValueError(f"Failed to fetch content from {url}")
-
-    # Store changelog as article with repo_id association
-    source_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{filename}"
-    store_changelog_as_article(
-        repo_id=github_repo.id,
-        repo_name=github_repo.name,
-        content=content,
-        filename=filename,
-        source_url=source_url,
-    )
-
-    # D-04, D-05: Create feed entry with GitHub URL as url
-    feed_id = generate_feed_id()
-    now = datetime.now(get_timezone()).isoformat()
-    feed_title = f"{owner}/{repo} / {filename}"
-
-    conn = get_connection()
-    try:
-        cursor = conn.cursor()
-        # Check if feed already exists
-        cursor.execute("SELECT id FROM feeds WHERE url = ?", (url,))
-        existing = cursor.fetchone()
-        if existing:
-            raise ValueError(f"Feed already exists: {url}")
-
-        cursor.execute(
-            """INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (feed_id, feed_title, url, None, None, now, now),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-
-    return Feed(
-        id=feed_id,
-        name=feed_title,
-        url=url,
-        etag=None,
-        last_modified=None,
-        last_fetched=now,
-        created_at=now,
-    )
 
 
 def fetch_feed_content(
@@ -237,11 +162,6 @@ def add_feed(url: str) -> Feed:
     Raises:
         ValueError: If the feed already exists, cannot be fetched, or has no entries.
     """
-    # D-01, D-02, D-03: Detect GitHub blob URL and route to changelog flow
-    github_blob = is_github_blob_url(url)
-    if github_blob:
-        return add_github_blob_feed(url, github_blob)
-
     # Discover provider and fetch metadata via feed_meta
     providers = discover_or_default(url)
     provider = providers[0]
