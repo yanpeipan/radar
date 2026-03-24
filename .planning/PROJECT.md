@@ -10,6 +10,12 @@
 
 ## Current State
 
+**Shipped: v1.4 GitHubReleaseProvider** (2026-03-24)
+- Phase 16 complete: GitHubReleaseProvider (priority=200) using PyGithub repo.get_latest_release()
+  - Separate from GitHubProvider — coexists with different focus
+  - ReleaseTagParser extracts owner/version/release-type tags with semantic versioning
+  - Provider runs first for all GitHub URLs (priority 200 > GitHubProvider 100)
+
 **Shipped: v1.3 Provider Architecture** (2026-03-24)
 - Phase 12 complete: Provider plugin architecture foundation + DB migrations
   - ContentProvider & TagParser Protocols with @runtime_checkable
@@ -88,6 +94,7 @@
 | Provider 插件架构 | 动态加载 + match 路由，支持多种 URL 类型 | ✅ Good (v1.3) |
 | Tag Parser 插件链 | 多 parser 结果并集去重，支持扩展 | ✅ Good (v1.3) |
 | github_repos 并入 feeds | metadata JSON 字段存储 provider 特定数据 | ✅ Good (v1.3) |
+| GitHubReleaseProvider | 独立 provider，priority=200 优于 GitHubProvider | ✅ Good (v1.4) |
 
 ## Tech Stack
 
@@ -114,4 +121,4 @@
 
 ---
 
-*Last updated: 2026-03-24 after phase 15 complete*
+*Last updated: 2026-03-24 after phase 16 complete*
