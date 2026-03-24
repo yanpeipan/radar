@@ -73,6 +73,24 @@ class ContentProvider(Protocol):
         """
         ...
 
+    async def crawl_async(self, url: str) -> List[Raw]:
+        """Asynchronous crawl - default uses run_in_executor.
+
+        Override this method in providers that support true async HTTP
+        (e.g., RSSProvider with httpx.AsyncClient).
+
+        Default implementation wraps the sync crawl() method in a thread pool
+        executor to avoid blocking the event loop.
+
+        Args:
+            url: URL to crawl.
+
+        Returns:
+            List of raw content dicts from crawl_async() or crawl().
+            Returns empty list if crawl fails.
+        """
+        ...
+
     def parse(self, raw: Raw) -> Article:
         """Convert raw crawl result to Article.
 
