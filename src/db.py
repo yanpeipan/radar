@@ -163,8 +163,7 @@ def init_db() -> None:
 def add_tag(name: str) -> Tag:
     """Create a new tag. Returns Tag object."""
     import uuid
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
         tag_id = str(uuid.uuid4())
         cursor.execute(
@@ -175,25 +174,19 @@ def add_tag(name: str) -> Tag:
         cursor.execute("SELECT created_at FROM tags WHERE id = ?", (tag_id,))
         created_at = cursor.fetchone()["created_at"]
         return Tag(id=tag_id, name=name, created_at=created_at)
-    finally:
-        conn.close()
 
 
 def list_tags() -> list[Tag]:
     """List all tags ordered by name."""
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id, name, created_at FROM tags ORDER BY name")
         return [Tag(id=row["id"], name=row["name"], created_at=row["created_at"]) for row in cursor.fetchall()]
-    finally:
-        conn.close()
 
 
 def remove_tag(tag_name: str) -> bool:
     """Remove a tag by name. Unlinks from all articles via CASCADE. Returns True if removed."""
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
         # First get tag_id
         cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
@@ -205,8 +198,6 @@ def remove_tag(tag_name: str) -> bool:
         cursor.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
         conn.commit()
         return cursor.rowcount > 0
-    finally:
-        conn.close()
 
 
 def get_tag_article_counts() -> dict[str, int]:
@@ -214,8 +205,7 @@ def get_tag_article_counts() -> dict[str, int]:
 
     Counts articles that have each tag.
     """
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT t.name, COUNT(at.article_id) as count
@@ -225,14 +215,11 @@ def get_tag_article_counts() -> dict[str, int]:
             ORDER BY t.name
         """)
         return {row["name"]: row["count"] for row in cursor.fetchall()}
-    finally:
-        conn.close()
 
 
 def tag_article(article_id: str, tag_name: str) -> bool:
     """Link an article to a tag. Creates tag if it doesn't exist. Returns True if linked."""
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
         # Get or create tag
         cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
@@ -255,14 +242,11 @@ def tag_article(article_id: str, tag_name: str) -> bool:
             # Already linked, not an error
             pass
         return True
-    finally:
-        conn.close()
 
 
 def untag_article(article_id: str, tag_name: str) -> bool:
     """Remove link between article and tag. Returns True if unlinked."""
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
         row = cursor.fetchone()
@@ -275,14 +259,11 @@ def untag_article(article_id: str, tag_name: str) -> bool:
         )
         conn.commit()
         return cursor.rowcount > 0
-    finally:
-        conn.close()
 
 
 def get_article_tags(article_id: str) -> list[str]:
     """Returns list of tag names for an article."""
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT t.name FROM tags t
@@ -291,8 +272,6 @@ def get_article_tags(article_id: str) -> list[str]:
             ORDER BY t.name
         """, (article_id,))
         return [row["name"] for row in cursor.fetchall()]
-    finally:
-        conn.close()
 
 
 def store_article(
@@ -322,8 +301,7 @@ def store_article(
 
     now = datetime.now(get_timezone()).isoformat()
 
-    conn = get_connection()
-    try:
+    with get_db() as conn:
         cursor = conn.cursor()
 
         # Check if article exists
@@ -365,5 +343,3 @@ def store_article(
 
         conn.commit()
         return article_id
-    finally:
-        conn.close()
