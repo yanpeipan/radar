@@ -81,6 +81,9 @@ class ContentProvider(ABC):
 
     def parse_tags(self, article: Article) -> List[str]:
         """Parse tags for an article using all loaded tag parsers."""
+
+    def feed_meta(self, url: str) -> Feed:
+        """Fetch feed metadata (title, etc.) from URL without storing. Raises if unavailable."""
 ```
 
 **Article dict shape:**

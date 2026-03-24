@@ -165,6 +165,37 @@ class GitHubReleaseProvider:
         """
         return chain_tag_parsers(article)
 
+    def feed_meta(self, url: str) -> "Feed":
+        """Fetch repository metadata from GitHub.
+
+        Args:
+            url: GitHub repository URL.
+
+        Returns:
+            Feed object with name and url populated.
+        """
+        from src.github_utils import parse_github_url
+        from src.models import Feed
+        from src.config import get_timezone
+        from datetime import datetime
+
+        owner, repo = parse_github_url(url)
+        client = _get_github_client()
+        gh_repo = client.get_repo(f"{owner}/{repo}")
+
+        repo_name = gh_repo.full_name or f"{owner}/{repo}"
+        now = datetime.now(get_timezone()).isoformat()
+
+        return Feed(
+            id="",  # ID not assigned - this is metadata only
+            name=repo_name,
+            url=url,
+            etag=None,
+            last_modified=None,
+            last_fetched=now,
+            created_at=now,
+        )
+
 
 # Register this provider - higher priority (200) than GitHubProvider (100)
 PROVIDERS.append(GitHubReleaseProvider())

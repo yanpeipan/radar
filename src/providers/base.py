@@ -102,3 +102,15 @@ class ContentProvider(Protocol):
             List of unique tag names from all tag parsers.
         """
         return []
+
+    def feed_meta(self, url: str) -> "Feed":
+        """Fetch feed metadata from URL without storing.
+
+        Args:
+            url: URL of the feed to get metadata for.
+
+        Returns:
+            Feed object with name, url, and basic metadata populated.
+            Raises exception if URL cannot be fetched or parsed.
+        """
+        ...

@@ -16,7 +16,7 @@ from typing import Optional
 import feedparser
 import httpx
 
-from src.db import get_connection, get_db_path
+from src.db import get_connection
 from src.models import Article, Feed
 from src.crawl import is_github_blob_url
 from src.github_ops import (
@@ -24,6 +24,7 @@ from src.github_ops import (
     fetch_changelog_content,
     store_changelog_as_article,
 )
+from src.providers import discover_or_default
 
 # Browser-like User-Agent header to avoid 403 bot blocks
 BROWSER_HEADERS = {
@@ -158,54 +159,6 @@ def fetch_feed_content(
     return response.content, new_etag, new_last_modified, status_code
 
 
-def fetch_feed_content_with_scrapling_fallback(
-    url: str,
-    etag: Optional[str] = None,
-    last_modified: Optional[str] = None,
-) -> tuple[Optional[bytes], Optional[str], Optional[str], int]:
-    """Fetch feed content with Scrapling fallback for Cloudflare-protected feeds.
-
-    First tries httpx, then falls back to Scrapling if 403 is returned.
-    This is needed because Cloudflare may block httpx HEAD/GET requests but allow
-    Scrapling's browser-like requests.
-
-    Args:
-        url: The URL of the feed to fetch.
-        etag: Optional ETag header for conditional fetching.
-        last_modified: Optional Last-Modified header for conditional fetching.
-
-    Returns:
-        A tuple of (content, etag, last_modified, status_code).
-        content is None if status is 304 (not modified).
-        Raises exception only if both httpx and Scrapling fail.
-    """
-    try:
-        content, new_etag, new_last_modified, status_code = fetch_feed_content(
-            url, etag, last_modified
-        )
-        return content, new_etag, new_last_modified, status_code
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 403:
-            logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
-            try:
-                from scrapling import Fetcher
-
-                response = Fetcher.get(url)
-                # Scrapling returns bytes in response.body
-                content = response.body
-                if content:
-                    logger.info("Scrapling successfully fetched %s", url)
-                    return content, None, None, 200
-            except ImportError:
-                logger.warning("Scrapling not installed, cannot fallback for %s", url)
-            except Exception as scraper_err:
-                logger.error("Scrapling failed for %s: %s", url, scraper_err)
-        # Re-raise if not a 403, or if Scrapling also failed
-        raise
-    except Exception:
-        # Re-raise other exceptions
-        raise
-
 
 def parse_feed(
     content: bytes,
@@ -273,7 +226,7 @@ def generate_article_id(entry: feedparser.FeedParserDict) -> str:
 def add_feed(url: str) -> Feed:
     """Add a new feed by URL.
 
-    Fetches and parses the feed to validate the URL and extract metadata.
+    Uses provider.feed_meta to fetch metadata and provider.crawl to validate.
 
     Args:
         url: The URL of the feed to add.
@@ -282,37 +235,31 @@ def add_feed(url: str) -> Feed:
         The created Feed object.
 
     Raises:
-        ValueError: If the feed already exists or cannot be parsed.
+        ValueError: If the feed already exists, cannot be fetched, or has no entries.
     """
     # D-01, D-02, D-03: Detect GitHub blob URL and route to changelog flow
     github_blob = is_github_blob_url(url)
     if github_blob:
         return add_github_blob_feed(url, github_blob)
 
-    # Fetch and parse the feed first to validate
+    # Discover provider and fetch metadata via feed_meta
+    providers = discover_or_default(url)
+    provider = providers[0]
+
+    # Get feed metadata (title, etag, last_modified)
     try:
-        content, etag, last_modified, status_code = fetch_feed_content(url)
-    except (httpx.RequestError, httpx.HTTPError, httpx.TimeoutException, OSError) as e:
-        raise ValueError(f"Failed to fetch feed: {e}") from e
+        feed_meta = provider.feed_meta(url)
+    except Exception as e:
+        raise ValueError(f"Failed to fetch feed metadata: {e}") from e
 
-    if content is None:
-        # 304 means feed hasn't changed, but we still need content to parse
-        raise ValueError("Feed not modified (unexpected)")
+    # Validate by crawling - ensure entries exist
+    try:
+        entries = provider.crawl(url)
+    except Exception as e:
+        raise ValueError(f"Failed to crawl feed: {e}") from e
 
-    entries, bozo_flag, bozo_exception = parse_feed(content, url)
-
-    if not entries and not bozo_flag:
-        raise ValueError("No entries found in feed and feed appears valid")
-
-    # Use feed title from parsing, or extract from URL if missing
-    feed_title = None
-    if hasattr(feedparser, "parse"):
-        # Re-parse to get feed-level metadata
-        parsed = feedparser.parse(content)
-        feed_title = parsed.feed.get("title") if parsed.feed else None
-
-    if not feed_title:
-        feed_title = url
+    if not entries:
+        raise ValueError("No entries found in feed")
 
     # Check if feed already exists
     conn = get_connection()
@@ -337,7 +284,15 @@ def add_feed(url: str) -> Feed:
             INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (feed_id, feed_title, url, etag, last_modified, now, now),
+            (
+                feed_id,
+                feed_meta.name,
+                url,
+                feed_meta.etag,
+                feed_meta.last_modified,
+                now,
+                now,
+            ),
         )
         conn.commit()
     finally:
@@ -345,10 +300,10 @@ def add_feed(url: str) -> Feed:
 
     return Feed(
         id=feed_id,
-        name=feed_title,
+        name=feed_meta.name,
         url=url,
-        etag=etag,
-        last_modified=last_modified,
+        etag=feed_meta.etag,
+        last_modified=feed_meta.last_modified,
         last_fetched=now,
         created_at=now,
     )
