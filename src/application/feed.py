@@ -3,15 +3,200 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import datetime
+from typing import Optional
 
 from src.config import get_timezone
 from src.db import get_connection
-from src.feeds import FeedNotFoundError, get_feed, list_feeds, generate_article_id
 from src.models import Feed
 from src.providers import discover_or_default
+from src.utils import generate_article_id, generate_feed_id
 
 logger = logging.getLogger(__name__)
+
+
+class FeedNotFoundError(Exception):
+    """Raised when a feed is not found in the database."""
+
+    pass
+
+
+def add_feed(url: str) -> Feed:
+    """Add a new feed by URL.
+
+    Uses provider.feed_meta to fetch metadata and provider.crawl to validate.
+
+    Args:
+        url: The URL of the feed to add.
+
+    Returns:
+        The created Feed object.
+
+    Raises:
+        ValueError: If the feed already exists, cannot be fetched, or has no entries.
+    """
+    # Discover matching providers and try each until one succeeds
+    providers = discover_or_default(url)
+
+    feed_meta = None
+    entries = None
+    last_error = None
+
+    for provider in providers:
+        try:
+            feed_meta = provider.feed_meta(url)
+            entries = provider.crawl(url)
+            if entries:
+                break  # Success
+        except Exception as e:
+            last_error = e
+            continue  # Try next provider
+
+    if feed_meta is None or entries is None:
+        if last_error:
+            raise ValueError(f"All providers failed: {last_error}")
+        raise ValueError("No provider could fetch feed metadata")
+
+    if not entries:
+        raise ValueError("No entries found in feed")
+
+    # Check if feed already exists
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM feeds WHERE url = ?", (url,))
+        existing = cursor.fetchone()
+        if existing:
+            raise ValueError(f"Feed already exists: {url}")
+    finally:
+        conn.close()
+
+    # Create new feed
+    feed_id = generate_feed_id()
+    now = datetime.now(get_timezone()).isoformat()
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                feed_id,
+                feed_meta.name,
+                url,
+                feed_meta.etag,
+                feed_meta.last_modified,
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return Feed(
+        id=feed_id,
+        name=feed_meta.name,
+        url=url,
+        etag=feed_meta.etag,
+        last_modified=feed_meta.last_modified,
+        last_fetched=now,
+        created_at=now,
+    )
+
+
+def list_feeds() -> list[Feed]:
+    """List all feeds with article counts.
+
+    Returns:
+        List of Feed objects with article counts available via articles_count attribute.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT f.id, f.name, f.url, f.etag, f.last_modified, f.last_fetched, f.created_at,
+                   COUNT(a.id) as articles_count
+            FROM feeds f
+            LEFT JOIN articles a ON f.id = a.feed_id
+            GROUP BY f.id
+            ORDER BY f.created_at DESC
+            """,
+        )
+        rows = cursor.fetchall()
+        feeds = []
+        for row in rows:
+            feed = Feed(
+                id=row["id"],
+                name=row["name"],
+                url=row["url"],
+                etag=row["etag"],
+                last_modified=row["last_modified"],
+                last_fetched=row["last_fetched"],
+                created_at=row["created_at"],
+            )
+            feed.articles_count = row["articles_count"]
+            feeds.append(feed)
+        return feeds
+    finally:
+        conn.close()
+
+
+def get_feed(feed_id: str) -> Optional[Feed]:
+    """Get a single feed by ID.
+
+    Args:
+        feed_id: The ID of the feed to retrieve.
+
+    Returns:
+        The Feed object, or None if not found.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, name, url, etag, last_modified, last_fetched, created_at FROM feeds WHERE id = ?",
+            (feed_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return Feed(
+            id=row["id"],
+            name=row["name"],
+            url=row["url"],
+            etag=row["etag"],
+            last_modified=row["last_modified"],
+            last_fetched=row["last_fetched"],
+            created_at=row["created_at"],
+        )
+    finally:
+        conn.close()
+
+
+def remove_feed(feed_id: str) -> bool:
+    """Remove a feed and all its articles.
+
+    Args:
+        feed_id: The ID of the feed to remove.
+
+    Returns:
+        True if the feed was deleted, False if not found.
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM feeds WHERE id = ?", (feed_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        return deleted
+    finally:
+        conn.close()
 
 
 def fetch_one(feed_or_id: str | Feed) -> dict:
@@ -62,7 +247,7 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
     for raw in raw_items:
         article = provider.parse(raw)
         new_article = _store_article(
-            feed_id=feed_id,
+            feed_id=feed.id,
             article=article,
             provider_name=provider_name,
         )

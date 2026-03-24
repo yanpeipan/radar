@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
-from typing import List
+from typing import List, Optional
+
+import feedparser
+import httpx
 
 from src.providers import PROVIDERS
 from src.providers.base import Article, ContentProvider, Raw, TagParser
@@ -17,6 +20,87 @@ logger = logging.getLogger(__name__)
 
 # Thread-safe context variable for feed title (avoids instance state race conditions)
 _feed_title_var: ContextVar[str | None] = ContextVar("feed_title", default=None)
+
+# Browser-like User-Agent header to avoid 403 bot blocks
+BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
+
+
+def fetch_feed_content(
+    url: str,
+    etag: Optional[str] = None,
+    last_modified: Optional[str] = None,
+) -> tuple[Optional[bytes], Optional[str], Optional[str], int]:
+    """Fetch feed content from URL with conditional request support.
+
+    Args:
+        url: The URL of the feed to fetch.
+        etag: Optional ETag header for conditional fetching.
+        last_modified: Optional Last-Modified header for conditional fetching.
+
+    Returns:
+        A tuple of (content, etag, last_modified, status_code).
+        content is None if status is 304 (not modified).
+        Raises httpx.RequestError or httpx.TimeoutException on network errors.
+    """
+    headers: dict[str, str] = {}
+    if etag:
+        headers["If-None-Match"] = etag
+    if last_modified:
+        headers["If-Modified-Since"] = last_modified
+
+    # Merge browser headers with conditional headers
+    request_headers = {**BROWSER_HEADERS, **headers}
+    response = httpx.get(url, headers=request_headers, timeout=30.0, follow_redirects=True)
+
+    # Handle 304 Not Modified (httpx raises on 304 after redirects)
+    if response.status_code == 304:
+        return None, None, None, 304
+
+    response.raise_for_status()
+    status_code = response.status_code
+
+    # Extract headers for future conditional requests
+    new_etag = response.headers.get("etag")
+    new_last_modified = response.headers.get("last-modified")
+
+    return response.content, new_etag, new_last_modified, status_code
+
+
+def parse_feed(
+    content: bytes,
+    url: str,
+) -> tuple[list, bool, Optional[Exception]]:
+    """Parse RSS/Atom feed content using feedparser.
+
+    Args:
+        content: Raw feed content as bytes.
+        url: URL of the feed (used for logging).
+
+    Returns:
+        A tuple of (entries, bozo_flag, bozo_exception).
+        bozo_flag is True if the feed is malformed (but parsing still succeeded).
+        bozo_exception contains the exception if bozo_flag is True.
+    """
+    feed = feedparser.parse(content)
+
+    bozo_flag = feed.bozo
+    bozo_exception = None
+
+    if bozo_flag:
+        bozo_exception = feed.bozo_exception
+        logger.warning(
+            "Malformed feed detected for %s: %s",
+            url,
+            bozo_exception,
+        )
+
+    entries = []
+    for entry in feed.entries:
+        entries.append(entry)
+
+    return entries, bozo_flag, bozo_exception
 
 
 class RSSProvider:
@@ -92,11 +176,6 @@ class RSSProvider:
         Returns:
             List of feedparser entry dicts, or empty list on error.
         """
-        import feedparser
-        import httpx
-
-        from src.feeds import fetch_feed_content, parse_feed
-
         _feed_title_var.set(None)
         try:
             content, etag, last_modified, status_code = fetch_feed_content(url)
@@ -135,10 +214,6 @@ class RSSProvider:
         Returns:
             List of feedparser entry dicts, or empty list on error.
         """
-        import feedparser
-
-        from src.feeds import parse_feed
-
         try:
             from scrapling import Fetcher
 
@@ -177,7 +252,7 @@ class RSSProvider:
         Returns:
             Article dict with title, link, guid, pub_date, description, content.
         """
-        from src.feeds import generate_article_id
+        from src.utils import generate_article_id
 
         # Extract title
         title = raw.get("title")

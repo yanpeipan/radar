@@ -47,13 +47,15 @@ _spec = importlib.util.spec_from_loader("src_ai_tagging_module", _loader)
 _ai_tagging_module = importlib.util.module_from_spec(_spec)
 _loader.exec_module(_ai_tagging_module)
 run_auto_tagging = _ai_tagging_module.run_auto_tagging
-from src.feeds import (
+from src.utils import generate_feed_id
+from src.application.feed import (
     FeedNotFoundError,
     add_feed,
     list_feeds,
     remove_feed,
+    fetch_one,
+    fetch_all,
 )
-from src.application.feed import fetch_one, fetch_all
 
 logger = logging.getLogger(__name__)
 
@@ -85,28 +87,15 @@ def feed_add(ctx: click.Context, url: str) -> None:
     """Add a new feed by URL (auto-detects provider type)."""
     verbose = ctx.parent and ctx.parent.obj.get("verbose")
     try:
-        # Use discover_or_default to discover provider and validate URL
+        feed_obj = add_feed(url)
+
+        # Determine provider type for display
+        from src.providers import discover_or_default
         providers = discover_or_default(url)
-        if not providers:
-            raise ValueError(f"No provider available for URL: {url}")
-
-        provider = providers[0]  # highest priority match
-        provider_name = provider.__class__.__name__.replace("Provider", "")
-
-        # Crawl to validate URL and get initial data
-        raw_items = provider.crawl(url)
-        if not raw_items:
-            raise ValueError(f"Failed to fetch content from {url}")
-
-        # Get feed name from provider's feed title (not article title)
-        feed_name = getattr(provider, "feed_title", None) or url
-
-        # Create feed entry using provider name as type hint
-        feed_obj = _create_feed_with_provider(
-            url=url,
-            name=feed_name,
-            provider_name=provider_name,
-        )
+        if providers:
+            provider_name = providers[0].__class__.__name__.replace("Provider", "")
+        else:
+            provider_name = "Unknown"
 
         click.secho(f"Added feed: {feed_obj.name} ({provider_name})", fg="green")
         if verbose:
@@ -119,65 +108,6 @@ def feed_add(ctx: click.Context, url: str) -> None:
         click.secho(f"Error: Failed to add feed: {e}", err=True, fg="red")
         logger.exception("Failed to add feed")
         sys.exit(1)
-
-
-def _create_feed_with_provider(url: str, name: str, provider_name: str):
-    """Create a new feed with provider type stored in metadata.
-
-    Args:
-        url: The feed URL.
-        name: The feed name (from article title or URL).
-        provider_name: The provider type (RSS or GitHub).
-
-    Returns:
-        The created Feed object.
-    """
-    from src.db import get_connection
-    from src.feeds import generate_feed_id
-    from datetime import datetime
-    from src.config import get_timezone
-    import json
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # Ensure metadata column exists (migration)
-    try:
-        cursor.execute("ALTER TABLE feeds ADD COLUMN metadata TEXT")
-    except Exception:
-        pass  # Column already exists
-
-    # Check if feed already exists
-    cursor.execute("SELECT id FROM feeds WHERE url = ?", (url,))
-    existing = cursor.fetchone()
-    if existing:
-        raise ValueError(f"Feed already exists: {url}")
-
-    feed_id = generate_feed_id()
-    now = datetime.now(get_timezone()).isoformat()
-
-    # Store provider type in metadata JSON
-    metadata = json.dumps({"provider_type": provider_name})
-
-    cursor.execute(
-        """INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at, metadata)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (feed_id, name, url, None, None, now, now, metadata),
-    )
-    conn.commit()
-    conn.close()
-
-    from src.models import Feed as FeedModel
-    return FeedModel(
-        id=feed_id,
-        name=name,
-        url=url,
-        etag=None,
-        last_modified=None,
-        last_fetched=now,
-        created_at=now,
-        metadata=metadata,
-    )
 
 
 @feed.command("list")
