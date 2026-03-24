@@ -4,78 +4,95 @@
 
 Feed fetch is powered by a **plugin-based provider system**. Each URL type (RSS, GitHub, etc.) has its own provider that handles fetching, parsing, and tagging. No more `github_repos` table — everything is unified under `feeds` with provider logic handling type-specific behavior.
 
-## Directory Structure
+## Application Structure
 
 ```
 src/
-├── cli.py                    # CLI (repo commands removed)
+├── cli.py                    # CLI — thin wrappers (arg parsing + output)
+├── application/
+│   └── feed.py              # fetch_one(), fetch_all()
 ├── providers/
-│   ├── rss_provider.py
-│   └── github_provider.py
-└── tags/
-    └── default_tag_parser.py # AI-powered tagging
+│   ├── rss_provider.py       # RSS/Atom feeds (priority 50)
+│   └── github_release_provider.py  # GitHub releases (priority 200)
+├── tags/
+│   └── *.py                 # Tag parsers
+└── utils/
+    └── github.py             # GitHub API client singleton
 ```
 
 ## Fetch Flow
 
 ```
 fetch --all
-  │
-  ├─ feeds = list all feeds
-  │
-  ├─ providers = dynamically load all from src/providers/
-  │
-  └─ for each feed:
+  └─ fetch_all()
        │
-       ├─ matched = providers.filter(p => p.match(feed.url))
-       │             if empty: matched = [default_rss_provider]
+       ├─ feeds = list_feeds()
        │
-       ├─ sort matched by priority() descending
-       │
-       ├─ for provider in matched (try until crawl succeeds):
-       │    try:
-       │        raws = provider.crawl(feed.url)
-       │    except Exception as e:
-       │        log.error(f"{provider}: {e}")
-       │        continue to next provider
-       │
-       ├─ articles = provider.parse(raw) for raw in raws
-       │
-       ├─ for article in articles:
-       │    for tag_parser in provider.tag_parsers():
-       │        tags = tag_parser.parse_tags(article)
-       │    article.tags = merge_all_tags(tags)  # union, deduplicated
-       │
-       ├─ articles = feed_rules(articles)  # no-op, returns all
-       │
-       └─ store(articles)
+       └─ for each feed:
+            │
+            └─ fetch_one(feed)
+                 │
+                 ├─ discover_or_default(feed.url) → provider (highest priority match)
+                 │    └─ if no match: default RSS provider
+                 │
+                 ├─ raw_items = provider.crawl(feed.url)
+                 │
+                 ├─ articles = provider.parse(raw) for raw in raw_items
+                 │
+                 ├─ for article in articles:
+                 │    ├─ INSERT OR IGNORE into articles (dedup by guid)
+                 │    └─ if new: INSERT into articles_fts (FTS5 sync)
+                 │
+                 └─ apply tag_rules to new articles (post-commit, avoids DB lock)
 ```
+
+```
+feed refresh <feed_id>
+  └─ fetch_one(feed_id)
+       └─ (same as above, single feed)
+```
+
+**FTS5 sync:** New articles are synced to `articles_fts` shadow table immediately after INSERT. Tag rules run after commit to avoid "database is locked" from nested connections.
+
+**No feed_rules stage:** Unlike the old flow, tagging is not provider-driven. All new articles after INSERT get `apply_rules_to_article()` called post-commit.
 
 ## Provider Interface
 
 ```python
-class Provider(ABC):
+class ContentProvider(ABC):
     @abstractmethod
     def match(self, url: str) -> bool:
         """Return True if this provider handles the URL."""
 
     @abstractmethod
     def priority(self) -> int:
-        """Higher = tried first. Default RSS returns 0."""
+        """Higher = tried first. Default RSS returns 50."""
 
     @abstractmethod
     def crawl(self, url: str) -> List[Raw]:
-        """Fetch raw content from URL."""
+        """Fetch raw content from URL. Return list of raw items (may be empty)."""
 
     @abstractmethod
     def parse(self, raw: Raw) -> Article:
-        """Convert Raw to Article."""
+        """Convert raw item to Article dict."""
 
     def tag_parsers(self) -> List[TagParser]:
         """Return tag parsers for articles from this provider."""
 
-    def parse_tags(self, article: Article) -> List[Tag]:
-        """Parse tags for an article."""
+    def parse_tags(self, article: Article) -> List[str]:
+        """Parse tags for an article using all loaded tag parsers."""
+```
+
+**Article dict shape:**
+```python
+{
+    "title": str,
+    "link": str,
+    "guid": str,
+    "pub_date": str | None,   # ISO 8601
+    "description": str | None,
+    "content": str | None,
+}
 ```
 
 ## TagParser Interface
@@ -83,46 +100,53 @@ class Provider(ABC):
 ```python
 class TagParser(ABC):
     @abstractmethod
-    def parse_tags(self, article: Article) -> List[Tag]:
+    def parse_tags(self, article: Article) -> List[str]:
         """Return tags for this article."""
 ```
 
-**Tag merging:** Union of all tags from all tag parsers, deduplicated.
+Tag merging: union of all tags from all tag parsers, deduplicated.
 `['a', 'b'] + ['a', 'c'] = ['a', 'b', 'c']`
 
-## Provider Loading
+## Provider Registration
 
-- Discover: `glob("src/providers/*.py")`
-- Import each module
-- Class must be registered in a known registry (e.g., `PROVIDERS` dict)
-- Load order: alphabetical by filename
-- **Rule: Providers must not import each other** (avoid circular deps)
-- Shared logic goes in `src/plugins/base.py`
+Providers register themselves by appending to `PROVIDERS` list in `src/providers/__init__.py`. Each provider class is instantiated once at module load time.
+
+**Rule: Providers must not import each other** (avoid circular deps). Shared logic goes in `src/providers/base.py`.
 
 ## Database Schema
 
-### feeds table — existing columns unchanged, new column:
+### feeds table
 
 ```sql
-ALTER TABLE feeds ADD COLUMN metadata TEXT;  -- JSON, e.g. {"github_token": "ghp_xxx"}
+feeds (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  etag TEXT,
+  last_modified TEXT,
+  last_fetched TEXT,
+  created_at TEXT NOT NULL,
+  metadata TEXT  -- JSON, e.g. {"github_token": "ghp_xxx"}
+)
 ```
 
-### github_repos table — drop after migration
+### github_repos table — superseded
 
-Migration:
-1. For each `github_repos` row with no corresponding `feeds` row: create a `feeds` row with `url = "https://github.com/{owner}/{repo}"` and `metadata = {"github_token": "...", "repo": "...", "owner": "..."}`
-2. For `github_repos` rows with a corresponding `feeds` row: update `feeds.metadata` with token info
-3. Drop `github_repos` table
+The `github_repos` table is no longer used. GitHub releases are fetched via `GitHubReleaseProvider` which calls the GitHub API directly (no local storage of release data).
 
 ## CLI Changes
 
-- Remove: `repo add`, `repo list`, `repo remove`, `repo refresh`
-- Keep: `feed add`, `feed list`, `feed remove`, `feed refresh`
-- `feed add <url>` automatically selects the correct provider via `match()`
-- GitHub URLs handled by `github_provider` automatically
+| Command | Behavior |
+|---------|----------|
+| `feed add <url>` | Detects GitHub URLs → `add_feed` with GitHub routing; otherwise standard RSS add |
+| `feed list` | List all subscribed feeds |
+| `feed remove <id>` | Remove feed by ID |
+| `feed refresh <id>` | Fetch new articles for one feed via `fetch_one()` |
+| `fetch --all` | Fetch all feeds via `fetch_all()` |
+| `crawl <url>` | Crawl arbitrary URL via Readability |
 
 ## Default RSS Provider
 
 - `match(url)` returns `False` (only matched as fallback)
-- When no provider matches: `matched = [default_rss_provider]`
-- `priority()` returns `0` (lowest)
+- When no provider matches: `discover_or_default` returns `[default_rss_provider]`
+- `priority()` returns `50` (lowest; providers with higher priority are tried first)

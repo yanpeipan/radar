@@ -37,7 +37,6 @@ from src.db import (
 )
 from src.tag_rules import add_rule, remove_rule, list_rules, edit_rule
 from src.tag_rules import apply_rules_to_article
-from src.providers import discover_or_default
 
 # Import run_auto_tagging from src/ai_tagging.py module
 import importlib.machinery
@@ -52,9 +51,9 @@ from src.feeds import (
     FeedNotFoundError,
     add_feed,
     list_feeds,
-    refresh_feed,
     remove_feed,
 )
+from src.application.feed import fetch_one, fetch_all
 
 logger = logging.getLogger(__name__)
 
@@ -262,9 +261,8 @@ def feed_remove(ctx: click.Context, feed_id: str) -> None:
 @click.pass_context
 def feed_refresh(ctx: click.Context, feed_id: str) -> None:
     """Refresh a single feed to fetch new articles."""
-    verbose = ctx.parent and ctx.parent.obj.get("verbose")
     try:
-        result = refresh_feed(feed_id)
+        result = fetch_one(feed_id)
         if "error" in result:
             click.secho(f"Error refreshing feed: {result['error']}", fg="red")
             sys.exit(1)
@@ -654,56 +652,12 @@ def fetch(ctx: click.Context, fetch_all: bool) -> None:
         return
 
     try:
-        feeds = list_feeds()
-        if not feeds:
-            click.secho("No feeds subscribed. Use 'feed add <url>' to add one.", fg="yellow")
-            return
+        result = fetch_all()
+        total_new = result["total_new"]
+        success_count = result["success_count"]
+        error_count = result["error_count"]
+        errors = result["errors"]
 
-        total_new = 0
-        success_count = 0
-        error_count = 0
-        errors: list[str] = []
-
-        for feed_obj in feeds:
-            try:
-                # Use discover_or_default to find provider for this feed URL
-                providers = discover_or_default(feed_obj.url)
-                if not providers:
-                    click.secho(f"Warning: No provider for {feed_obj.name}", fg="yellow")
-                    continue
-
-                provider = providers[0]  # highest priority match
-                provider_name = provider.__class__.__name__.replace("Provider", "")
-
-                # Crawl using the discovered provider
-                raw_items = provider.crawl(feed_obj.url)
-                if not raw_items:
-                    if verbose:
-                        click.secho(f"No items from {feed_obj.name} via {provider_name}")
-                    continue
-
-                # Parse and store each item
-                for raw in raw_items:
-                    article = provider.parse(raw)
-                    # Store article (reuse existing pattern from refresh_feed)
-                    new_article = _store_article_from_provider(
-                        feed_id=feed_obj.id,
-                        article=article,
-                        provider_name=provider_name,
-                    )
-                    if new_article:
-                        total_new += 1
-
-                success_count += 1
-                if verbose:
-                    click.secho(f"Fetched {len(raw_items)} items from {feed_obj.name} via {provider_name}")
-
-            except Exception as e:
-                error_count += 1
-                errors.append(f"{feed_obj.name}: {e}")
-                click.secho(f"Warning: Failed to fetch {feed_obj.name}: {e}", fg="yellow")
-
-        # Summary
         if error_count == 0:
             click.secho(
                 f"Fetched {total_new} articles from {success_count} feeds",
@@ -722,56 +676,6 @@ def fetch(ctx: click.Context, fetch_all: bool) -> None:
         click.secho(f"Error: Failed to fetch feeds: {e}", err=True, fg="red")
         logger.exception("Failed to fetch feeds")
         sys.exit(1)
-
-
-def _store_article_from_provider(feed_id: str, article: dict, provider_name: str) -> bool:
-    """Store an article from provider parse() result.
-
-    Args:
-        feed_id: The feed ID to associate with.
-        article: Article dict from provider.parse().
-        provider_name: Name of provider for logging.
-
-    Returns:
-        True if new article was stored, False if duplicate or error.
-    """
-    from src.db import get_connection
-    from src.feeds import generate_article_id
-    from datetime import datetime
-    from src.config import get_timezone
-
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        # Generate article ID if not provided
-        article_id = article.get("guid") or generate_article_id(article)
-
-        now = datetime.now(get_timezone()).isoformat()
-
-        cursor.execute(
-            """
-            INSERT OR IGNORE INTO articles (id, feed_id, title, link, guid, pub_date, description, content, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                article_id,
-                feed_id,
-                article.get("title"),
-                article.get("link"),
-                article.get("guid") or article_id,
-                article.get("pub_date"),
-                article.get("description"),
-                article.get("content"),
-                now,
-            ),
-        )
-        conn.commit()
-        conn.close()
-        return cursor.rowcount > 0
-    except Exception as e:
-        logger.warning(f"Failed to store article from {provider_name}: {e}")
-        return False
 
 
 @cli.command("crawl")

@@ -1,4 +1,4 @@
-"""Default RSS provider - fallback only, never matches directly.
+"""Default provider - fallback only, never matches directly.
 
 This provider is used when no other provider matches a URL.
 match() returns False so it never matches URLs directly,
@@ -13,8 +13,8 @@ from src.providers import PROVIDERS
 from src.providers.base import Article, ContentProvider, Raw, TagParser
 
 
-class DefaultRSSProvider:
-    """Fallback RSS provider for unknown URL types.
+class DefaultProvider:
+    """Fallback provider for unknown URL types.
 
     This provider never matches URLs directly. It is only used when
     no other provider matches a URL. The crawl() and parse() methods
@@ -53,7 +53,7 @@ class DefaultRSSProvider:
             Never returns - raises NotImplementedError.
         """
         raise NotImplementedError(
-            "DefaultRSSProvider is fallback only and should not be called"
+            "DefaultProvider is fallback only and should not be called"
         )
 
     def parse(self, raw: Raw) -> Article:
@@ -66,7 +66,7 @@ class DefaultRSSProvider:
             Never returns - raises NotImplementedError.
         """
         raise NotImplementedError(
-            "DefaultRSSProvider is fallback only and should not be called"
+            "DefaultProvider is fallback only and should not be called"
         )
 
     def tag_parsers(self) -> List[TagParser]:
@@ -90,4 +90,4 @@ class DefaultRSSProvider:
 
 
 # Register this provider - it will be sorted last by priority()
-PROVIDERS.append(DefaultRSSProvider())
+PROVIDERS.append(DefaultProvider())

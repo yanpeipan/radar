@@ -227,6 +227,28 @@
       "domain": "swarm",
       "model": "haiku",
       "modelRoutedBy": "router"
+    },
+    "agent-1774295318789-9akv0o": {
+      "agentId": "agent-1774295318789-9akv0o",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {},
+      "createdAt": "2026-03-23T19:48:38.801Z",
+      "model": "opus",
+      "modelRoutedBy": "router"
+    },
+    "agent-1774295375277-0r7o8i": {
+      "agentId": "agent-1774295375277-0r7o8i",
+      "agentType": "coder",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {},
+      "createdAt": "2026-03-23T19:49:35.280Z",
+      "model": "haiku",
+      "modelRoutedBy": "router"
     }
   },
   "version": "3.0.0"

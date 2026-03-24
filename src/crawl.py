@@ -17,7 +17,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
-from github import Github, RateLimitExceededException, GithubException
+from github import RateLimitExceededException, GithubException
 from src.config import get_timezone
 from bs4 import BeautifulSoup
 from readability import Document
@@ -27,17 +27,6 @@ from src.db import get_connection
 from src.models import Article
 
 logger = logging.getLogger(__name__)
-
-# Module-level PyGithub client
-_github_client: Github | None = None
-
-
-def _get_github_client() -> Github:
-    """Get or create module-level Github client."""
-    global _github_client
-    if _github_client is None:
-        _github_client = Github(os.environ.get("GITHUB_TOKEN"))
-    return _github_client
 
 # Browser-like User-Agent header to avoid 403 bot blocks
 BROWSER_HEADERS = {

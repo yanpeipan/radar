@@ -21,8 +21,8 @@ from src.tags import chain_tag_parsers
 
 logger = logging.getLogger(__name__)
 
-# Reuse the singleton from crawl.py
-from src.crawl import _get_github_client
+# Reuse the singleton from utils/github.py
+from src.utils.github import _get_github_client
 
 
 class GitHubReleaseProvider:
