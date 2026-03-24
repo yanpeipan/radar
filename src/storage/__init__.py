@@ -12,4 +12,6 @@ from src.storage.sqlite import (
     untag_article,
     get_article_tags,
     get_db_path,
+    store_embedding,
+    get_article_embedding,
 )
