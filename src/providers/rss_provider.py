@@ -219,7 +219,7 @@ class RSSProvider:
         return []
 
     def feed_meta(self, url: str) -> "Feed":
-        """Fetch feed metadata (title, etc.) from URL.
+        """Fetch feed metadata via crawl (reuses crawl to get feed title).
 
         Args:
             url: URL of the feed to get metadata for.
@@ -227,33 +227,23 @@ class RSSProvider:
         Returns:
             Feed object with name and url populated.
         """
-        import feedparser
-
-        from src.feeds import fetch_feed_content
         from src.models import Feed
         from src.config import get_timezone
         from datetime import datetime
 
-        content, etag, last_modified, status_code = fetch_feed_content(url)
-        if content is None:
-            raise ValueError(f"Failed to fetch feed metadata from {url}")
-
-        parsed = feedparser.parse(content)
-        feed_title = None
-        if parsed.feed:
-            feed_title = parsed.feed.get("title")
-
-        if not feed_title:
-            feed_title = url
+        # crawl() already parses feed and sets self._feed_title
+        entries = self.crawl(url)
+        if not entries:
+            raise ValueError(f"No entries in feed {url}")
 
         now = datetime.now(get_timezone()).isoformat()
 
         return Feed(
             id="",  # ID not assigned - this is metadata only
-            name=feed_title,
+            name=self._feed_title or url,
             url=url,
-            etag=etag,
-            last_modified=last_modified,
+            etag=None,
+            last_modified=None,
             last_fetched=now,
             created_at=now,
         )
