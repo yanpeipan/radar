@@ -163,7 +163,7 @@ def apply_rules_to_article(article_id: str, article_title: str, article_desc: st
     """Match rules and tag an article. Returns list of applied tags."""
     matched = match_article_to_tags(article_title, article_desc)
     # Import at runtime to avoid circular import
-    from src.db import tag_article
+    from src.storage.sqlite import tag_article
     for tag_name in matched:
         tag_article(article_id, tag_name)
     return matched

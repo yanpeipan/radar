@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-from src.db import get_db
+from src.storage.sqlite import get_db
 
 
 @dataclass
@@ -174,7 +174,7 @@ def get_article_detail(article_id: str) -> Optional[dict]:
             return None
 
         # Fetch tags for the article
-        from src.db import get_article_tags
+        from src.storage.sqlite import get_article_tags
         tags = get_article_tags(row["id"])
 
         return {

@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from src.application.config import get_timezone
-from src.db import get_db
+from src.storage.sqlite import get_db
 from src.models import Feed
 from src.providers import discover_or_default
 from src.utils import generate_article_id, generate_feed_id
@@ -229,7 +229,7 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
     new_count = 0
     articles_needing_tags = []
 
-    from src.db import store_article
+    from src.storage.sqlite import store_article
     for raw in raw_items:
         article = provider.parse(raw)
         article_guid = article.get("guid") or generate_article_id(article)

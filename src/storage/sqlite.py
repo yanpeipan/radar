@@ -74,10 +74,6 @@ def get_db():
         conn.close()
 
 
-# Backwards compatibility alias - code should migrate to get_db() context manager
-get_connection = _get_connection
-
-
 def init_db() -> None:
     """Initialize the database schema.
 

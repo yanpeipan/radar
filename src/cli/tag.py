@@ -6,7 +6,7 @@ from typing import Optional
 
 import click
 
-from src.db import add_tag, list_tags, remove_tag, get_tag_article_counts
+from src.storage.sqlite import add_tag, list_tags, remove_tag, get_tag_article_counts
 
 logger = logging.getLogger(__name__)
 

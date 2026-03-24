@@ -23,7 +23,7 @@ from bs4 import BeautifulSoup
 from readability import Document
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
-from src.db import get_db
+from src.storage.sqlite import get_db
 from src.models import Article
 
 logger = logging.getLogger(__name__)
@@ -302,7 +302,7 @@ def crawl_url(url: str, ignore_robots: bool = False) -> Optional[dict]:
     pub_date = github_pub_date if github_pub_date else datetime.now(get_timezone()).isoformat()
 
     # Use unified store_article function (handles INSERT or UPDATE by guid, FTS5 sync)
-    from src.db import store_article
+    from src.storage.sqlite import store_article
     article_id = store_article(
         guid=guid,
         title=title or "No title",

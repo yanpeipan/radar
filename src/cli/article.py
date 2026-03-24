@@ -133,29 +133,12 @@ def article_view(ctx: click.Context, article_id: str, verbose: bool) -> None:
     Content is truncated to 2000 characters unless --verbose is specified.
     """
     try:
-        from src.db import get_release_detail
-
         # First try article
         article = get_article_detail(article_id)
 
-        # If not found, try release
         if not article:
-            release = get_release_detail(article_id)
-            if release:
-                # Format release as article-like dict for display
-                article = {
-                    "id": release["id"],
-                    "feed_name": release["repo_name"],
-                    "pub_date": release["published_at"],
-                    "tags": release["tags"],
-                    "link": release["html_url"],
-                    "title": release["name"] or release["tag_name"],
-                    "content": release["body"],
-                    "source_type": "github",
-                }
-            else:
-                click.secho(f"Article not found: {article_id}", fg="red")
-                sys.exit(1)
+            click.secho(f"Article not found: {article_id}", fg="red")
+            sys.exit(1)
 
         console = Console()
 
@@ -202,22 +185,14 @@ def article_view(ctx: click.Context, article_id: str, verbose: bool) -> None:
 def article_open(ctx: click.Context, article_id: str) -> None:
     """Open article URL in default browser. Works for both articles and releases."""
     try:
-        from src.db import get_release_detail
-
         article = get_article_detail(article_id)
 
-        # If not found, try release
         if not article:
-            release = get_release_detail(article_id)
-            if release:
-                link = release["html_url"]
-                source_type = "release"
-            else:
-                click.secho(f"Article not found: {article_id}", fg="red")
-                sys.exit(1)
-        else:
-            link = article.get("link")
-            source_type = "article"
+            click.secho(f"Article not found: {article_id}", fg="red")
+            sys.exit(1)
+
+        link = article.get("link")
+        source_type = "article"
 
         if not link:
             click.secho(f"No link available for this {source_type}", fg="red")
@@ -271,7 +246,7 @@ def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optiona
     elif apply_rules:
         # Apply keyword/regex rules to all untagged articles
         try:
-            from src.db import get_db
+            from src.storage.sqlite import get_db
             with get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -303,7 +278,7 @@ def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optiona
     elif article_id and tag_name:
         # Manual tagging
         try:
-            from src.db import tag_article
+            from src.storage.sqlite import tag_article
             tagged = tag_article(article_id, tag_name)
             if tagged:
                 click.secho(f"Tagged article {article_id} with '{tag_name}'", fg="green")

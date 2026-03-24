@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-from src.db import get_db, add_tag, tag_article
+from src.storage.sqlite import get_db, add_tag, tag_article
 
 logger = logging.getLogger(__name__)
 

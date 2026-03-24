@@ -20,7 +20,7 @@ def cli(ctx: click.Context, verbose: bool) -> None:
     ctx.obj["verbose"] = verbose
 
     # Initialize database on every command
-    from src.db import init_db
+    from src.storage.sqlite import init_db
     init_db()
 
 

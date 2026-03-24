@@ -95,6 +95,7 @@
 | Tag Parser 插件链 | 多 parser 结果并集去重，支持扩展 | ✅ Good (v1.3) |
 | github_repos 并入 feeds | metadata JSON 字段存储 provider 特定数据 | ✅ Good (v1.3) |
 | GitHubReleaseProvider | 独立 provider，priority=200 优于 GitHubProvider | ✅ Good (v1.4) |
+| db.py to src/storage/sqlite | Database module moved to src/storage/ directory for better organization; _get_connection made truly private | | (v1.4) |
 
 ## Tech Stack
 
