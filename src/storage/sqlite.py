@@ -394,3 +394,32 @@ def get_article_embedding(article_id: str):
         if row:
             return np.frombuffer(row["embedding"], dtype=np.float32)
         return None
+
+
+def get_all_embeddings() -> tuple[list[str], list]:
+    """Get all article embeddings for clustering.
+
+    Returns:
+        Tuple of (article_ids, embeddings_array).
+    """
+    import numpy as np
+    with get_db() as conn:
+        _load_vec_extension(conn)
+        cursor = conn.cursor()
+        cursor.execute("SELECT article_id, embedding FROM article_embeddings")
+        rows = cursor.fetchall()
+        article_ids = [row["article_id"] for row in rows]
+        embeddings = np.array([np.frombuffer(row["embedding"], dtype=np.float32) for row in rows])
+        return article_ids, embeddings
+
+
+def get_articles_without_embeddings() -> list[str]:
+    """Get IDs of articles that don't have embeddings yet."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT a.id FROM articles a
+            LEFT JOIN article_embeddings ae ON a.id = ae.article_id
+            WHERE ae.article_id IS NULL
+        """)
+        return [row["id"] for row in cursor.fetchall()]
