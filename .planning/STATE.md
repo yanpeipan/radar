@@ -1,30 +1,24 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: v1.4 milestone complete
-stopped_at: Milestone v1.4 complete — summary generated at .planning/reports/MILESTONE_SUMMARY-v1.4.md
-last_updated: "2026-03-24T17:16:10.270Z"
-progress:
-  total_phases: 20
-  completed_phases: 20
-  total_plans: 39
-  completed_plans: 39
+milestone: v1.5
+milestone_name: uvloop并发支持
+status: v1.5 milestone started
+last_updated: "2026-03-25"
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (v1.3 milestone archived)
+See: .planning/PROJECT.md (v1.5 milestone started)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** v1.4 milestone complete — ready for v1.5
+**Current focus:** v1.5 uvloop并发支持
 
 ## Current Position
 
-Phase: All complete
-Plan: v1.4 milestone complete
+Phase: Not started (defining requirements)
+Plan: —
 
 ## Performance Metrics
 
@@ -46,13 +40,6 @@ Plan: v1.4 milestone complete
 - Phase 16: GitHubReleaseProvider + ReleaseTagParser
 - Phase 17: CLI package split + DB context manager
 - Phase 18: Storage layer enforcement (16 new storage functions)
-
-**v1.3 velocity:**
-
-- 3 phases, 16 requirements mapped
-- Phase 12: 7 requirements (Provider-01-04, DB-01-03)
-- Phase 13: 4 requirements (Provider-05-06, TAG-01-02)
-- Phase 14: 4 requirements (CLI-01-04)
 
 ## Accumulated Context
 
@@ -92,7 +79,6 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Tag merging: union of all tag parsers, deduplicated
 - Default RSS: match() returns False, only used as fallback
 - Database: feeds.metadata JSON field for provider-specific data
-- github_repos table to be dropped after migration
 
 ### Blockers/Concerns
 
@@ -101,8 +87,7 @@ None identified.
 ## Session Continuity
 
 Last session: 2026-03-25T00:00:00.000Z
-Stopped at: Milestone v1.4 complete — summary generated at .planning/reports/MILESTONE_SUMMARY-v1.4.md
-Next action: `/gsd:new-milestone` to archive v1.4 and start v1.5 planning
+Stopped at: v1.5 milestone started
 
 ## Quick Tasks Completed
 
@@ -115,7 +100,7 @@ Next action: `/gsd:new-milestone` to archive v1.4 and start v1.5 planning
 | 2026-03-24 | 260324-waj | README.md (259 lines) | Created comprehensive README with badges, features, tech stack, installation, CLI usage, config, project structure |
 | 2026-03-24 | 260324-v34 | Refactor feeds.py to modules | Migrated generate_article_id/generate_feed_id to utils, add_feed/list_feeds/get_feed/remove_feed to application/feed.py, fetch_feed_content/parse_feed to rss_provider.py, deleted feeds.py |
 | 2026-03-24 | 260324-0u6 | Remove github.py, github tables, github CLI commands, embedding code | Deleted 808-line github.py, removed github_repos/releases/release_tags tables from db.py, cleaned articles.py JOINs, removed repo command group from cli.py, removed embedding/clustering from tags.py, removed GitHub models |
-| 2026-03-24 | fast | Fix feeds.py src.github import error | Removed src.github imports from feeds.py, deleted add_github_blob_feed function, removed github_blob handling from add_feed and refresh_feed |
+| 2026-03-24 | 260324-fast | Fix feeds.py src.github import error | Removed src.github imports from feeds.py, deleted add_github_blob_feed function, removed github_blob handling from add_feed and refresh_feed |
 | Phase 13 P01 | 62 | 2 tasks | 2 files |
 | Phase 13 P02 | 12 | 3 tasks | 5 files |
 | Phase 14 P01 | 2 | 1 tasks | 1 files |

@@ -8,6 +8,18 @@
 
 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
 
+## Current Milestone: v1.5 uvloop并发支持
+
+**Goal:** 引入MagicStack/uvloop实现并发抓取，默认10倍速提升
+
+**Target features:**
+- uvloop作为事件循环，提升asyncio性能
+- 可配置的并发数（默认10x）
+- httpx异步客户端
+- SQLite写入保持串行（规避锁冲突）
+
+---
+
 ## Current State
 
 **Shipped: v1.4 Storage Layer Enforcement** (2026-03-25)
@@ -46,6 +58,13 @@
 - ~10 个 Python 源文件，约 2,800 行代码
 
 ## Requirements
+
+### Active (v1.5)
+
+- [ ] UVLP-01: uvloop作为asyncio事件循环，提升I/O性能
+- [ ] UVLP-02: httpx异步客户端支持并发请求
+- [ ] UVLP-03: 可配置并发数（默认10x）
+- [ ] UVLP-04: SQLite写入保持串行，避免锁冲突
 
 ### Validated (v1.0 MVP)
 
@@ -131,4 +150,4 @@
 
 ---
 
-*Last updated: 2026-03-25 after v1.4 milestone shipped*
+*Last updated: 2026-03-25 after v1.5 milestone started*
