@@ -335,6 +335,19 @@ class RSSProvider:
             logger.error("RSSProvider._crawl_with_scrapling(%s) failed: %s", url, e)
             return []
 
+    async def _crawl_with_scrapling_async(self, url: str) -> List[Raw]:
+        """Async wrapper for Scrapling fallback using asyncio.to_thread().
+
+        Args:
+            url: URL of the feed to crawl.
+
+        Returns:
+            List of feedparser entry dicts, or empty list on error.
+        """
+        import asyncio
+
+        return await asyncio.to_thread(self._crawl_with_scrapling, url)
+
     def parse(self, raw: Raw) -> Article:
         """Convert feedparser entry to Article dict.
 
