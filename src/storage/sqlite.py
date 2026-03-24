@@ -5,11 +5,24 @@ Provides SQLite database connection with WAL mode and schema initialization.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+# Asyncio lock for serializing database writes from async context
+_db_write_lock: asyncio.Lock | None = None
+
+
+def _get_db_write_lock() -> asyncio.Lock:
+    """Get or create the singleton asyncio.Lock for serializing DB writes."""
+    global _db_write_lock
+    if _db_write_lock is None:
+        _db_write_lock = asyncio.Lock()
+    return _db_write_lock
+
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +356,32 @@ def store_article(
 
         conn.commit()
         return article_id
+
+
+async def store_article_async(
+    guid: str,
+    title: str,
+    content: str,
+    link: str,
+    feed_id: Optional[str] = None,
+    pub_date: Optional[str] = None,
+) -> str:
+    """Async wrapper for store_article that serializes writes via asyncio.Lock + to_thread.
+
+    This prevents 'database is locked' errors when multiple async tasks
+    call store_article simultaneously.
+
+    Args:
+        Same as store_article()
+
+    Returns:
+        Same as store_article()
+    """
+    lock = _get_db_write_lock()
+    async with lock:
+        return await asyncio.to_thread(
+            store_article, guid, title, content, link, feed_id, pub_date
+        )
 
 
 def _load_vec_extension(conn: sqlite3.Connection) -> None:
