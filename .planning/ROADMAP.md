@@ -93,7 +93,8 @@
   2. feedparser.parse() runs in thread pool executor to avoid blocking event loop
   3. AsyncClient is properly closed after use (context manager or explicit cleanup)
   4. RSS feeds are fetched concurrently during fetch_all_async()
-**Plans**: TBD
+**Plans**: 1 plan
+  - [ ] 20-01-PLAN.md — RSSProvider async HTTP with httpx.AsyncClient
 
 ### Phase 21: Concurrent Fetch + SQLite Serialization
 **Goal**: Concurrent feed fetching with asyncio.Semaphore and serialized SQLite writes
