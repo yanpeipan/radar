@@ -40,9 +40,9 @@ Requirements for uvloop async concurrency milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NANO-01 | TBD | Pending |
-| NANO-02 | TBD | Pending |
-| NANO-03 | TBD | Pending |
+| NANO-01 | Phase 23 | Pending |
+| NANO-02 | Phase 24 | Deferred |
+| NANO-03 | Phase 25 | Pending |
 | UVLP-01 | Phase 19 | Complete |
 | UVLP-02 | Phase 19 | Complete |
 | UVLP-03 | Phase 20 | Complete |
@@ -53,10 +53,10 @@ Requirements for uvloop async concurrency milestone.
 
 **Coverage:**
 - v1.6 requirements: 3 total
-- Mapped to phases: 0 ⚠️
+- Mapped to phases: 3 ✓
 - v1.5 requirements: 7 total
 - Mapped to phases: 7 ✓
 
 ---
 *Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after v1.6 milestone research*
+*Last updated: 2026-03-25 after v1.6 roadmap creation*

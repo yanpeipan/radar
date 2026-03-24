@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: nanoid ID生成
-status: Milestone started — defining requirements
-stopped_at: New milestone v1.6 initialized
-last_updated: "2026-03-25T01:00:00.000Z"
+status: Milestone started — roadmap defined
+stopped_at: Roadmap created for v1.6
+last_updated: "2026-03-25T01:30:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (v1.6 milestone started)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: None
+Phase: 23 (next to start)
+Plan: None (roadmap just created)
 
 ## v1.6 Phase Structure
 
 | Phase | Goal | Requirements |
 |-------|------|--------------|
-| TBD | nanoid Implementation | NANO-01 |
-| TBD | Migration Script | NANO-02 |
-| TBD | Verification | NANO-03 |
+| 23 | nanoid Code Changes | NANO-01 |
+| 24 | Migration Script | NANO-02 |
+| 25 | Verification | NANO-03 |
 
 | Phase | Goal | Requirements |
 |-------|------|--------------|
@@ -62,9 +62,13 @@ Plan: None
 - Phase 17: CLI package split + DB context manager
 - Phase 18: Storage layer enforcement (16 new storage functions)
 
-**v1.5 estimated:**
+**v1.5 velocity:**
 
-- 4 phases, ~4 plans (coarse granularity)
+- 4 phases, 4 plans
+
+**v1.6 estimated:**
+
+- 3 phases, 3 plans (coarse granularity, small focused changes)
 
 ## Accumulated Context
 
@@ -93,6 +97,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 18]: Storage layer enforcement: get_db() is internal to src/storage/ only - no direct database calls outside storage layer
 - [Phase 21]: Used asyncio.Lock singleton + asyncio.to_thread() for SQLite write serialization (UVLP-05)
 - [Phase 21]: Used asyncio.Semaphore for concurrency limiting, default 10 (UVLP-04)
+- [Phase 23]: nanoid is a separate package (nanoid>=2.0.0), NOT part of uuid module
+- [Phase 24]: FTS5 uses rowid linkage, NOT article id - FTS table does NOT need migration
+- [Phase 24]: article_tags and article_embeddings reference article_id via FK - must update together
+- [Phase 24]: Migration must use UPDATE not DELETE+INSERT to preserve FTS rowid linkage
+- [Phase 23]: store_article() line 334 and add_tag() line 181 need uuid->nanoid replacement
 
 ### Technical Notes
 
@@ -117,6 +126,14 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - SQLite writes serialized via asyncio.to_thread() to avoid "database is locked"
 - CLI wraps async code with uvloop.run()
 
+**v1.6 nanoid Migration Architecture:**
+
+- nanoid package: separate from uuid, use `nanoid.generate()` not `nanoid`
+- FTS5 virtual table uses SQLite rowid (not article.id) for linkage
+- Migration: UPDATE not DELETE+INSERT to preserve FTS rowid
+- FK order: update article_tags.article_id BEFORE articles.id
+- Deterministic ID: seed nanoid with hash of old ID for idempotent migration
+
 ### Blockers/Concerns
 
 - uvloop cannot run in non-main thread (certain Click invocations, IDE integrations)
@@ -124,8 +141,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-25T00:00:00.000Z
-Stopped at: Completed Phase 22 CLI Integration — v1.5 milestone shipped
+Last session: 2026-03-25T01:00:00.000Z
+Stopped at: Roadmap created for v1.6 — 3 phases derived from 3 requirements
 
 ## Quick Tasks Completed
 
@@ -147,7 +164,8 @@ Stopped at: Completed Phase 22 CLI Integration — v1.5 milestone shipped
 | Phase 15-pygithub-refactor P01 | 3 | 4 tasks | 4 files |
 | 2026-03-24 | fast | Added OpenAI RSS feed | ✅ |
 | Phase 16-github-release-provider P01 | 180 | 3 tasks | 2 files |
-| 2026-03-24 | 260324-x3k | articles.py, config.py, crawl.py | Moved to application module, imports updated across codebase |
+| 2026-03-25 | 260324-x3k | articles.py, config.py, crawl.py | Moved to application module, imports updated across codebase |
+| 2026-03-25 | 260324-x78 | 删除无用的文件 | Deleted 9 orphaned .pyc files from deleted modules |
 | 2026-03-25 | 260324-x78 | 删除无用的文件 | Deleted 9 orphaned .pyc files from deleted modules |
 | 2026-03-25 | milestone-v1.4 | MILESTONE_SUMMARY-v1.4.md | Generated milestone summary to .planning/reports/ |
 | 260325-5mi | 增加Rich Progress bar到async fetch | 2026-03-24 | 33ea0e4 | ✅ | [260325-5mi-rich-progress-bar-async-fetch](./quick/260325-5mi-rich-progress-bar-async-fetch/) |

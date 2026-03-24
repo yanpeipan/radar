@@ -8,6 +8,7 @@
 - [x] **v1.3 Provider Architecture** — Phases 12-15 (shipped 2026-03-23)
 - [x] **v1.4 Storage Layer Enforcement** — Phases 16-18 (shipped 2026-03-25)
 - [x] **v1.5 uvloop并发支持** — Phases 19-22 (shipped 2026-03-25)
+- [ ] **v1.6 nanoid ID生成** — Phases 23-25 (in progress)
 
 ## Phases
 
@@ -63,61 +64,44 @@
 
 ### 🚧 v1.5 uvloop并发支持 (Phases 19-22)
 
-- [x] **Phase 19: uvloop Setup + crawl_async Protocol** - Foundation for async crawling ✅ 2026-03-25
+- [x] **Phase 19: uvloop Setup + crawl_async Protocol** - Foundation for async crawling (completed 2026-03-25)
 - [x] **Phase 20: RSSProvider Async HTTP** - httpx.AsyncClient for RSS feeds (completed 2026-03-24)
 - [x] **Phase 21: Concurrent Fetch + SQLite Serialization** - Semaphore + asyncio.to_thread (completed 2026-03-25)
-- [x] **Phase 22: CLI Integration** - uvloop.run() + --concurrency parameter (completed 2026-03-24)
+- [x] **Phase 22: CLI Integration** - uvloop.run() + --concurrency parameter (completed 2026-03-25)
+
+### 🚧 v1.6 nanoid ID生成 (Phases 23, 25)
+
+- [ ] **Phase 23: nanoid Code Changes** - Replace uuid.uuid4() with nanoid.generate() in storage functions
+- [ ] **Phase 25: Verification** - Validate all article operations work with new IDs
+
+> **Note:** Phase 24 (Migration Script) deferred — historical URL-like IDs will be addressed in future milestone when needed.
 
 ## Phase Details
 
-### Phase 19: uvloop Setup + crawl_async Protocol
-**Goal**: Async crawl capability available on all providers
-**Depends on**: Nothing (foundation phase)
-**Requirements**: UVLP-01, UVLP-02
+### Phase 23: nanoid Code Changes
+**Goal**: store_article(), add_tag(), and tag_article() use nanoid.generate() instead of uuid.uuid4()
+**Depends on**: Nothing
+**Requirements**: NANO-01
 **Success Criteria** (what must be TRUE):
-  1. uvloop.install() is called at application startup on Linux/macOS
-  2. uvloop.install() fails gracefully on Windows (falls back to asyncio without error)
-  3. ContentProvider protocol has crawl_async() method defined
-  4. Default crawl_async() implementation wraps sync crawl() in run_in_executor
-  5. Non-main thread uvloop errors are caught and handled gracefully
-**Plans**: 2 plans
-  - [ ] 19-01-PLAN.md — uvloop dependency + asyncio_utils + Protocol extension
-  - [ ] 19-02-PLAN.md — CLI integration + DefaultProvider crawl_async
-
-### Phase 20: RSSProvider Async HTTP
-**Goal**: RSSProvider performs async HTTP requests using httpx.AsyncClient
-**Depends on**: Phase 19
-**Requirements**: UVLP-03
-**Success Criteria** (what must be TRUE):
-  1. RSSProvider implements crawl_async() using httpx.AsyncClient
-  2. feedparser.parse() runs in thread pool executor to avoid blocking event loop
-  3. AsyncClient is properly closed after use (context manager or explicit cleanup)
-  4. RSS feeds are fetched concurrently during fetch_all_async()
-**Plans**: 1 plan
-  - [x] 20-01-PLAN.md — RSSProvider async HTTP with httpx.AsyncClient
-
-### Phase 21: Concurrent Fetch + SQLite Serialization
-**Goal**: Concurrent feed fetching with asyncio.Semaphore and serialized SQLite writes
-**Depends on**: Phase 20
-**Requirements**: UVLP-04, UVLP-05
-**Success Criteria** (what must be TRUE):
-  1. fetch_all_async() limits concurrent crawls using asyncio.Semaphore (default 10)
-  2. SQLite write operations use asyncio.to_thread() to serialize access
-  3. No "database is locked" errors occur during concurrent fetch
-  4. All storage layer functions work correctly when called from async context
+  1. store_article() uses nanoid.generate() for article id instead of uuid.uuid4()
+  2. add_tag() uses nanoid.generate() for tag id instead of uuid.uuid4()
+  3. tag_article() uses nanoid.generate() for article_tag entries instead of uuid.uuid4()
+  4. New articles created during migration window have nanoid format (21 chars, URL-safe)
+  5. nanoid package is installed and importable (nanoid>=2.0.0)
 **Plans**: TBD
 
-### Phase 22: CLI Integration
-**Goal**: User can invoke async fetch from CLI with configurable concurrency
-**Depends on**: Phase 21
-**Requirements**: UVLP-06, UVLP-07
+### Phase 25: Verification
+**Goal**: All article-related operations work correctly with nanoid format
+**Depends on**: Phase 23
+**Requirements**: NANO-03
 **Success Criteria** (what must be TRUE):
-  1. `fetch --all` command uses uvloop.run() to execute async fetch logic ✅
-  2. `fetch --all --concurrency N` overrides default concurrency limit ✅
-  3. `fetch --concurrency 5 --all` works correctly ✅
-  4. Error aggregation provides summary output without crashing on individual feed failures ✅
-**Plans**: 1 plan
-  - [x] 22-01-PLAN.md — CLI integration (completed 2026-03-24)
+  1. New articles have nanoid-format IDs (21 chars)
+  2. article list command works with new articles
+  3. article detail <8-char-prefix> works for new articles
+  4. article open <8-char-prefix> works for new articles
+  5. Tag operations (add/remove) work on new articles
+  6. Search returns new articles correctly
+**Plans**: TBD
 
 ## Progress
 
@@ -142,10 +126,9 @@
 | 16. GitHubReleaseProvider | 1/1 | Complete | 2026-03-24 |
 | 17. Anti-屎山 Refactoring | 2/2 | Complete | 2026-03-24 |
 | 18. Storage Layer Enforcement | 1/1 | Complete | 2026-03-24 |
-| 19. uvloop Setup + crawl_async Protocol | 2/2 | ✅ Complete | 2026-03-25 |
-| 20. RSSProvider Async HTTP | 1/1 | Complete    | 2026-03-24 |
-| 21. Concurrent Fetch + SQLite Serialization | 1/1 | Complete    | 2026-03-25 |
-| 22. CLI Integration | 1/1 | ✅ Complete | 2026-03-25 |
+| 23. nanoid Code Changes | 0/1 | Not started | - |
+| 24. Migration Script | 0/1 | Deferred | - |
+| 25. Verification | 0/1 | Not started | - |
 
 ---
 _For completed milestone details, see `.planning/milestones/`_
