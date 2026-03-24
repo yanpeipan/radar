@@ -91,14 +91,15 @@ None identified.
 
 ## Session Continuity
 
-Last session: 2026-03-25T00:00:00.000Z
-Stopped at: Completed quick 260324-xau: github_utils.py → utils/github.py
+Last session: 2026-03-25T00:05:00.000Z
+Stopped at: Completed quick 260325-035: ai_tagging.py, tag_rules.py → src/tags/
 Next action: `/gsd:plan-phase 16` to plan GitHubReleaseProvider
 
 ## Quick Tasks Completed
 
 | Date | Task | Files | Notes |
 |------|------|-------|-------|
+| 2026-03-25 | 260325-035 | ai_tagging.py, tag_rules.py → src/tags/ | Moved to src/tags/, updated imports in default_tag_parser, feed, article, tag, test |
 | 2026-03-24 | 260324-xau | github_utils.py → utils/github.py | Merged parse_github_url into utils/github.py, updated imports, deleted github_utils.py |
 | 2026-03-24 | 260324-waj | README.md (259 lines) | Created comprehensive README with badges, features, tech stack, installation, CLI usage, config, project structure |
 | 2026-03-24 | 260324-v34 | Refactor feeds.py to modules | Migrated generate_article_id/generate_feed_id to utils, add_feed/list_feeds/get_feed/remove_feed to application/feed.py, fetch_feed_content/parse_feed to rss_provider.py, deleted feeds.py |
