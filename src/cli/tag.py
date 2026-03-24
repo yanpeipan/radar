@@ -95,7 +95,7 @@ def tag_rule_add(ctx: click.Context, tag_name: str, keyword: tuple, regex: Optio
         click.secho("Error: Must specify --keyword or --regex", fg="red")
         sys.exit(1)
     try:
-        from src.tag_rules import add_rule
+        from src.tags.tag_rules import add_rule
         add_rule(tag_name, keywords=list(keyword) if keyword else None, regex=[regex] if regex else None)
         click.secho(f"Added rule(s) for tag '{tag_name}'", fg="green")
     except Exception as e:
@@ -114,7 +114,7 @@ def tag_rule_remove(ctx: click.Context, tag_name: str, keyword: Optional[str], r
         click.secho("Error: Must specify --keyword or --regex", fg="red")
         sys.exit(1)
     try:
-        from src.tag_rules import remove_rule
+        from src.tags.tag_rules import remove_rule
         removed = remove_rule(tag_name, keyword=keyword, regex_pattern=regex)
         if removed:
             click.secho(f"Removed rule from '{tag_name}'", fg="green")
@@ -130,7 +130,7 @@ def tag_rule_remove(ctx: click.Context, tag_name: str, keyword: Optional[str], r
 def tag_rule_list(ctx: click.Context) -> None:
     """List all tag rules."""
     try:
-        from src.tag_rules import list_rules
+        from src.tags.tag_rules import list_rules
         rules = list_rules()
         tags = rules.get("tags", {})
         if not tags:
@@ -168,7 +168,7 @@ def tag_rule_edit(ctx: click.Context, tag_name: str, add_keyword: tuple, remove_
         sys.exit(1)
 
     try:
-        from src.tag_rules import edit_rule
+        from src.tags.tag_rules import edit_rule
         success = edit_rule(
             tag_name,
             add_keywords=list(add_keyword) if add_keyword else None,

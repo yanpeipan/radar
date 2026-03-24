@@ -17,8 +17,8 @@ from src.application.articles import get_article_detail, list_articles, search_a
 
 logger = logging.getLogger(__name__)
 
-# Import run_auto_tagging from src/ai_tagging.py module
-_ai_tagging_module_path = pathlib.Path(__file__).parent.parent / "ai_tagging.py"
+# Import run_auto_tagging from src/tags/ai_tagging.py module
+_ai_tagging_module_path = pathlib.Path(__file__).parent.parent / "tags" / "ai_tagging.py"
 _loader = importlib.machinery.SourceFileLoader("src_ai_tagging_module", str(_ai_tagging_module_path))
 _spec = importlib.util.spec_from_loader("src_ai_tagging_module", _loader)
 _ai_tagging_module = importlib.util.module_from_spec(_spec)
@@ -287,7 +287,7 @@ def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optiona
 
             click.secho(f"Applying rules to {len(untagged)} untagged articles...", fg="cyan")
             applied_count = 0
-            from src.tag_rules import apply_rules_to_article
+            from src.tags.tag_rules import apply_rules_to_article
             for row in untagged:
                 matched = apply_rules_to_article(row["id"], row["title"], row["description"])
                 if matched:

@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import List
 
 from src.providers.base import Article, TagParser
-from src.tag_rules import match_article_to_tags
+from src.tags.tag_rules import match_article_to_tags
 
 
 class DefaultTagParser:

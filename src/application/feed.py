@@ -253,7 +253,7 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
         )
 
     # Apply tag rules AFTER store to avoid nested connection writes
-    from src.tag_rules import apply_rules_to_article
+    from src.tags.tag_rules import apply_rules_to_article
     for article_id, title, description in articles_needing_tags:
         try:
             matched_tags = apply_rules_to_article(article_id, title, description)
