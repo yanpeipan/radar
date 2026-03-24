@@ -19,6 +19,10 @@ def cli(ctx: click.Context, verbose: bool) -> None:
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
 
+    # Initialize uvloop (graceful fallback on Windows)
+    from src.application.asyncio_utils import install_uvloop
+    install_uvloop()
+
     # Initialize database on every command
     from src.storage.sqlite import init_db
     init_db()
