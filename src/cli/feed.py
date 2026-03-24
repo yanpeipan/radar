@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 
 import click
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 from src.application.feed import (
     FeedNotFoundError,
@@ -207,25 +208,55 @@ def fetch(ctx: click.Context, do_fetch_all: bool, urls: tuple) -> None:
     # Case 2: --all flag
     if do_fetch_all:
         try:
-            result = fetch_all()
-            total_new = result["total_new"]
-            success_count = result["success_count"]
-            error_count = result["error_count"]
-            errors = result["errors"]
+            from src.application.feed import fetch_one, list_feeds
 
+            feeds = list_feeds()
+            if not feeds:
+                click.secho("No feeds subscribed. Use 'feed add <url>' to add one.", fg="yellow")
+                return
+
+            total_new = 0
+            success_count = 0
+            error_count = 0
+            errors = []
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+            ) as progress:
+                task = progress.add_task(f"[cyan]Fetching {len(feeds)} feeds...", total=len(feeds))
+
+                for feed_obj in feeds:
+                    progress.update(task, description=f"[cyan]Fetching {feed_obj.name}...")
+                    try:
+                        result = fetch_one(feed_obj)
+                        new_articles = result.get("new_articles", 0)
+                        if new_articles > 0:
+                            click.secho(f"  ✓ {feed_obj.name}: +{new_articles} articles", fg="green")
+                        else:
+                            click.secho(f"  ✓ {feed_obj.name}: up to date", fg="blue")
+                        total_new += new_articles
+                        success_count += 1
+                    except Exception as e:
+                        error_count += 1
+                        errors.append(f"{feed_obj.name}: {e}")
+                        click.secho(f"  ✗ {feed_obj.name}: {e}", fg="red")
+                    progress.advance(task)
+
+            # Summary
+            click.secho("")
             if error_count == 0:
                 click.secho(
-                    f"Fetched {total_new} articles from {success_count} feeds",
+                    f"✓ Fetched {total_new} articles from {success_count} feeds",
                     fg="green",
                 )
             else:
                 click.secho(
-                    f"Fetched {total_new} articles from {success_count} feeds. {error_count} errors",
+                    f"✓ Fetched {total_new} articles from {success_count} feeds, {error_count} errors",
                     fg="yellow",
                 )
-                if verbose and errors:
-                    for err in errors:
-                        click.secho(f"  - {err}", fg="red")
 
         except Exception as e:
             click.secho(f"Error: Failed to fetch feeds: {e}", err=True, fg="red")
