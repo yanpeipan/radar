@@ -1,467 +1,240 @@
-# Architecture Research: uvloop Async Concurrency Integration
+# Architecture Research: nanoid ID Migration
 
-**Domain:** RSS reader CLI with async fetch concurrency
+**Domain:** RSS Reader - SQLite-based article ID migration
 **Researched:** 2026-03-25
-**Confidence:** MEDIUM-HIGH
+**Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.5 milestone introduces uvloop for concurrent feed fetching. The current `fetch --all` command processes feeds sequentially, creating a bottleneck when handling 10+ feeds. This architecture document maps how uvloop integrates with the existing provider plugin architecture while maintaining SQLite write serialization.
+The v1.6 milestone replaces `uuid.uuid4()` with `nanoid.generate()` for article ID generation, producing shorter (21 chars vs 36 chars) URL-safe identifiers. This document maps affected components, data flow changes, and migration order of operations.
 
-## Current Architecture
+## Current Schema Analysis
 
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLI Layer (click)                         │
-├─────────────────────────────────────────────────────────────────┤
-│  feed.py: fetch --all → feed_refresh                            │
-│  crawl.py: crawl <url>                                          │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                   Application Layer                               │
-├─────────────────────────────────────────────────────────────────┤
-│  feed.py: fetch_one(), fetch_all()                              │
-│  crawl.py: crawl_url()                                          │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                    Provider Layer                                │
-├─────────────────────────────────────────────────────────────────┤
-│  base.py: ContentProvider protocol                               │
-│  rss_provider.py: RSSProvider.crawl() [sync httpx]             │
-│  github_release_provider.py: GitHubReleaseProvider.crawl()      │
-│  default_provider.py: DefaultProvider.crawl()                   │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                     Storage Layer                                │
-├─────────────────────────────────────────────────────────────────┤
-│  sqlite.py: store_article(), get_db() [serial writes]           │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Current Fetch Flow (Sequential)
+### Existing Tables (from src/storage/sqlite.py)
 
 ```
-fetch --all (CLI)
+articles table:
+  - id TEXT NOT NULL          <-- TARGET: change from UUID to nanoid
+  - feed_id TEXT NOT NULL REFERENCES feeds(id)
+  - title, link, guid, pub_date, description, content, created_at
+  - UNIQUE(feed_id, id)       <-- constraint uses id
+
+article_tags table:
+  - article_id TEXT NOT NULL   <-- FK to articles.id
+  - tag_id TEXT NOT NULL
+  - PRIMARY KEY(article_id, tag_id)
+  - FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
+
+articles_fts FTS5 virtual table:
+  - References articles.rowid (internal), NOT article id
+  - Content: title, description, content
+  - FTS sync (line 351-355): INSERT OR REPLACE uses rowid
+
+tags table:
+  - id TEXT PRIMARY KEY       <-- also uses UUID (secondary target)
+  - name, created_at
+```
+
+## Affected Components
+
+### Components Requiring Modification
+
+| File | Function | Line | Change | Priority |
+|------|----------|------|--------|----------|
+| `src/storage/sqlite.py` | `store_article()` | 334 | Replace `uuid.uuid4()` with `nanoid.generate()` | CRITICAL |
+| `src/storage/sqlite.py` | `store_article_async()` | 361-384 | Delegates to `store_article`, no change needed | N/A |
+| `src/storage/sqlite.py` | `add_tag()` | 181 | Replace `uuid.uuid4()` with `nanoid.generate()` | MODERATE |
+| `src/storage/sqlite.py` | `tag_article()` | 244 | Replace `uuid.uuid4()` with `nanoid.generate()` | MODERATE |
+| Migration script (new) | - | - | Regenerate IDs for ~2479 articles | CRITICAL |
+
+### Components NOT Requiring Modification
+
+| Component | Why Unaffected |
+|-----------|----------------|
+| `articles_fts` | Uses `rowid` internally, not article `id`. FTS sync at line 351-355 uses rowid. |
+| `article_tags` | FK cascades on delete. Tag associations preserved via article_id update. |
+| `feeds` table | Uses feed_id from external sources, not article IDs |
+| CLI modules | Display article IDs but read-only, will work with new format |
+| Search functions | Query by `id` which remains TEXT type |
+
+## Data Flow
+
+### Normal Operation (Post-Migration)
+
+```
+New article arrives via fetch
     ↓
-fetch_all() [feed.py:193]
-    ↓ (sequential loop over feeds)
-for feed_obj in feeds:
+store_article(guid, title, content, link, feed_id, pub_date)
     ↓
-    fetch_one(feed_obj) [feed.py:117]
-        ↓
-        provider = discover_or_default(feed.url)[0]
-        ↓
-        raw_items = provider.crawl(feed.url)  ←── sync httpx.get()
-        ↓
-        for raw in raw_items:
-            store_article(...)  ←── serial SQLite write
-```
-
-### Provider Interface (Current)
-
-```python
-class ContentProvider(Protocol):
-    def match(self, url: str) -> bool: ...
-    def priority(self) -> int: ...
-    def crawl(self, url: str) -> List[Raw]: ...  # Currently sync
-    def parse(self, raw: Raw) -> Article: ...
-    def feed_meta(self, url: str) -> Feed: ...   # Currently sync
-```
-
-## Target Architecture (Concurrent)
-
-### System Overview with uvloop
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLI Layer (click)                         │
-├─────────────────────────────────────────────────────────────────┤
-│  feed.py: fetch --all → uvloop.run(fetch_all_async())          │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                   Application Layer (async)                      │
-├─────────────────────────────────────────────────────────────────┤
-│  feed.py: fetch_one_async(), fetch_all_async()                  │
-│  crawl.py: crawl_url_async()                                    │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                 Provider Layer (async variants)                  │
-├─────────────────────────────────────────────────────────────────┤
-│  base.py: ContentProvider protocol + crawl_async() default       │
-│  rss_provider.py: RSSProvider.crawl_async() [httpx.AsyncClient]  │
-│  github_release_provider.py: GitHubReleaseProvider.crawl_async() │
-│  default_provider.py: DefaultProvider.crawl_async()              │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────────┐
-│                     Storage Layer                                │
-├─────────────────────────────────────────────────────────────────┤
-│  sqlite.py: store_article() [called from asyncio.to_thread]      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### New Async Fetch Flow
-
-```
-fetch --all (CLI)
+article_id = nanoid.generate()  ← 21 chars vs UUID 36 chars
     ↓
-uvloop.install()  ←── once at app startup
+INSERT INTO articles (id, feed_id, ...) VALUES (article_id, ...)
     ↓
-asyncio.run(fetch_all_async())  ←── or uvloop.run()
+INSERT OR REPLACE INTO articles_fts(rowid, title, description, content)
+    SELECT rowid, title, description, content FROM articles WHERE id = article_id
     ↓
-fetch_all_async():
-    feeds = list_feeds()
-    semaphore = asyncio.Semaphore(10)  ←── configurable concurrency
-    tasks = [
-        fetch_one_async(feed, semaphore)
-        for feed in feeds
-    ]
-    results = await asyncio.gather(*tasks)  ←── concurrent fetch
-    ↓
-    gather results, update totals
-    ↓
-    await asyncio.gather(*write_tasks)  ←── serial writes via to_thread
+Returns article_id (nanoid format)
 ```
 
-## Integration Points
+### Migration Script Operation
 
-### 1. CLI Entry Point
+```
+For each existing article with URL-like ID:
+    1. Generate new nanoid
+    2. UPDATE article_tags SET article_id = new_id WHERE article_id = old_id
+    3. UPDATE articles SET id = new_id WHERE id = old_id
+    (FTS rowid remains unchanged, content updates automatically)
+```
 
-**File:** `src/cli/feed.py` (fetch command)
+## Key Insight: FTS rowid Behavior
 
-**NEW:** Add uvloop.run() wrapper for async fetch.
+The FTS5 virtual table uses SQLite's internal `rowid` to track articles, NOT the article `id` column:
 
 ```python
-# Option: Wrapper (simpler, no click async complexity)
-@cli.command("fetch")
-@click.option("--all", "do_fetch_all", is_flag=True)
-@click.pass_context
-def fetch(ctx: click.Context, do_fetch_all: bool):
-    if do_fetch_all:
-        import uvloop
-        uvloop.run(fetch_all_async())
+# Line 351-355 in store_article()
+cursor.execute(
+    """INSERT OR REPLACE INTO articles_fts(rowid, title, description, content)
+       SELECT rowid, title, description, content FROM articles WHERE id = ?""",
+    (article_id,),
+)
 ```
 
-**Decision:** uvloop.run() wrapper is simpler and avoids click's async edge cases.
+**Implications:**
+- FTS rows are tied to the article's rowid (auto-incrementing internal value)
+- Changing `articles.id` does NOT require FTS migration
+- The `INSERT OR REPLACE` updates content in-place based on rowid
+- Do NOT reindex FTS after migration
 
-### 2. Application Layer (feed.py)
+## ID Format Comparison
 
-**NEW:** `fetch_one_async()` and `fetch_all_async()` functions.
+| Format | Example | Length | URL-safe |
+|--------|---------|--------|----------|
+| UUID v4 | `550e8400-e29b-41d4-a716-446655440000` | 36 chars | No (contains `-`) |
+| nanoid | `V1StGXR8_Z5jdHi6B9LW11` | 21 chars | Yes (URL-safe alphabet) |
+
+## Order of Operations (Migration Script)
 
 ```python
-async def fetch_one_async(feed: Feed, semaphore: asyncio.Semaphore) -> dict:
-    """Async fetch with semaphore-controlled concurrency."""
-    async with semaphore:
-        providers = discover_or_default(feed.url)
-        if not providers:
-            return {"new_articles": 0, "error": f"No provider for {feed.url}"}
+import nanoid
 
-        provider = providers[0]
-        raw_items = await provider.crawl_async(feed.url)  # NEW: async method
+def migrate_article_ids():
+    """Migrate ~2479 URL-like article IDs to nanoid format."""
+    with get_db() as conn:
+        cursor = conn.cursor()
 
-        # SQLite writes remain serial via asyncio.to_thread
-        write_tasks = []
-        for raw in raw_items:
-            article = provider.parse(raw)
-            # Schedule serial write
-            write_tasks.append(asyncio.to_thread(store_article, ...))
+        # 1. Find articles needing migration (URL-like IDs)
+        cursor.execute("SELECT id FROM articles WHERE id LIKE 'http%'")
+        articles_to_migrate = cursor.fetchall()
 
-        await asyncio.gather(*write_tasks)
-        return {"new_articles": len(raw_items)}
+        migrated_count = 0
+        for (old_id,) in articles_to_migrate:
+            # 2. Generate new nanoid
+            new_id = nanoid.generate()
 
-async def fetch_all_async() -> dict:
-    """Concurrent fetch for all feeds."""
-    feeds = list_feeds()
-    semaphore = asyncio.Semaphore(10)  # Configurable
+            # 3. Update article_tags first (FK dependency order)
+            cursor.execute(
+                "UPDATE article_tags SET article_id = ? WHERE article_id = ?",
+                (new_id, old_id)
+            )
 
-    tasks = [fetch_one_async(feed, semaphore) for feed in feeds]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+            # 4. Update articles table
+            cursor.execute(
+                "UPDATE articles SET id = ? WHERE id = ?",
+                (new_id, old_id)
+            )
 
-    # Aggregate results...
+            migrated_count += 1
+
+        conn.commit()
+        return migrated_count
 ```
 
-### 3. Provider Protocol Extension
+## Code Changes
 
-**File:** `src/providers/base.py`
-
-**NEW:** Add optional `crawl_async()` method to protocol with default implementation.
+### store_article() Change
 
 ```python
-@runtime_checkable
-class ContentProvider(Protocol):
-    # Existing sync methods...
-    def crawl(self, url: str) -> List[Raw]: ...
+# BEFORE (line 311-334)
+import uuid
+# ...
+article_id = str(uuid.uuid4())
 
-    # NEW: async variant with default implementation
-    async def crawl_async(self, url: str) -> List[Raw]:
-        """Async fetch. Default impl runs sync crawl() in thread."""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.crawl, url)
+# AFTER
+import nanoid
+# ...
+article_id = nanoid.generate()
 ```
 
-**Design decision:** Provide default implementation that wraps sync `crawl()` in `asyncio.to_thread()`. This allows:
-- Gradual migration: providers without explicit `crawl_async` still work
-- Backward compatibility: sync code continues to function
-
-### 4. RSS Provider Async Variant
-
-**File:** `src/providers/rss_provider.py`
-
-**NEW:** Add `crawl_async()` using `httpx.AsyncClient`.
+### add_tag() Change
 
 ```python
-async def fetch_feed_content_async(
-    url: str,
-    etag: Optional[str] = None,
-    last_modified: Optional[str] = None,
-) -> tuple[Optional[bytes], Optional[str], Optional[str], int]:
-    """Async feed fetch with conditional request support."""
-    headers: dict[str, str] = {}
-    if etag:
-        headers["If-None-Match"] = etag
-    if last_modified:
-        headers["If-Modified-Since"] = last_modified
+# BEFORE (line 178-181)
+import uuid
+# ...
+tag_id = str(uuid.uuid4())
 
-    request_headers = {**BROWSER_HEADERS, **headers}
-
-    # NEW: httpx.AsyncClient context
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            url,
-            headers=request_headers,
-            timeout=30.0,
-            follow_redirects=True
-        )
-
-    if response.status_code == 304:
-        return None, None, None, 304
-
-    response.raise_for_status()
-    return response.content, response.headers.get("etag"), response.headers.get("last-modified"), response.status_code
-
-class RSSProvider:
-    async def crawl_async(self, url: str) -> List[Raw]:
-        """Async crawl using httpx.AsyncClient."""
-        _feed_title_var.set(None)
-        try:
-            content, etag, last_modified, status_code = await fetch_feed_content_async(url)
-            if content is None:
-                return []
-
-            parsed = feedparser.parse(content)
-            if parsed.feed:
-                _feed_title_var.set(parsed.feed.get("title"))
-
-            entries, bozo_flag, bozo_exception = parse_feed(content, url)
-            return entries
-        except Exception as e:
-            logger.error("RSSProvider.crawl_async(%s) failed: %s", url, e)
-            return []
-```
-
-### 5. GitHub Release Provider Async Variant
-
-**File:** `src/providers/github_release_provider.py`
-
-**NEW:** Add `crawl_async()` using `asyncio.to_thread()` for PyGithub (sync).
-
-```python
-class GitHubReleaseProvider:
-    async def crawl_async(self, url: str) -> List[Raw]:
-        """Async crawl. PyGithub is sync, so run in thread."""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.crawl, url)
-```
-
-### 6. SQLite Storage Layer
-
-**File:** `src/storage/sqlite.py`
-
-**NEW:** No changes required. SQLite writes are already called via `asyncio.to_thread()` from the async functions. The `store_article()` function is already thread-safe via connection-per-call pattern.
-
-**Key insight:** Using `asyncio.to_thread()` for every write serializes them due to SQLite locking. The semaphore controls network I/O concurrency, not write concurrency.
-
-## Component Changes Summary
-
-| File | Change Type | Purpose |
-|------|-------------|---------|
-| `src/cli/feed.py` | MODIFY | Add `uvloop.run()` wrapper for async fetch |
-| `src/application/feed.py` | ADD | `fetch_one_async()`, `fetch_all_async()` |
-| `src/providers/base.py` | MODIFY | Add optional `crawl_async()` to protocol with default impl |
-| `src/providers/rss_provider.py` | MODIFY | Add `crawl_async()`, `fetch_feed_content_async()` |
-| `src/providers/github_release_provider.py` | MODIFY | Add `crawl_async()` wrapper |
-| `src/providers/default_provider.py` | MODIFY | Add `crawl_async()` wrapper |
-| `src/application/crawl.py` | MODIFY | Add `crawl_url_async()` variant if parallel URL fetching needed |
-| `pyproject.toml` | MODIFY | Add `uvloop` dependency |
-
-## Build Order (Considering Dependencies)
-
-```
-Phase 1: Dependency + Protocol
-  1. Add uvloop to pyproject.toml
-  2. Add crawl_async() to ContentProvider protocol with default implementation
-
-Phase 2: Core Async Application
-  3. Add fetch_feed_content_async() to rss_provider.py
-  4. Add crawl_async() to RSSProvider
-  5. Add crawl_async() to GitHubReleaseProvider (run_in_executor)
-  6. Add crawl_async() to DefaultProvider (run_in_executor)
-
-Phase 3: Async Fetch Integration
-  7. Add fetch_one_async() to application/feed.py
-  8. Add fetch_all_async() to application/feed.py
-  9. Modify CLI feed.py to use uvloop.run(fetch_all_async())
-
-Phase 4: Crawl URL Async (if needed for parallel URL arguments)
-  10. Add crawl_url_async() to application/crawl.py
-```
-
-## Concurrency Control
-
-### Semaphore-Based Rate Limiting
-
-```python
-# Default: 10 concurrent requests
-CONCURRENCY_LIMIT = 10
-
-async def fetch_all_async():
-    feeds = list_feeds()
-    semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
-
-    async def bounded_fetch(feed):
-        async with semaphore:
-            return await fetch_one_async(feed, semaphore)
-
-    tasks = [bounded_fetch(feed) for feed in feeds]
-    await asyncio.gather(*tasks)
-```
-
-### Configurable Concurrency
-
-```python
-# From CLI: rss-reader fetch --all --concurrency 20
-# From config: concurrency in settings (via dynaconf)
-```
-
-### SQLite Write Serialization
-
-SQLite writes are serialized by:
-1. All writes go through `asyncio.to_thread(store_article, ...)`
-2. `to_thread()` uses a thread pool but SQLite's locking serializes writes
-3. `busy_timeout=5000` handles lock waits
-
-**No changes needed to storage layer.** The existing pattern works correctly with async.
-
-## uvloop Installation Pattern
-
-```python
-# src/__main__.py or entry point
-import uvloop
-
-def main():
-    uvloop.install()  # Install uvloop as the default event loop
-    # CLI commands continue normally
-    from src.cli import cli
-    cli()
-
-if __name__ == "__main__":
-    main()
-```
-
-**Alternative (lazy install):**
-
-```python
-# At start of async function
-def fetch_all_async():
-    try:
-        import uvloop
-        uvloop.install()
-    except ImportError:
-        pass  # Fall back to standard asyncio
-    # ... rest of async code
-```
-
-**Decision:** Install at app startup in `__main__.py` for consistency.
-
-## Error Handling
-
-### Per-Feed Error Isolation
-
-```python
-async def fetch_one_async(feed, semaphore):
-    async with semaphore:
-        try:
-            # ... fetch logic
-            return {"new_articles": count}
-        except Exception as e:
-            logger.error("Failed to fetch %s: %s", feed.url, e)
-            return {"new_articles": 0, "error": str(e)}
-```
-
-### Aggregate on gather()
-
-```python
-results = await asyncio.gather(*tasks, return_exceptions=True)
-
-for i, result in enumerate(results):
-    if isinstance(result, Exception):
-        errors.append(f"{feeds[i].name}: {result}")
-        error_count += 1
-    else:
-        total_new += result.get("new_articles", 0)
-        success_count += 1
+# AFTER
+import nanoid
+# ...
+tag_id = nanoid.generate()
 ```
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Async in Click Without uvloop
+### Anti-Pattern 1: Reindexing FTS After Migration
 
-**What people do:** Use `@click.command()` with async def but forget to install uvloop.
+**What:** Running `INSERT INTO articles_fts(...)` or recreating the FTS table
+**Why bad:** Unnecessary, FTS follows rowid not `id`. Would rebuild entire index for no reason.
+**Instead:** Trust the existing `INSERT OR REPLACE` sync mechanism.
 
-**Why bad:** Default asyncio event loop is slower; uvloop gives 2-4x I/O improvement.
+### Anti-Pattern 2: Forgetting article_tags FK Update Order
 
-**Do this instead:** Always `uvloop.install()` before running async code.
+**What:** Updating `articles.id` before `article_tags.article_id`
+**Why bad:** FK constraint violation or orphaned tag associations
+**Instead:** Always update `article_tags.article_id` BEFORE `articles.id`, in same transaction.
 
-### Anti-Pattern 2: Concurrent SQLite Writes
+### Anti-Pattern 3: Reusing nanoid IDs
 
-**What people do:** Call `store_article()` directly from multiple async tasks without to_thread.
+**What:** Checking if nanoid "exists" before inserting
+**Why bad:** nanoid has collision-resistant generation (~36 bits entropy). Probability of collision in 10M IDs is ~10^-23.
+**Instead:** Trust nanoid's collision resistance. Only check `UNIQUE(feed_id, id)` constraint.
 
-**Why bad:** SQLite write locks cause "database is locked" errors.
+### Anti-Pattern 4: Missing Transaction Boundary
 
-**Do this instead:** Use `asyncio.to_thread(store_article, ...)` to serialize writes.
+**What:** Updating articles one at a time without batching in transaction
+**Why bad:** Half-migrated state if script crashes mid-way
+**Instead:** Wrap all updates in single transaction, or checkpoint periodically
 
-### Anti-Pattern 3: Blocking Sync Libraries in Async Context
+## Quality Gate Criteria
 
-**What people do:** Call PyGithub (sync) directly in async function.
+- [ ] `store_article()` uses `nanoid.generate()` for new articles
+- [ ] `add_tag()` uses `nanoid.generate()` for new tags
+- [ ] `tag_article()` uses `nanoid.generate()` for new tags
+- [ ] Migration script updates `article_tags` before `articles`
+- [ ] Migration script uses single transaction (or checkpoint pattern)
+- [ ] FTS index NOT rebuilt after migration
+- [ ] Existing article CRUD operations verified
+- [ ] Existing tagging operations verified
+- [ ] Existing search operations verified
 
-**Why bad:** Blocks the event loop, defeating concurrency benefit.
+## Confidence Assessment
 
-**Do this instead:** `await loop.run_in_executor(None, sync_function, *args)`.
-
-### Anti-Pattern 4: Missing Error Isolation
-
-**What people do:** Let one feed's exception crash the entire gather.
-
-**Why bad:** One bad feed breaks all other feeds.
-
-**Do this instead:** Use `return_exceptions=True` in asyncio.gather().
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Schema impact | HIGH | Clear from codebase analysis |
+| FTS behavior | HIGH | rowid is SQLite internal, well-documented behavior |
+| article_tags FK | HIGH | CASCADE and UPDATE behavior is standard SQL |
+| Migration script | HIGH | Pattern is straightforward ID replacement |
+| nanoid collision | HIGH | nanoid v3.16.0 collision resistance is mathematically sound |
 
 ## Sources
 
-- [uvloop Documentation](https://magicstack.github.io/uvloop/current/) (HIGH confidence)
-- [httpx Async Client](https://www.python-httpx.org/async/) (HIGH confidence)
-- [asyncio.gather docs](https://docs.python.org/3/library/asyncio-task.html#asyncio.gather) (HIGH confidence)
-- [asyncio.Semaphore docs](https://docs.python.org/3/library/asyncio-sync.html#asyncio.Semaphore) (HIGH confidence)
-- [SQLite + asyncio patterns](https://docs.python.org/3/library/sqlite3.html) (HIGH confidence)
+- [nanoid Python documentation](https://pypi.org/project/nanoid/) (HIGH confidence)
+- [SQLite rowid documentation](https://www.sqlite.org/lang_createtable.html#rowid) (HIGH confidence)
+- [FTS5 documentation](https://www.sqlite.org/fts5.html) (HIGH confidence)
+- [SQLite Foreign Key documentation](https://www.sqlite.org/foreignkeys.html) (HIGH confidence)
 
 ---
 
-*Architecture research for: uvloop async concurrency integration*
+*Architecture research for: nanoid ID migration*
 *Researched: 2026-03-25*

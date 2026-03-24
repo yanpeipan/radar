@@ -1,7 +1,7 @@
 # Technology Stack: Personal Information System
 
 **Project Type:** CLI tool for RSS subscription and website crawling
-**Researched:** 2026-03-22 (v1.0), 2026-03-23 (v1.1 additions), 2026-03-23 (v1.2 additions), 2026-03-23 (v1.3 plugin architecture), 2026-03-25 (v1.5 uvloop concurrency)
+**Researched:** 2026-03-22 (v1.0), 2026-03-23 (v1.1 additions), 2026-03-23 (v1.2 additions), 2026-03-23 (v1.3 plugin architecture), 2026-03-25 (v1.5 uvloop concurrency), 2026-03-25 (v1.6 nanoid)
 **Confidence:** HIGH
 
 ## Recommended Stack
@@ -711,6 +711,103 @@ src/
 
 ---
 
+## v1.6 Addition: nanoid ID Generation
+
+### Overview
+
+Replacing `uuid.uuid4()` with `nanoid.generate()` for shorter (21 chars vs 36 chars) URL-safe article IDs.
+
+### Current State
+
+| Package | Current Version | Status |
+|---------|----------------|--------|
+| nanoid | NOT INSTALLED | **Must add to dependencies** |
+| uuid | built-in | Currently used for article IDs |
+
+**Important:** Quality gate states "nanoid v3.16.0 installed" but verification shows:
+```bash
+$ python3 -c "import nanoid"
+ModuleNotFoundError: No module named 'nanoid'
+```
+
+### Required Changes
+
+#### 1. Add Dependency to pyproject.toml
+
+Add to `dependencies` array:
+```toml
+nanoid = ">=3.16.0"
+```
+
+#### 2. Replace uuid.uuid4() in sqlite.py
+
+**File:** `src/storage/sqlite.py`
+
+**Line 334 (store_article function) - INSERT new article:**
+```python
+# Before:
+import uuid
+article_id = str(uuid.uuid4())
+
+# After:
+from nanoid import generate
+article_id = generate()
+```
+
+**Line 181 (add_tag function):**
+```python
+# Before:
+import uuid
+tag_id = str(uuid.uuid4())
+
+# After:
+from nanoid import generate
+tag_id = generate()
+```
+
+### nanoid API
+
+```python
+from nanoid import generate
+
+# Default: 21-char URL-safe ID using alphabet A-Za-z0-9_-
+article_id = generate()
+
+# Custom size (if shorter IDs desired)
+short_id = generate(size=12)
+```
+
+### No Conflicts with Existing Code
+
+**generate_article_id() in src/utils/__init__.py:**
+This function derives an ID from feed entry data (guid/link/hash). It does NOT generate the database `id` column. It is NOT affected by this migration.
+
+**feed_id in utils:**
+`generate_feed_id()` at line 15 of `src/utils/__init__.py` uses `uuid.uuid4()`. Decision needed: migrate feed IDs or leave as-is (feeds are fewer, URL-like IDs less problematic for feeds).
+
+### Migration Considerations
+
+**Existing articles (~2479) with URL-like IDs:**
+- articles table has `UNIQUE(feed_id, id)` constraint
+- article_tags table has foreign key to articles(id)
+- articles_fts FTS5 table references articles by id
+
+**Migration approach:**
+1. Generate new nanoid for each existing article
+2. Update article_tags first (FK dependency)
+3. Update articles table
+4. Re-sync FTS5 table
+
+### Alternatives Considered
+
+| Option | Status | Why Not |
+|--------|--------|---------|
+| `uuid.uuid4()` (current) | Rejected | 36 chars, not URL-safe |
+| `hashlib` + timestamp | Rejected | Collision risk, not random enough |
+| `secrets.token_urlsafe()` | Alternative | Built-in, but nanoid is shorter (21 vs 22 chars) |
+
+---
+
 ## Project Structure Best Practices
 
 ```
@@ -737,7 +834,7 @@ my_rss_tool/
 └── README.md
 ```
 
-**pyproject.toml dependencies (v1.3):**
+**pyproject.toml dependencies (v1.6):**
 ```toml
 [project]
 dependencies = [
@@ -749,6 +846,7 @@ dependencies = [
     "scrapling>=0.4.2",     # v1.1: Changelog scraping
     "rich>=13.0.0",         # v1.2: Terminal display enhancement
     "pluggy>=1.5.0",        # v1.3: Plugin framework (already installed)
+    "nanoid>=3.16.0",      # v1.6: Shorter URL-safe IDs
     # "html2text>=2024.0.0", # v1.2: Only if article.content is HTML
 ]
 requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
@@ -775,6 +873,7 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 | Plugin Discovery | Entry points | Directory scanning | Entry points better for extensible plugins. Directory scanning OK for built-ins. |
 | Plugin Pattern | Hook spec | ABC inheritance | Hook pattern is more flexible, allows optional methods. ABC forces implementation. |
 | Async Runtime | uvloop | Default asyncio | uvloop is 2-4x faster. Already installed. No downside. |
+| ID Generation | nanoid | uuid | nanoid: 21 chars URL-safe vs uuid: 36 chars with hyphens |
 
 ---
 
@@ -797,6 +896,7 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 | aiodns | Only for high-volume DNS resolution | uvloop handles DNS via libuv; not needed at RSS reader scale |
 | uvloop[dev] | Dev extras not needed | Just `uvloop` package |
 | anyio as direct dependency | httpx already depends on it transitively | It's already installed |
+| uuid (built-in) | 36 chars with hyphens, not URL-safe | nanoid (21 chars, URL-safe) |
 
 ---
 
@@ -813,6 +913,7 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 | **uvloop 0.22.1** | Python >=3.9, specifically 3.13.5 | Already installed. Full support for Python 3.13.5. |
 | **httpx 0.28.1** | Python >=3.10 | Built-in AsyncClient. Already installed. |
 | **anyio 4.7.0** | Python >=3.9 | httpx dependency. Already installed. |
+| **nanoid 3.16.x** | Python >=3.7 | Must add to dependencies. URL-safe ID generation. |
 
 ---
 
@@ -837,3 +938,4 @@ requires-python = ">=3.10"   # v1.1: Bumped from 3.6+ to 3.10+
 - [Python importlib.metadata docs](https://docs.python.org/3/library/importlib.metadata.html) - Entry points (HIGH confidence - built-in)
 - [packaging.python.org plugin guide](https://packaging.python.org/en/latest/guides/creating-and-discovering-plugins/) - Plugin discovery best practices (HIGH confidence)
 - **PyPI JSON API (curl)** - uvloop 0.22.1, httpx 0.28.1, anyio 4.7.0 confirmed (HIGH confidence)
+- **PyPI: nanoid** (https://pypi.org/project/nanoid/) - UNVERIFIED, network restricted. API from training data.

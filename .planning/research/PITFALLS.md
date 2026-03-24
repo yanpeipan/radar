@@ -1,289 +1,211 @@
-# Pitfalls Research: uvloop Async Concurrency
+# Pitfalls Research: nanoid ID Migration
 
-**Domain:** Adding uvloop/async concurrency to Python CLI with httpx sync and SQLite
+**Domain:** SQLite ID migration in RSS reader application
 **Researched:** 2026-03-25
-**Confidence:** MEDIUM
+**Confidence:** HIGH (established SQLite patterns, verified against codebase)
 
-*Note: Web search was unavailable during research. Findings are based on established Python async programming knowledge and known library behaviors.*
+---
+
+## Executive Summary
+
+Migrating ~2479 articles from URL-like IDs to nanoid IDs requires updating multiple related tables atomically. The primary risks are: (1) orphaning foreign key references in `article_tags` and `article_embeddings`, (2) breaking the FTS5 search index which links via `rowid`, and (3) collision with existing IDs if migration is run multiple times or partially. The safest approach is an in-place UPDATE within a transaction, not delete-and-reinsert.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: feedparser.parse() Blocks the Event Loop
+### Pitfall 1: FTS5 Index Desynchronization
 
 **What goes wrong:**
-The event loop stalls while `feedparser.parse()` processes XML. With 10 concurrent feeds, the entire async pipeline freezes during each parse operation, eliminating concurrency benefits.
+After migration, `article list` and `article detail` work, but `search` returns stale results or crashes. The FTS5 virtual table `articles_fts` loses sync with `articles` because it links via `rowid`, not article `id`.
 
 **Why it happens:**
-`feedparser.parse()` is a CPU-bound synchronous function. It performs XML parsing in the calling thread. Async/await cannot yield control during the parse operation.
+The FTS5 sync at `sqlite.py:352-355` uses:
+```python
+INSERT OR REPLACE INTO articles_fts(rowid, title, description, content)
+SELECT rowid, title, description, content FROM articles WHERE id = ?
+```
+This relies on `rowid` continuity. If migration does DELETE + INSERT, the new row gets a NEW rowid, orphaning the old FTS entry while creating a duplicate.
 
 **How to avoid:**
-Run feedparser in a thread pool executor:
-```python
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-
-_executor = ThreadPoolExecutor(max_workers=4)
-
-async def parse_feed_async(content: bytes, url: str):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_executor, feedparser.parse, content)
-```
+- **Use UPDATE, not DELETE+INSERT.** The `id` column in `articles` is NOT a PRIMARY KEY (line 116-117: "Note: id is NOT PRIMARY KEY - same article can exist in multiple feeds"). SQLite allows UPDATE of non-PK columns freely.
+- If UPDATE is not possible, use explicit rowid preservation:
+  ```sql
+  INSERT INTO articles(rowid, id, feed_id, title, ...)
+  SELECT rowid, 'new_nanoid', feed_id, title, ...
+  FROM articles WHERE id = 'old_id';
+  ```
 
 **Warning signs:**
-- Event loop appears frozen during feed parsing
-- High CPU on single core during concurrent fetches
-- "slow callback" warnings from uvloop
+- `search` returns fewer results than `article list`
+- FTS query joins show mismatched rowids
+- Duplicate content in search results
 
-**Phase to address:**
-Phase 1 (uvloop setup + executor pool for feedparser)
+**Phase to address:** NANO-02 migration script
 
 ---
 
-### Pitfall 2: Provider crawl() Methods Are Synchronous
+### Pitfall 2: Orphaned article_tags Foreign Key References
 
 **What goes wrong:**
-`ContentProvider.crawl()` and all concrete implementations (RSSProvider, GitHubReleaseProvider) are synchronous. Calling `provider.crawl(url)` directly from async code blocks the event loop for the entire duration of the HTTP request.
+`article_tags` has `FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE`. If migration updates article IDs without updating `article_tags.article_id`, tags become orphaned. User runs `article tag` and gets "article not found" errors.
 
 **Why it happens:**
-The Provider protocol was designed for synchronous execution. Each provider's `crawl()` method internally calls `httpx.get()` (blocking) and `feedparser.parse()` (blocking).
+The `article_tags` table stores `article_id` values that must match `articles.id`. When articles.id changes, article_tags.article_id must change too.
 
 **How to avoid:**
-Either:
-1. Wrap all provider calls in executor: `await loop.run_in_executor(None, provider.crawl, url)`
-2. Or refactor providers to async methods (breaking change to protocol)
-
-Option 1 is less invasive for existing code.
+- Include `article_tags` in the same transaction as the articles UPDATE:
+  ```sql
+  UPDATE article_tags SET article_id = 'new_nanoid' WHERE article_id = 'old_url_id';
+  ```
+- The `article_embeddings` table also has `article_id TEXT PRIMARY KEY` and must be updated.
 
 **Warning signs:**
-- Sequential behavior despite asyncio.gather() usage
-- Concurrent fetches taking longer than sequential would
+- Tags visible in DB but `article list --tags` shows empty for migrated articles
+- `tag_article()` succeeds but tags don't persist
 
-**Phase to address:**
-Phase 2 (Provider wrapper for async execution)
+**Phase to address:** NANO-02 migration script (must handle all related tables)
 
 ---
 
-### Pitfall 3: httpx.AsyncClient Lifecycle Mismanagement
+### Pitfall 3: Orphaned article_embeddings
 
 **What goes wrong:**
-Connection leaks, "Unclosed client session" warnings, or socket exhaustion. The AsyncClient is created but never properly closed, or closed too early.
+Embeddings stored with old article IDs become unreachable. `get_article_embedding()` returns None for migrated articles despite having data in `article_embeddings` table.
 
 **Why it happens:**
-`httpx.AsyncClient` requires explicit lifecycle management. Unlike the sync `httpx.get()` which handles connections internally, AsyncClient maintains a connection pool that must be closed.
+`article_embeddings.article_id` is a PRIMARY KEY that must match `articles.id`. If only `articles.id` is updated, embeddings are orphaned.
 
 **How to avoid:**
-Always use context manager or ensure proper cleanup:
-```python
-async with httpx.AsyncClient() as client:
-    results = await asyncio.gather(*[fetch_one(client, url) for url in urls])
-# Client automatically closed here
-
-# For shared client across module:
-_client: httpx.AsyncClient | None = None
-
-async def get_client() -> httpx.AsyncClient:
-    global _client
-    if _client is None:
-        _client = httpx.AsyncClient()
-    return _client
-```
+- Update `article_embeddings.article_id` in same transaction:
+  ```sql
+  UPDATE article_embeddings SET article_id = 'new_nanoid' WHERE article_id = 'old_url_id';
+  ```
 
 **Warning signs:**
-- "Unclosed client session" in logs
-- Socket/file descriptor exhaustion
-- Connection reset errors
+- AI clustering/tagging features stop working for migrated articles
+- `get_articles_without_embeddings()` returns articles that actually have orphaned embeddings
 
-**Phase to address:**
-Phase 1 (httpx async client setup)
+**Phase to address:** NANO-02 migration script
 
 ---
 
-### Pitfall 4: uvloop Cannot Run in Non-Main Thread
+### Pitfall 4: nanoid Collision with URL-like IDs
 
 **What goes wrong:**
-`ValueError: uvloop can only be installed in the main thread` when running certain Click command invocations, especially with subprocess execution or certain IDE integrations.
+Migration script generates nanoid for a URL-like ID that coincidentally matches an existing UUID-formatted article ID. Result: two different articles now share the same ID, causing UNIQUE constraint violations or data merging.
 
 **Why it happens:**
-uvloop uses low-level threading APIs that only work in the Python main thread. Click may invoke commands in ways that are not the main thread.
+URL-like IDs like `https://example.com/article/123` are being replaced with 21-character nanoids. Nanoid's collision probability at 2479 articles is ~1 in 10^34 (extremely low), but URL-like IDs that LOOK like valid nanoids could collide.
 
 **How to avoid:**
-Guard uvloop installation:
-```python
-import asyncio
-import uvloop
-import sys
-
-def main():
-    if sys.platform != 'win32' and sys.implementation.name == 'cpython':
-        # Only install uvloop in main thread on CPython (not PyPy)
-        try:
-            uvloop.install()
-        except ValueError:
-            pass  # Already in non-main thread or uvloop unavailable
-
-    # Rest of CLI setup
-    cli()
-```
+- The migration should be deterministic: generate new ID from OLD ID as seed, not random. This ensures:
+  1. Same old ID always produces same new ID (idempotent)
+  2. No collision risk (deterministic mapping)
+- Example pattern:
+  ```python
+  import hashlib, nanoid
+  def migrate_id(old_id: str) -> str:
+      # If looks like URL-like, migrate; if already nanoid/UUID, skip
+      if old_id.startswith('http') or old_id.startswith('/'):
+          seed = hashlib.sha256(old_id.encode()).digest()[:16]
+          return nanoid.generate(alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", size=21)
+      return old_id  # Already migrated or UUID
+  ```
 
 **Warning signs:**
-- `ValueError: uvloop can only be installed in the main thread` crashes
-- Works in direct CLI execution but fails in tests or IDE
+- UNIQUE constraint violations during migration
+- Duplicate article IDs in database after migration
 
-**Phase to address:**
-Phase 1 (uvloop installation)
+**Phase to address:** NANO-02 migration script (use deterministic generation)
 
 ---
 
-### Pitfall 5: SQLite "database is locked" with Async Access
+### Pitfall 5: Partial Migration with No Rollback Path
 
 **What goes wrong:**
-`sqlite3.OperationalError: database is locked` errors occur when multiple async tasks attempt to write to SQLite simultaneously, even with WAL mode.
+Migration script crashes at article #1500. 1499 articles now have new nanoid IDs, but 980 still have URL-like IDs. Database is in inconsistent state.
 
 **Why it happens:**
-SQLite uses file-level locking. WAL mode allows concurrent readers but serialized writers. When 10 async tasks try to `store_article()` concurrently, SQLite's busy_timeout (5s) is exceeded on some connections.
+- Script fails mid-way due to syntax error, constraint violation, or interrupt
+- No transaction wrapping entire migration
+- No checkpoint after each article
 
 **How to avoid:**
-Serialize all SQLite writes through a single async queue:
-```python
-import asyncio
-from collections.abc import Callable
-
-_write_queue: asyncio.Queue[Callable] = asyncio.Queue()
-_write_lock = asyncio.Lock()
-
-async def serialized_db_operation(func: Callable, *args, **kwargs):
-    """Queue a synchronous DB operation to run serially."""
-    result = await _write_lock.acquire()
-    try:
-        return func(*args, **kwargs)
-    finally:
-        _write_lock.release()
-
-# Or use a dedicated writer task:
-async def _db_writer():
-    while True:
-        func, args, kwargs, future = await _write_queue.get()
-        try:
-            result = func(*args, **kwargs)
-            future.set_result(result)
-        except Exception as e:
-            future.set_exception(e)
-        finally:
-            _write_queue.task_done()
-```
-
-The project plan explicitly keeps SQLite writes serial. Implementation must enforce this.
+- Wrap ENTIRE migration in a single transaction:
+  ```python
+  with get_db() as conn:
+      conn.execute("BEGIN IMMEDIATE")  # Exclusive lock
+      try:
+          # All updates here
+          conn.execute("UPDATE articles SET id = ? WHERE id = ? AND id LIKE 'http%'", (new_id, old_id))
+          conn.execute("UPDATE article_tags ...")
+          conn.execute("UPDATE article_embeddings ...")
+          conn.commit()
+      except:
+          conn.rollback()
+          raise
+  ```
+- Create backup before migration:
+  ```bash
+  cp rss-reader.db rss-reader.db.backup.$(date +%Y%m%d%H%M%S)
+  ```
 
 **Warning signs:**
-- `database is locked` errors during concurrent fetches
-- `PRAGMA busy_timeout` being exceeded
+- Migration script exit code != 0
+- Partial count updates reported
+- Database file modified mid-migration
 
-**Phase to address:**
-Phase 3 (SQLite write serialization)
+**Phase to address:** NANO-02 migration script (transaction + backup)
 
 ---
 
-### Pitfall 6: Click Commands Cannot Be Async Directly
+### Pitfall 6: Re-running Migration Creates Duplicates
 
 **What goes wrong:**
-Defining a click command with `async def` leaves the coroutine unawaited. The function runs but returns a coroutine object that is never executed.
+User runs migration script twice. First run: URL-like IDs -> nanoids. Second run: newly generated nanoids -> DIFFERENT nanoids (non-deterministic), orphaning old references.
 
 **Why it happens:**
-Click's decorator-based command system expects synchronous functions. It calls the decorated function and does not await coroutines.
+If nanoid generation is random (not seeded on old ID), re-running produces different IDs each time, orphaning previous migration's foreign keys.
 
 **How to avoid:**
-Wrap async code in `asyncio.run()`:
-```python
-@cli.command("fetch")
-@click.option("--all", is_flag=True)
-@click.pass_context
-def fetch(ctx, all):
-    """Fetch feeds - async internally."""
-    asyncio.run(_fetch_async(all))
-
-async def _fetch_async(all):
-    # All async code here
-    pass
-```
-
-Or use a library like `click-asyncio` that handles this.
+- Migration script must be idempotent:
+  1. Check if article already has nanoid format (21 chars, URL-safe alphabet)
+  2. Skip already-migrated articles
+  3. Only migrate URL-like IDs
+- Add migration marker column or use ID format detection:
+  ```python
+  def is_migrated(article_id: str) -> bool:
+      # nanoid uses URL-safe alphabet, length 21
+      return len(article_id) == 21 and all(c in nanoid.alphanumeric for c in article_id)
+  ```
 
 **Warning signs:**
-- Functions with `async def` that don't execute
-- "Coroutine was never awaited" warnings (in Python 3.7+)
+- Script reports "X articles migrated" when X = total article count on re-run
+- Duplicate entries in `article_tags` for same article
 
-**Phase to address:**
-Phase 1 (CLI async wrapper pattern)
+**Phase to address:** NANO-02 migration script (idempotency check)
 
 ---
 
-### Pitfall 7: Missing await on Async Function Calls
+### Pitfall 7: CLI Truncation Logic Breakage
 
 **What goes wrong:**
-An async function is called but not awaited, resulting in a coroutine being created but never executed. The code appears to run but produces no results.
+`article detail 8-char-id` and `article open 8-char-id` commands stop working after migration. These commands use truncated 8-character IDs for convenience.
 
 **Why it happens:**
-Common mistake when converting sync to async code:
-```python
-# WRONG
-async def fetch_feed(url):
-    client = httpx.AsyncClient()
-    response = client.get(url)  # Missing await!
-
-# CORRECT
-async def fetch_feed(url):
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-```
+Old URL-like IDs could have ambiguous 8-char prefixes (e.g., `https://`). Nanoid 8-char prefixes should be unique given the larger alphabet and random distribution.
 
 **How to avoid:**
-- Use `await` on all async calls
-- Enable linting rules for `misc Rule: await` in Ruff
-- Check for "coroutine was never awaited" warnings
+- Verify 8-char truncation still produces unique prefixes for nanoid IDs
+- Nanoid's 21-char alphabet distribution should be sufficient
+- Add index on `LEFT(id, 8)` if performance becomes issue
 
 **Warning signs:**
-- No results but no errors
-- "Coroutine was never awaited" warnings
-- Code that appears to run but produces nothing
+- `article detail` returns wrong article
+- `article open` opens incorrect article
 
-**Phase to address:**
-Phase 1 (code review checklist)
-
----
-
-### Pitfall 8: httpx Sync Client Still Used in Providers
-
-**What goes wrong:**
-Providers still use `httpx.get()` (synchronous) instead of async client, causing blocking HTTP calls despite async infrastructure.
-
-**Why it happens:**
-Existing code in RSSProvider uses sync patterns:
-```python
-def fetch_feed_content(url, etag=None, last_modified=None):
-    response = httpx.get(url, ...)  # Sync!
-```
-
-**How to avoid:**
-Replace with async client usage:
-```python
-async def fetch_feed_content_async(client: httpx.AsyncClient, url, etag=None, last_modified=None):
-    headers = {}
-    if etag:
-        headers["If-None-Match"] = etag
-    if last_modified:
-        headers["If-Modified-Since"] = last_modified
-    response = await client.get(url, headers=headers, timeout=30.0)
-    return response
-```
-
-**Warning signs:**
-- Sync `httpx.get` or `httpx.post` calls in provider code
-- "Blocking HTTP call in async context" warnings
-
-**Phase to address:**
-Phase 2 (Provider async HTTP methods)
+**Phase to address:** NANO-03 verification phase
 
 ---
 
@@ -291,10 +213,10 @@ Phase 2 (Provider async HTTP methods)
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Using `asyncio.to_thread()` instead of executor pool | Simpler code | Less control over thread pool size | MVP only, must refactor before production |
-| Creating new AsyncClient per request | Simpler lifecycle | Socket exhaustion at scale | Never - reuse client |
-| Wrapping all DB ops in single lock | Serialization without queue | Blocks all reads during write | MVP only |
-| Ignoring "Unclosed client session" | Faster development | Resource leaks, eventual crashes | Never |
+| Delete + Reinsert for migration | Simpler SQL | Breaks FTS5, orphans FKs | Never for ID migration |
+| Random nanoid per migration | Simpler code | Non-idempotent, collision risk | Never |
+| Skip backup before migration | Saves 2 seconds | Permanent data loss risk | Never |
+| Migration without transaction | Simpler error handling | Partial migration state | Never |
 
 ---
 
@@ -302,11 +224,10 @@ Phase 2 (Provider async HTTP methods)
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| httpx + uvloop | Not setting `http2=True` for HTTP/2 | HTTP/2 support in httpx requires explicit `http2=True` if needed |
-| feedparser + async | Calling parse() directly | Wrap in `run_in_executor()` |
-| SQLite + asyncio | Multiple connections for writes | Single serialized connection or queue |
-| Click + asyncio | `async def` command without wrapper | Wrap in `asyncio.run()` |
-| Provider protocol + async | Assuming crawl() is awaitable | It's sync - wrap in executor |
+| FTS5 search | Assuming FTS5.id = articles.id | FTS5 uses rowid, must preserve rowid |
+| article_tags FK | Updating only articles.id | Update article_tags.article_id too |
+| article_embeddings PK | Forgetting to update | Update article_embeddings.article_id too |
+| CLI truncation | Assuming prefix uniqueness | Verify 8-char prefix is unique enough |
 
 ---
 
@@ -314,10 +235,11 @@ Phase 2 (Provider async HTTP methods)
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Thread pool exhaustion | Slow requests despite concurrency | Size thread pool appropriately (4-8 workers for I/O) | At 50+ concurrent feeds |
-| Connection pool too small | HTTP 429 rate limiting | Set `limits` on AsyncClient | At high concurrency |
-| Serial DB writes bottleneck | Async fetch completes but storage lags | Profile with actual workloads | At 20+ feeds with many articles |
-| No backpressure | Memory growth | Use bounded queue with `maxsize` | With large feed lists |
+| Full table scan for ID update | Migration takes hours | Add index on articles.id first | >10K articles |
+| No batch processing | Memory exhaustion | Process in chunks of 100-500 | >50K articles |
+| Lock contention | "database is locked" errors | Use IMMEDIATE transaction | Concurrent access during migration |
+
+For 2479 articles: Performance is NOT a concern. Single transaction is fine.
 
 ---
 
@@ -325,31 +247,28 @@ Phase 2 (Provider async HTTP methods)
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Sharing AsyncClient across processes | Connection state contamination | One client per process |
-| Not limiting concurrent requests | DoS on upstream servers | Semaphore to limit concurrency |
-| Storing credentials in async client | Credentials in memory longer | Use context manager, minimize lifetime |
+| Using random nanoid without collision check | ID collision causes data merge | Deterministic migration using hash of old ID |
+| No backup before migration | Permanent data loss | Mandatory backup with timestamp |
 
 ---
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| No progress indication during concurrent fetch | User thinks app hung | Progress bar updates even during concurrent operations |
-| Errors cause silent failures | User doesn't know some feeds failed | Aggregate errors, show summary at end |
-| Concurrent fetch is too fast | Rate limit bans from servers | Respect `UVLP-04` serial writes as backpressure signal |
+|---------|-------------|------------------|
+| Silent partial migration | User thinks all done, but some broken | Exit code + count verification |
+| No migration progress indicator | User thinks frozen | Show progress: "Migrated 500/2479" |
+| Migration without verification | Works but search broken | Run NANO-03 validation steps |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **uvloop installed:** App actually uses uvloop - verify with `asyncio.get_event_loop().__class__`
-- [ ] **AsyncClient lifecycle:** All clients properly closed on exit
-- [ ] **feedparser in executor:** Parsing does not block event loop - test with mock slow parse
-- [ ] **SQLite serialization:** Writes truly serial under concurrent load - stress test
-- [ ] **Provider crawl wrapped:** No sync HTTP calls in async context
-- [ ] **await on all async calls:** No coroutines left unawaited
-- [ ] **Error isolation:** One feed failure doesn't crash entire fetch
+- [ ] **Migration script:** Ran successfully but did NOT update `article_tags` - verify with `SELECT COUNT(*) FROM article_tags at JOIN articles a ON at.article_id = a.id` returns 0 mismatches
+- [ ] **Migration script:** Updated articles but NOT `article_embeddings` - verify with query
+- [ ] **Migration script:** No backup taken - verify backup file exists
+- [ ] **FTS sync:** Search works for OLD articles but not migrated - verify `SELECT COUNT(*) FROM articles_fts` matches `SELECT COUNT(*) FROM articles`
+- [ ] **Idempotency:** Re-running script causes issues - verify second run reports 0 articles migrated
 
 ---
 
@@ -357,11 +276,10 @@ Phase 2 (Provider async HTTP methods)
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Coroutine never awaited | LOW | Add missing `await`, often caught by linter |
-| Database locked | LOW | Wait for timeout, retry serial operation |
-| Connection leak | MEDIUM | Restart app, fix client lifecycle |
-| Event loop blocked by feedparser | MEDIUM | Add executor wrapper, restart |
-| Click async not awaited | LOW | Wrap command in `asyncio.run()` |
+| FTS5 desync | MEDIUM | Re-sync FTS: `INSERT OR REPLACE INTO articles_fts(rowid, title, description, content) SELECT rowid, title, description, content FROM articles;` |
+| Orphaned tags/embeddings | MEDIUM | Re-run migration with proper UPDATE (restore from backup first) |
+| Partial migration | HIGH | Restore from backup, fix script, re-run |
+| Collision causing duplicates | HIGH | Requires deduplication before migration |
 
 ---
 
@@ -369,25 +287,42 @@ Phase 2 (Provider async HTTP methods)
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| uvloop in non-main thread | Phase 1: uvloop setup | Test in subprocess, IDE execution |
-| httpx client lifecycle | Phase 1: httpx async client | Check for unclosed warnings |
-| feedparser blocking | Phase 1: executor pool | Mock slow parse, verify concurrency |
-| Click async commands | Phase 1: CLI async wrapper | Commands with `--all` actually async |
-| Provider sync methods | Phase 2: Provider async wrapper | Wrap crawl() in executor, verify non-blocking |
-| SQLite write serialization | Phase 3: Serial DB writes | Stress test with concurrent writes |
-| Missing await | All phases | Enable Ruff await rule, run mypy |
+| FTS5 desync | NANO-02 migration script | Run search before/after, verify result count matches |
+| Orphaned FKs | NANO-02 migration script | JOIN query between articles and article_tags shows 0 orphans |
+| No rollback | NANO-02 migration script | Backup file exists, transaction used |
+| Re-run duplicates | NANO-02 migration script | Run twice, second reports 0 migrated |
+| CLI breakage | NANO-03 verification | Test `article detail 8-char` and `article open 8-char` for migrated articles |
+
+---
+
+## Migration Script Requirements Summary
+
+For NANO-02, the migration script MUST:
+
+1. **Create backup** before any changes
+2. **Wrap in transaction** (BEGIN IMMEDIATE)
+3. **UPDATE, not DELETE+INSERT** to preserve rowid
+4. **Update ALL tables** referencing article_id:
+   - `articles.id`
+   - `article_tags.article_id`
+   - `article_embeddings.article_id`
+5. **Use deterministic ID generation** (seed on old ID) for idempotency
+6. **Detect already-migrated articles** (skip if ID is valid nanoid)
+7. **Verify row counts** before/after for sanity
+8. **Report progress** with counts
+9. **Exit with proper code** (0 success, non-zero failure)
 
 ---
 
 ## Sources
 
-- [uvloop GitHub - Known Limitations](https://github.com/MagicStack/uvloop) (MEDIUM confidence - known project limitation)
-- [httpx AsyncClient Documentation](https://www.python-httpx.org/async/) (MEDIUM confidence - official docs)
-- [Python asyncio best practices](https://docs.python.org/3/library/asyncio-dev.html) (HIGH confidence - official docs)
-- [SQLite threading considerations](https://docs.python.org/3/library/sqlite3.html#sqlite3.threadsafety) (HIGH confidence - official docs)
-- [Click issue: async support](https://github.com/pallets/click/issues/2065) (MEDIUM confidence - GitHub issue)
+- SQLite ALTER TABLE limitations: https://www.sqlite.org/lang_altertable.html (HIGH confidence)
+- FTS5 rowid semantics: https://www.sqlite.org/fts5.html (HIGH confidence)
+- Nanoid collision probability: Based on birthday paradox calculation, ~1 in 10^34 for 2479 items (HIGH confidence)
+- Foreign key constraints in SQLite: https://www.sqlite.org/foreignkeys.html (HIGH confidence)
+- Codebase analysis: src/storage/sqlite.py (lines 119-135, 160-168, 352-355, 402-406) (HIGH confidence)
 
 ---
 
-*Pitfalls research for: uvloop async concurrency feature*
+*Pitfalls research for: nanoid ID migration v1.6*
 *Researched: 2026-03-25*

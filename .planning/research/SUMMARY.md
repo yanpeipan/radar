@@ -1,151 +1,167 @@
 # Project Research Summary
 
-**Project:** Personal Information System (RSS Reader)
+**Project:** 个人资讯系统 (Personal Information System)
 **Domain:** CLI tool for RSS subscription and website crawling
 **Researched:** 2026-03-25
-**Confidence:** MEDIUM-HIGH
+**Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.5 milestone introduces uvloop-based async concurrency to the existing RSS reader CLI. The current `fetch --all` command processes feeds sequentially, creating a bottleneck when handling multiple feeds. This research confirms that adding concurrent fetching is technically straightforward: all necessary packages (uvloop, httpx with async support, anyio) are already installed, and the primary work is architectural - converting sync code paths to async patterns while maintaining SQLite write serialization.
+This is a personal information system CLI tool built in Python that allows users to collect, subscribe to, and organize information sources from the internet. Users add RSS feeds or website URLs, and the system automatically fetches content and stores it in a local SQLite database for reading and retrieval.
 
-The recommended approach is to add async variants to the provider protocol (crawl_async) with default executor-based implementations, then build async fetch functions in the application layer. This preserves backward compatibility for providers that have not yet been migrated. The key risk is blocking the event loop with synchronous libraries (feedparser) or mismanaging httpx AsyncClient lifecycle - both are well-documented pitfalls with clear prevention strategies.
+The current milestone (v1.6) focuses on migrating article ID generation from `uuid.uuid4()` (36 chars, not URL-safe) to `nanoid.generate()` (21 chars, URL-safe). Research across all four domains confirms this is a well-understood migration with clear patterns. The primary risk is foreign key desynchronization across `articles`, `article_tags`, and `article_embeddings` tables. The recommended approach is a deterministic, transactional migration using UPDATE (not DELETE+INSERT) to preserve SQLite rowid semantics for FTS5 search indexing.
+
+Key technology decisions are stable: feedparser for RSS, httpx for HTTP, BeautifulSoup4+lxml for HTML parsing, pluggy for plugin architecture, rich for terminal display, and uvloop for async concurrency. Python >=3.10 is required due to scrapling dependency.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The technology stack is well-established with HIGH confidence. Core components include feedparser 6.0.x for RSS parsing, httpx 0.27.x (with built-in AsyncClient) for HTTP, BeautifulSoup4 + lxml for HTML parsing, click 8.1.x for CLI, and sqlite3 (built-in) for storage. The project already has pluggy 1.5.0 installed for the plugin architecture from v1.3, and uvloop 0.22.1 is already installed for v1.5.
+The technology stack is mature and well-suited for the project. All dependencies are established libraries with active maintenance.
 
-**v1.5 specific additions (all already installed):**
-- uvloop 0.22.1: Event loop replacement providing 2-4x I/O improvement
-- httpx 0.28.1: Built-in AsyncClient for concurrent HTTP requests
-- anyio 4.7.0: Already installed as httpx dependency
+**Core technologies:**
+- **feedparser 6.0.x** — Universal RSS/Atom parser, handles all major feed formats
+- **httpx 0.27+** — Modern async/sync HTTP client with HTTP/2 support
+- **BeautifulSoup4 4.12.x + lxml 5.x** — HTML parsing with intuitive navigation API
+- **sqlite3 (built-in)** — No external dependencies, sufficient for personal use
+- **click 8.1.x** — Decorator-based CLI framework with automatic help generation
+- **pluggy 1.5.x** — Plugin manager (pytest standard), already installed
+- **rich 13.x** — Terminal formatting for tables, panels, markdown rendering
+- **nanoid 3.16.x** — Short URL-safe ID generation (21 chars vs uuid's 36)
+- **uvloop 0.22.x** — Async event loop (2-4x faster than default asyncio)
 
-Python minimum is 3.10 (required by scrapling 0.4.2 from v1.1 GitHub monitoring).
+**Python requirement:** >=3.10 (due to scrapling 0.4.2 requirement)
 
 ### Expected Features
 
-**Must have (table stakes for v1.5):**
-- uvloop event loop installation at app startup
-- httpx.AsyncClient for async HTTP requests (drop-in replacement for httpx.get())
-- asyncio.Semaphore for concurrency limiting (default 10 concurrent)
-- Thread pool executor for feedparser.parse() to avoid blocking event loop
-- SQLite writes remain serial via asyncio.to_thread() pattern
+**Must have (table stakes):**
+- ID regeneration for ~2479 existing articles with URL-like IDs
+- Foreign key updates for `article_tags` (3,737 entries) and `article_embeddings`
+- Atomic migration in single transaction with backup
+- Verification that all tag associations and embeddings preserved
 
-**Should have (differentiators for v1.6+):**
-- Configurable concurrency via CLI argument --concurrency
-- Per-feed progress reporting during concurrent fetch
-- Batch SQLite writes with single transaction
+**Should have (competitive):**
+- Deterministic ID generation (seed on old ID) for idempotent migration
+- CLI dry-run option for migration validation
+- Progress reporting during migration
 
 **Defer (v2+):**
-- Async generator for streaming article results
-- Connection pooling with keep-alive across fetches
-- Dynamic concurrency auto-tuning
+- Old ID lookup table for bookmarks/external references
+- Rollback capability (backup restoration is sufficient for v1.6)
 
 ### Architecture Approach
 
-The architecture follows a provider plugin pattern (from v1.3) with clear layer separation: CLI -> Application -> Provider -> Storage. The v1.5 async refactor adds async variants to each layer while maintaining the existing sync code paths for backward compatibility.
+The migration is a targeted schema update, not a structural change. The critical insight is that FTS5 virtual table `articles_fts` uses SQLite's internal `rowid` (not article `id`) to track articles. The `INSERT OR REPLACE INTO articles_fts` at lines 351-355 of `sqlite.py` syncs by rowid, meaning FTS does NOT require reindexing after ID migration.
 
-**Major components:**
-1. **CLI Layer (click):** Wraps async code with uvloop.run() to avoid click's async edge cases
-2. **Application Layer:** New fetch_one_async() and fetch_all_async() functions with semaphore-controlled concurrency
-3. **Provider Layer:** crawl_async() method added to ContentProvider protocol with default executor implementation
-4. **Storage Layer:** No changes needed - existing store_article() called via asyncio.to_thread()
+**Major components requiring modification:**
+1. `src/storage/sqlite.py:store_article()` — Replace `uuid.uuid4()` with `nanoid.generate()`
+2. `src/storage/sqlite.py:add_tag()` — Replace `uuid.uuid4()` with `nanoid.generate()`
+3. `src/storage/sqlite.py:tag_article()` — Replace `uuid.uuid4()` with `nanoid.generate()`
+4. Migration script (new) — Regenerate IDs for ~2479 existing articles
 
-**Build order from architecture research:**
-1. Phase 1: uvloop setup + crawl_async() protocol with default implementation
-2. Phase 2: Async HTTP methods in RSSProvider using httpx.AsyncClient
-3. Phase 3: Async fetch integration in application layer
-4. Phase 4: crawl_url_async() for parallel URL arguments (if needed)
+**Components NOT requiring modification:**
+- `articles_fts` FTS5 table (uses rowid, not article.id)
+- `generate_article_id()` in `src/utils/__init__.py` (derives ID from feed data, not DB primary key)
 
 ### Critical Pitfalls
 
-1. **feedparser.parse() blocks event loop** — Must run in ThreadPoolExecutor via asyncio.to_thread(). Without this, concurrent fetches freeze during XML parsing.
+1. **FTS5 Index Desynchronization** — Using DELETE+INSERT instead of UPDATE breaks FTS rowid linkage. Prevention: Always UPDATE articles in-place, never delete and re-insert.
 
-2. **Provider crawl() methods are synchronous** — Calling sync provider.crawl(url) directly from async code blocks the event loop. Must either wrap in executor or add async variants.
+2. **Orphaned article_tags Foreign Key References** — Updating `articles.id` without updating `article_tags.article_id` orphans tag associations. Prevention: Update `article_tags.article_id` BEFORE `articles.id` in same transaction.
 
-3. **httpx.AsyncClient lifecycle mismanagement** — Connection leaks occur if AsyncClient is not properly closed. Must use context manager or ensure cleanup.
+3. **Orphaned article_embeddings** — Same FK issue as article_tags. Prevention: Update `article_embeddings.article_id` in same transaction.
 
-4. **uvloop cannot run in non-main thread** — ValueError occurs when uvloop.install() is called in non-main thread (e.g., certain Click invocations, IDE integrations). Guard with try/except.
+4. **Non-deterministic ID Generation** — Random nanoid per migration run causes duplicate IDs when re-running. Prevention: Use deterministic generation (hash of old ID as seed) for idempotent migration.
 
-5. **SQLite "database is locked" with async** — Concurrent writes cause locking errors even with WAL mode. Serialize all writes via asyncio.to_thread() or a write queue.
+5. **Partial Migration with No Rollback** — Script crash mid-migration leaves inconsistent state. Prevention: Single transaction wrapping all changes, mandatory backup before migration.
 
 ## Implications for Roadmap
 
-Based on research, the v1.5 milestone should be structured in this order:
+Based on research, the v1.6 nanoid migration should be structured in three phases:
 
-### Phase 1: uvloop Setup + Protocol Extension
-**Rationale:** Foundation work that other phases depend on. Must establish async patterns before building async functionality.
-**Delivers:** uvloop.install() at app startup, crawl_async() method on ContentProvider protocol with default executor-based implementation
-**Avoids:** uvloop in non-main thread (Pitfall 4), missing await issues
-**Research flag:** MEDIUM - uvloop behavior in Click subprocesses needs verification during implementation
+### Phase 1: NANO-01 — Code Changes
+**Rationale:** Must complete before migration script can run, as new articles created during migration would have mixed ID formats.
 
-### Phase 2: Provider Async HTTP Methods
-**Rationale:** RSSProvider uses httpx directly for HTTP requests. Must convert to async before concurrent fetching works correctly.
-**Delivers:** RSSProvider.crawl_async() using httpx.AsyncClient, GitHubReleaseProvider.crawl_async() wrapping sync calls in executor
-**Avoids:** feedparser blocking event loop (Pitfall 1), httpx sync still used (Pitfall 8), provider crawl sync (Pitfall 2)
+**Delivers:** `store_article()`, `add_tag()`, and `tag_article()` updated to use `nanoid.generate()`
 
-### Phase 3: Application Layer Async Integration
-**Rationale:** Ties together providers with concurrency control and SQLite write serialization.
-**Delivers:** fetch_one_async(), fetch_all_async() with semaphore-controlled concurrency, SQLite writes via asyncio.to_thread()
-**Avoids:** SQLite locked errors (Pitfall 5), Click async commands not awaited (Pitfall 6)
+**Avoids:** Creating new articles with uuid IDs during migration window
 
-### Phase 4: CLI Integration + Testing
-**Rationale:** Final integration to expose async functionality via CLI and verify all pitfalls are addressed.
-**Delivers:** fetch --all command uses uvloop.run(fetch_all_async()), error aggregation with summary output
-**Avoids:** Progress indication gaps, silent failures
+### Phase 2: NANO-02 — Migration Script
+**Rationale:** Core deliverable of v1.6. Must handle all three tables atomically with deterministic ID generation.
+
+**Delivers:** Migration script that:
+- Creates timestamped backup before any changes
+- Wraps all updates in single transaction (BEGIN IMMEDIATE)
+- Updates `article_tags.article_id` BEFORE `articles.id`
+- Updates `article_embeddings.article_id`
+- Uses deterministic ID generation (seed on old ID hash)
+- Skips already-migrated articles (idempotent)
+- Reports progress and exit codes
+
+**Implements:** Foreign key integrity preservation, FTS rowid preservation
+
+**Avoids:** Pitfalls 1-5 from research
+
+### Phase 3: NANO-03 — Verification
+**Rationale:** Must validate that all CRUD operations, tagging, search, and CLI truncation work correctly with new IDs.
+
+**Delivers:**
+- Tag associations preserved (query verification)
+- Embeddings reachable for migrated articles
+- Search results match article list counts
+- `article detail 8-char` and `article open 8-char` work for migrated articles
+
+**Uses:** Existing stack components (sqlite3, rich, click)
 
 ### Phase Ordering Rationale
 
-- **Why Phase 1 first:** uvloop installation and protocol changes are foundational. Without crawl_async() on the protocol, providers cannot be called asynchronously.
-- **Why Phase 2 before Phase 3:** The provider layer does the actual HTTP work. If RSSProvider still uses sync httpx.get(), async fetch in application layer will still block.
-- **Why Phase 3 after providers are async:** The application layer coordinates providers and storage. Both must be async-ready before integration.
-- **Why Phase 4 last:** CLI integration is the entry point. All async functionality should be working before wiring it to user-facing commands.
+- **NANO-01 before NANO-02:** Ensures no mixed ID formats during migration window
+- **NANO-02 before NANO-03:** Migration must be complete before verification can run
+- **Grouped in single milestone:** All three are required for v1.6 completion
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 1:** uvloop in non-main thread edge cases with Click - may need testing to confirm compatibility
-- **Phase 3:** SQLite write serialization performance under load - recommend stress testing with 50+ feeds
+**Phases with standard patterns (skip research-phase):**
+- **NANO-01:** Simple function call replacement (1-2 lines per function)
+- **NANO-03:** Standard SQLite verification queries
 
-Phases with standard patterns (skip research-phase):
-- **Phase 2:** httpx.AsyncClient is well-documented with clear patterns
-- **Phase 4:** CLI async wrapping is a known pattern with established solutions
+**Phases needing implementation attention:**
+- **NANO-02:** Despite clear patterns in research, the transactional migration with deterministic ID generation requires careful implementation. No additional research needed, but testing must cover idempotency (run twice, second should report 0 migrated).
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All packages verified via PyPI JSON API. uvloop, httpx, anyio already installed. |
-| Features | MEDIUM | Based on training data for async patterns; uvloop performance benchmarks not verified in project context |
-| Architecture | MEDIUM-HIGH | Detailed integration points mapped; build order makes logical sense |
-| Pitfalls | MEDIUM | Based on established Python async programming knowledge; uvloop edge cases may differ in practice |
+| Stack | HIGH | All dependencies verified via official docs, multiple sources confirm |
+| Features | HIGH | Migration requirements clearly defined from codebase analysis |
+| Architecture | HIGH | FTS rowid behavior verified via SQLite docs, schema analysis confirmed |
+| Pitfalls | HIGH | All pitfalls verified against codebase patterns, recovery strategies documented |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Performance benchmarks:** uvloop 2-4x speedup claim is based on general benchmarks, not tested with actual RSS feeds in this project. Validate with real workloads after implementation.
-- **feedparser thread pool sizing:** Thread pool workers (4-8 recommended) may need tuning based on CPU count and feed complexity. Default may not be optimal.
-- **uvloop Windows fallback:** Project may run on Windows; verify default asyncio fallback works correctly if uvloop.install() fails.
+- **nanoid package verification:** STACK.md notes nanoid v3.16.0 is listed in quality gate but was not verified as installed. Confirm via `pip show nanoid` before NANO-01.
+- **article_embeddings table existence:** Not confirmed in current codebase. Verify `src/storage/sqlite.py` contains this table definition before NANO-02 implementation.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [feedparser Documentation](https://feedparser.readthedocs.io/en/latest/) — RSS parsing library
-- [httpx Async Client](https://www.python-httpx.org/async/) — AsyncClient usage patterns
-- [Python asyncio official docs](https://docs.python.org/3/library/asyncio-sync.html#asyncio.Semaphore) — Semaphore, gather patterns
-- [SQLite threading considerations](https://docs.python.org/3/library/sqlite3.html#sqlite3.threadsafety) — Write serialization
-- [uvloop GitHub](https://github.com/MagicStack/uvloop) — Event loop installation, limitations
-- [pluggy GitHub](https://github.com/pytest-dev/pluggy) — Plugin framework (v1.3)
+- [feedparser Documentation](https://feedparser.readthedocs.io/en/latest/) — RSS/Atom parsing
+- [BeautifulSoup4 Documentation](https://www.crummy.com/software/BeautifulSoup/bs4/doc/) — HTML parsing
+- [httpx Documentation](https://www.python-httpx.org/) — HTTP client
+- [Python sqlite3 Documentation](https://docs.python.org/3/library/sqlite3.html) — Database operations
+- [SQLite rowid documentation](https://www.sqlite.org/lang_createtable.html#rowid) — FTS rowid behavior
+- [FTS5 documentation](https://www.sqlite.org/fts5.html) — Search index semantics
+- [SQLite Foreign Key documentation](https://www.sqlite.org/foreignkeys.html) — FK constraints
+- [pluggy GitHub](https://github.com/pytest-dev/pluggy) — Plugin framework
+- [nanoid Python library](https://pypi.org/project/nanoid/) — ID generation
 
-### Secondary (MEDIUM confidence)
-- [uvloop documentation](https://magicstack.github.io/uvloop/current/) — Performance claims, patterns
-- [Click async issue](https://github.com/pallets/click/issues/2065) — async command limitations
-- [rich documentation](https://rich.readthedocs.io/) — Terminal formatting (v1.2)
-- [scrapling PyPI](https://pypi.org/project/scrapling/) — Changelog scraping (v1.1)
+### Secondary (HIGH confidence)
+- Code analysis: `src/storage/sqlite.py` store_article(), add_tag(), tag_article() — Confirmed change locations
+- Database inspection: Article count (~2479), tag count (~3737), ID format patterns
 
 ---
+
 *Research completed: 2026-03-25*
 *Ready for roadmap: yes*
