@@ -1,7 +1,7 @@
 """RSS provider for RSS and Atom feeds.
 
 Handles feed fetching and parsing for standard RSS/Atom feeds.
-Priority is 50 (higher than DefaultRSSProvider at 0, lower than GitHubProvider at 100).
+Priority is 50 (higher than DefaultRSSProvider at 0, lower than GitHubReleaseProvider at 200).
 """
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ class RSSProvider:
         """Return provider priority.
 
         Returns:
-            50 - higher than DefaultRSSProvider (0), lower than GitHubProvider (100).
+            50 - higher than DefaultRSSProvider (0), lower than GitHubReleaseProvider (200).
         """
         return 50
 
@@ -138,8 +138,7 @@ class RSSProvider:
         try:
             from scrapling import Fetcher
 
-            scraper = Fetcher()
-            response = scraper.get(url)
+            response = Fetcher.get(url)
 
             # Scrapling returns bytes in response.body
             content = response.body

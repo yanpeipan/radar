@@ -192,8 +192,8 @@ def fetch_feed_content_with_scrapling_fallback(
             logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
             try:
                 from scrapling import Fetcher
-                scraper = Fetcher()
-                response = scraper.get(url)
+
+                response = Fetcher.get(url)
                 # Scrapling returns bytes in response.body
                 content = response.body
                 if content:
