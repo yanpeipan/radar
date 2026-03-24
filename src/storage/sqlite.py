@@ -12,6 +12,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from nanoid import generate
+
 # Asyncio lock for serializing database writes from async context
 _db_write_lock: asyncio.Lock | None = None
 
@@ -175,10 +177,9 @@ def init_db() -> None:
 
 def add_tag(name: str) -> Tag:
     """Create a new tag. Returns Tag object."""
-    import uuid
     with get_db() as conn:
         cursor = conn.cursor()
-        tag_id = str(uuid.uuid4())
+        tag_id = generate()
         cursor.execute(
             "INSERT INTO tags (id, name) VALUES (?, ?)",
             (tag_id, name)
@@ -240,8 +241,7 @@ def tag_article(article_id: str, tag_name: str) -> bool:
         if row:
             tag_id = row["id"]
         else:
-            import uuid
-            tag_id = str(uuid.uuid4())
+            tag_id = generate()
             cursor.execute("INSERT INTO tags (id, name) VALUES (?, ?)", (tag_id, tag_name))
             conn.commit()
         # Link article to tag
@@ -308,7 +308,6 @@ def store_article(
     Returns:
         Article ID (existing if updated, new if inserted).
     """
-    import uuid
     from datetime import datetime
     from src.application.config import get_timezone
 
@@ -331,7 +330,7 @@ def store_article(
             )
         else:
             # INSERT new article
-            article_id = str(uuid.uuid4())
+            article_id = generate()
             cursor.execute(
                 """INSERT INTO articles (id, feed_id, title, link, guid, pub_date, content, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
