@@ -248,6 +248,55 @@ class RSSProvider:
             logger.error("RSSProvider.crawl(%s) failed: %s", url, e)
             return []
 
+    async def crawl_async(self, url: str) -> List[Raw]:
+        """Fetch and parse RSS/Atom feed content asynchronously.
+
+        Uses httpx.AsyncClient for true async HTTP, with feedparser.parse()
+        and parse_feed() running in a thread pool executor to avoid blocking.
+
+        Args:
+            url: URL of the feed to crawl.
+
+        Returns:
+            List of feedparser entry dicts, or empty list on error.
+        """
+        import asyncio
+
+        _feed_title_var.set(None)
+        try:
+            async with httpx.AsyncClient() as client:
+                content, etag, last_modified, status_code = await fetch_feed_content_async(
+                    client, url
+                )
+                if content is None:
+                    logger.warning("RSS feed %s returned 304 Not Modified", url)
+                    return []
+
+                # Parse in thread pool to avoid blocking event loop
+                loop = asyncio.get_running_loop()
+                parsed = await loop.run_in_executor(None, feedparser.parse, content)
+
+                if parsed.feed:
+                    _feed_title_var.set(parsed.feed.get("title"))
+
+                entries, bozo_flag, bozo_exception = await loop.run_in_executor(
+                    None, parse_feed, content, url
+                )
+                if bozo_flag and bozo_exception:
+                    logger.warning("Malformed feed at %s: %s", url, bozo_exception)
+
+                logger.debug("RSSProvider.crawl_async(%s) returned %d entries", url, len(entries))
+                return entries
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 403:
+                logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
+                return await self._crawl_with_scrapling_async(url)
+            logger.error("RSSProvider.crawl_async(%s) HTTP error: %s", url, e)
+            return []
+        except Exception as e:
+            logger.error("RSSProvider.crawl_async(%s) failed: %s", url, e)
+            return []
+
     def _crawl_with_scrapling(self, url: str) -> List[Raw]:
         """Fetch RSS feed using Scrapling to bypass Cloudflare protection.
 
