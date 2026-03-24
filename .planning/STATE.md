@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v1.4
+milestone_name: Storage Layer Enforcement
 status: Milestone complete
-stopped_at: Completed 18-01-PLAN.md - storage layer enforcement
-last_updated: "2026-03-24T17:01:52.117Z"
+stopped_at: Milestone v1.4 summary generated
+last_updated: "2026-03-25T00:00:00.000Z"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (v1.3 milestone archived)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Phase 18 — storage-layer-enforcement
+**Current focus:** v1.4 milestone complete — ready for v1.5
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
+Phase: All complete
+Plan: v1.4 milestone complete
 
 ## Performance Metrics
 
@@ -40,7 +40,14 @@ Plan: Not started
 
 - 4 phases, 5 plans, ~1 day
 
-**v1.3 (current):**
+**v1.4 velocity:**
+
+- 3 phases (16, 17, 18), 4 plans, ~20 min
+- Phase 16: GitHubReleaseProvider + ReleaseTagParser
+- Phase 17: CLI package split + DB context manager
+- Phase 18: Storage layer enforcement (16 new storage functions)
+
+**v1.3 velocity:**
 
 - 3 phases, 16 requirements mapped
 - Phase 12: 7 requirements (Provider-01-04, DB-01-03)
@@ -93,9 +100,9 @@ None identified.
 
 ## Session Continuity
 
-Last session: 2026-03-24T16:58:12.167Z
-Stopped at: Completed 18-01-PLAN.md - storage layer enforcement
-Next action: `/gsd:plan-phase 16` to plan GitHubReleaseProvider
+Last session: 2026-03-25T00:00:00.000Z
+Stopped at: Milestone v1.4 complete — summary generated at .planning/reports/MILESTONE_SUMMARY-v1.4.md
+Next action: `/gsd:new-milestone` to archive v1.4 and start v1.5 planning
 
 ## Quick Tasks Completed
 
@@ -118,3 +125,4 @@ Next action: `/gsd:plan-phase 16` to plan GitHubReleaseProvider
 | Phase 16-github-release-provider P01 | 180 | 3 tasks | 2 files |
 | 2026-03-24 | 260324-x3k | articles.py, config.py, crawl.py | Moved to application module, imports updated across codebase |
 | 2026-03-25 | 260324-x78 | 删除无用的文件 | Deleted 9 orphaned .pyc files from deleted modules |
+| 2026-03-25 | milestone-v1.4 | MILESTONE_SUMMARY-v1.4.md | Generated milestone summary to .planning/reports/ |
