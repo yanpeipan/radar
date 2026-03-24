@@ -68,6 +68,49 @@ def fetch_feed_content(
     return response.content, new_etag, new_last_modified, status_code
 
 
+async def fetch_feed_content_async(
+    client: httpx.AsyncClient,
+    url: str,
+    etag: Optional[str] = None,
+    last_modified: Optional[str] = None,
+) -> tuple[Optional[bytes], Optional[str], Optional[str], int]:
+    """Fetch feed content asynchronously with conditional request support.
+
+    Args:
+        client: Active httpx.AsyncClient instance.
+        url: The URL of the feed to fetch.
+        etag: Optional ETag header for conditional fetching.
+        last_modified: Optional Last-Modified header for conditional fetching.
+
+    Returns:
+        A tuple of (content, etag, last_modified, status_code).
+        content is None if status is 304 (not modified).
+        Raises httpx.HTTPStatusError on HTTP errors.
+    """
+    headers: dict[str, str] = {}
+    if etag:
+        headers["If-None-Match"] = etag
+    if last_modified:
+        headers["If-Modified-Since"] = last_modified
+
+    request_headers = {**BROWSER_HEADERS, **headers}
+    response = await client.get(
+        url,
+        headers=request_headers,
+        timeout=30.0,
+        follow_redirects=True
+    )
+
+    if response.status_code == 304:
+        return None, None, None, 304
+
+    response.raise_for_status()
+    new_etag = response.headers.get("etag")
+    new_last_modified = response.headers.get("last-modified")
+
+    return response.content, new_etag, new_last_modified, response.status_code
+
+
 def parse_feed(
     content: bytes,
     url: str,
