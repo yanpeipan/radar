@@ -23,7 +23,7 @@ from bs4 import BeautifulSoup
 from readability import Document
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
-from src.storage.sqlite import get_db
+from src.storage import ensure_crawled_feed as storage_ensure_crawled_feed
 from src.models import Article
 
 logger = logging.getLogger(__name__)
@@ -182,17 +182,7 @@ def ensure_crawled_feed() -> None:
     Creates feed with id='crawled', name='Crawled Pages', url=''.
     This is the system feed for storing crawled web pages.
     """
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM feeds WHERE id = 'crawled'")
-        if cursor.fetchone() is None:
-            now = datetime.now(get_timezone()).isoformat()
-            cursor.execute(
-                """INSERT INTO feeds (id, name, url, created_at)
-                   VALUES ('crawled', 'Crawled Pages', '', ?)""",
-                (now,)
-            )
-            conn.commit()
+    storage_ensure_crawled_feed()
 
 
 def crawl_url(url: str, ignore_robots: bool = False) -> Optional[dict]:
