@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import logging
-import uuid
 from datetime import datetime
 from typing import Optional
 
 from src.application.config import get_timezone
-from src.storage.sqlite import get_db
 from src.models import Feed
 from src.providers import discover_or_default
+from src.storage import feed_exists, add_feed as storage_add_feed, list_feeds as storage_list_feeds, get_feed as storage_get_feed, remove_feed as storage_remove_feed
 from src.utils import generate_article_id, generate_feed_id
 
 logger = logging.getLogger(__name__)
@@ -61,38 +60,16 @@ def add_feed(url: str) -> Feed:
     if not entries:
         raise ValueError("No entries found in feed")
 
-    # Check if feed already exists
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM feeds WHERE url = ?", (url,))
-        existing = cursor.fetchone()
-        if existing:
-            raise ValueError(f"Feed already exists: {url}")
+    # Check if feed already exists using storage function
+    if feed_exists(url):
+        raise ValueError(f"Feed already exists: {url}")
 
     # Create new feed
     feed_id = generate_feed_id()
     now = datetime.now(get_timezone()).isoformat()
 
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                feed_id,
-                feed_meta.name,
-                url,
-                feed_meta.etag,
-                feed_meta.last_modified,
-                now,
-                now,
-            ),
-        )
-        conn.commit()
-
-    return Feed(
+    # Use storage function to add feed
+    feed = Feed(
         id=feed_id,
         name=feed_meta.name,
         url=url,
@@ -101,6 +78,7 @@ def add_feed(url: str) -> Feed:
         last_fetched=now,
         created_at=now,
     )
+    return storage_add_feed(feed)
 
 
 def list_feeds() -> list[Feed]:
@@ -109,33 +87,7 @@ def list_feeds() -> list[Feed]:
     Returns:
         List of Feed objects with article counts available via articles_count attribute.
     """
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT f.id, f.name, f.url, f.etag, f.last_modified, f.last_fetched, f.created_at,
-                   COUNT(a.id) as articles_count
-            FROM feeds f
-            LEFT JOIN articles a ON f.id = a.feed_id
-            GROUP BY f.id
-            ORDER BY f.created_at DESC
-            """,
-        )
-        rows = cursor.fetchall()
-        feeds = []
-        for row in rows:
-            feed = Feed(
-                id=row["id"],
-                name=row["name"],
-                url=row["url"],
-                etag=row["etag"],
-                last_modified=row["last_modified"],
-                last_fetched=row["last_fetched"],
-                created_at=row["created_at"],
-            )
-            feed.articles_count = row["articles_count"]
-            feeds.append(feed)
-        return feeds
+    return storage_list_feeds()
 
 
 def get_feed(feed_id: str) -> Optional[Feed]:
@@ -147,24 +99,7 @@ def get_feed(feed_id: str) -> Optional[Feed]:
     Returns:
         The Feed object, or None if not found.
     """
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, name, url, etag, last_modified, last_fetched, created_at FROM feeds WHERE id = ?",
-            (feed_id,),
-        )
-        row = cursor.fetchone()
-        if not row:
-            return None
-        return Feed(
-            id=row["id"],
-            name=row["name"],
-            url=row["url"],
-            etag=row["etag"],
-            last_modified=row["last_modified"],
-            last_fetched=row["last_fetched"],
-            created_at=row["created_at"],
-        )
+    return storage_get_feed(feed_id)
 
 
 def remove_feed(feed_id: str) -> bool:
@@ -176,12 +111,7 @@ def remove_feed(feed_id: str) -> bool:
     Returns:
         True if the feed was deleted, False if not found.
     """
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM feeds WHERE id = ?", (feed_id,))
-        deleted = cursor.rowcount > 0
-        conn.commit()
-        return deleted
+    return storage_remove_feed(feed_id)
 
 
 def fetch_one(feed_or_id: str | Feed) -> dict:
@@ -229,7 +159,7 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
     new_count = 0
     articles_needing_tags = []
 
-    from src.storage.sqlite import store_article
+    from src.storage import store_article
     for raw in raw_items:
         article = provider.parse(raw)
         article_guid = article.get("guid") or generate_article_id(article)
@@ -241,11 +171,6 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
             feed_id=feed.id,
             pub_date=article.get("pub_date"),
         )
-        # Check if article was actually new (stored_id is new guid or existing)
-        # For INSERT OR IGNORE behavior, we need to track if it was new
-        # store_article returns article_id - if it was existing, we still get an id
-        # So we can't easily tell if it was new. Using cursor.rowcount doesn't work
-        # with the context manager. For now, count all as processed.
         new_count += 1
         # Collect for tagging after commit
         articles_needing_tags.append(
@@ -299,4 +224,3 @@ def fetch_all() -> dict:
         "error_count": error_count,
         "errors": errors,
     }
-
