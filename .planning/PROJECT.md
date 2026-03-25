@@ -18,9 +18,22 @@
 - Storage层SQLite操作的单元测试
 - CLI命令的集成测试
 
+**Status:** ✅ COMPLETE (2026-03-25)
+- Phase 26: pytest框架搭建 — conftest.py fixtures (2026-03-24)
+- Phase 27: Provider单元测试 — 24 tests for RSS/GitHub providers (2026-03-24)
+- Phase 28: Storage层单元测试 — 42 tests for SQLite storage (2026-03-25)
+- Phase 29: CLI集成测试 — 19 tests for feed/article/tag commands (2026-03-25)
+
 ---
 
 ## Current State
+
+**Shipped: v1.7 pytest测试框架** (2026-03-25)
+- Phase 26-29 complete: 85 total tests across all phases
+- `tests/conftest.py` with 5 fixtures (temp_db_path, initialized_db, sample_feed, sample_article, cli_runner)
+- `tests/test_providers.py` — 24 provider tests (RSSProvider, GitHubReleaseProvider, ProviderRegistry)
+- `tests/test_storage.py` — 42 storage tests (Article, Feed, Tag CRUD)
+- `tests/test_cli.py` — 19 CLI integration tests (Feed, Article, Tag commands)
 
 **Shipped: v1.4 Storage Layer Enforcement** (2026-03-25)
 - Phase 17 complete: Anti-屎山 refactoring — cli.py (798 lines) split into `src/cli/` package with 5 modules; DB context manager adopted
@@ -59,12 +72,12 @@
 
 ## Requirements
 
-### Active (v1.7)
+### Validated (v1.7)
 
-- [ ] TEST-01: 引入pytest测试框架，配置conftest.py和基础fixtures
-- [ ] TEST-02: 为Provider插件架构编写单元测试
-- [ ] TEST-03: 为Storage层SQLite操作编写单元测试
-- [ ] TEST-04: 为CLI命令编写集成测试
+- [x] TEST-01: 引入pytest测试框架，配置conftest.py和基础fixtures
+- [x] TEST-02: 为Provider插件架构编写单元测试
+- [x] TEST-03: 为Storage层SQLite操作编写单元测试
+- [x] TEST-04: 为CLI命令编写集成测试
 
 ### Validated (v1.5)
 
