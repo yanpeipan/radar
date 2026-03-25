@@ -195,7 +195,7 @@
 | 25. Verification | 0/1 | In progress | - |
 | 26. pytest框架搭建 | 1/1 | Complete    | 2026-03-24 |
 | 27. Provider单元测试 | 1/1 | Complete    | 2026-03-24 |
-| 28. Storage层单元测试 | 1/1 | Complete   | 2026-03-25 |
+| 28. Storage层单元测试 | 1/1 | Complete    | 2026-03-25 |
 | 29. CLI集成测试 | 0/1 | Not started | - |
 
 ---
