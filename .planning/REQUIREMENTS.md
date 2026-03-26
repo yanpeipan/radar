@@ -3,6 +3,26 @@
 **Defined:** 2026-03-25
 **Core Value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
 
+## v1.8 Requirements
+
+Requirements for ChromaDB semantic search milestone.
+
+### Semantic Search
+
+- [ ] **SEM-01**: ChromaDB integration — PersistentClient for local vector storage alongside SQLite
+- [ ] **SEM-02**: Embedding service — sentence-transformers `all-MiniLM-L6-v2` generating 384-dim vectors for article content
+- [ ] **SEM-03**: Model pre-download — Embedding model downloaded at startup (not on first query)
+- [ ] **SEM-04**: `search --semantic "query"` — Semantic search CLI using ChromaDB query
+- [ ] **SEM-05**: `article related <id>` — Find semantically similar articles using ChromaDB similarity search
+- [ ] **SEM-06**: Incremental embedding — New articles automatically generate embedding during fetch
+- [ ] **SEM-07**: Error handling — Graceful handling when article has no embedding
+
+### Future (Deferred)
+
+- [ ] Backfill command — Batch reindex existing articles to ChromaDB
+- [ ] Feed-filtered semantic search — `search --semantic "query" --feed-id X`
+- [ ] Hybrid search — Combine FTS5 keyword + semantic similarity ranking
+
 ## v1.6 Requirements
 
 Requirements for nanoid ID generation milestone.
@@ -52,11 +72,13 @@ Requirements for uvloop async concurrency milestone.
 | UVLP-07 | Phase 22 | Complete |
 
 **Coverage:**
+- v1.8 requirements: 7 total
+- Mapped to phases: pending (roadmap TBD)
 - v1.6 requirements: 3 total
 - Mapped to phases: 3 ✓
 - v1.5 requirements: 7 total
 - Mapped to phases: 7 ✓
 
 ---
-*Requirements defined: 2026-03-25*
-*Last updated: 2026-03-25 after v1.6 roadmap creation*
+*Requirements defined: 2026-03-26*
+*Last updated: 2026-03-26 after v1.8 requirements defined*
