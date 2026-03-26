@@ -11,10 +11,12 @@ from chromadb import PersistentClient
 from chromadb.config import Settings
 import platformdirs
 from sentence_transformers import SentenceTransformer
+import threading
 
 # Module-level singleton client
 _chroma_client: PersistentClient | None = None
 _embedding_function: SentenceTransformer | None = None
+_chroma_lock = threading.Lock()
 
 
 def _get_chroma_client() -> PersistentClient:
@@ -44,14 +46,14 @@ def get_embedding_function() -> SentenceTransformer:
     Uses 'all-MiniLM-L6-v2' model which produces 384-dimensional vectors
     with normalize_embeddings=True for cosine similarity.
 
-    This is the same model used in src/tags/ai_tagging.py (D-03).
+    Uses CPU device to avoid MPS concurrency issues in async contexts.
 
     Returns:
         SentenceTransformer: The embedding function instance.
     """
     global _embedding_function
     if _embedding_function is None:
-        _embedding_function = SentenceTransformer("all-MiniLM-L6-v2")
+        _embedding_function = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
     return _embedding_function
 
 
@@ -78,11 +80,9 @@ def get_chroma_collection():
         Collection: The ChromaDB collection for articles.
     """
     client = _get_chroma_client()
-    embedding_fn = get_embedding_function()
     return client.get_or_create_collection(
         name="articles",
         metadata={"description": "Article embeddings for semantic search"},
-        embedding_function=embedding_fn,
     )
 
 
@@ -95,24 +95,42 @@ def add_article_embedding(article_id: str, title: str, content: str, url: str) -
         content: Article content text (used for embedding, or fallback text)
         url: Article URL (stored as metadata)
     """
-    collection = get_chroma_collection()
+    import logging
+    logger = logging.getLogger(__name__)
 
-    # Determine embedding text
-    if content and len(content) >= 50:
-        embedding_text = content
-    else:
-        # Short content - supplement with title
-        embedding_text = f"{title} {content}".strip()
+    # Serialize all encoding + ChromaDB operations to avoid concurrency issues
+    with _chroma_lock:
+        collection = get_chroma_collection()
 
-    if not embedding_text:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning("Skipping embedding for article %s: no useful text", article_id)
-        return
+        # Determine embedding text
+        if content and len(content) >= 50:
+            embedding_text = content
+        else:
+            # Short content - supplement with title
+            embedding_text = f"{title} {content}".strip()
 
-    metadata = {"title": title, "url": url}
-    collection.add(
-        ids=[article_id],
-        documents=[embedding_text],
-        metadatas=[metadata],
-    )
+        if not embedding_text:
+            logger.warning("Skipping embedding for article %s: no useful text", article_id)
+            return
+
+        # Manually encode text since we're not using ChromaDB's embedding_function
+        # (sentence_transformers 2.7.0 + ChromaDB 1.5.5 have API incompatibility)
+        embedding_fn = get_embedding_function()
+        try:
+            emb = embedding_fn.encode([embedding_text], convert_to_numpy=True)[0]
+        except Exception as e:
+            logger.error("Encoding failed for %s: text_len=%d, error=%s", article_id, len(embedding_text), e)
+            raise
+        embedding_vector = emb.tolist()
+
+        metadata = {"title": title, "url": url}
+        try:
+            collection.add(
+                ids=[article_id],
+                documents=[embedding_text],
+                embeddings=[embedding_vector],
+                metadatas=[metadata],
+            )
+        except Exception as e:
+            logger.error("ChromaDB add failed for %s: error=%s", article_id, e)
+            raise
