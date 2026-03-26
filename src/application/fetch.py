@@ -13,7 +13,7 @@ from typing import Optional
 
 from src.models import Feed
 from src.providers import discover_or_default
-from src.storage import list_feeds as storage_list_feeds, store_article_async
+from src.storage import list_feeds as storage_list_feeds, store_article_async, add_article_embedding
 from src.utils import generate_article_id
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,20 @@ async def fetch_one_async(feed: Feed) -> dict:
                 pub_date=article.get("pub_date"),
             )
             new_count += 1
+
+            # Generate embedding for semantic search (D-09)
+            try:
+                await asyncio.to_thread(
+                    add_article_embedding,
+                    article_id=article_guid,
+                    title=article.get("title") or "",
+                    content=article.get("content") or article.get("description") or "",
+                    url=article.get("link") or "",
+                )
+            except Exception as e:
+                logger.warning("Failed to add embedding for article %s: %s", article_guid, e)
+                # Don't re-raise - embedding failure should not fail the fetch
+
             articles_needing_tags.append(
                 (article_guid, article.get("title"), article.get("description"))
             )
