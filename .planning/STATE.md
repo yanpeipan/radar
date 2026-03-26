@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: ChromaDB 语义搜索
-status: Roadmap defined
-stopped_at: Completed 30-01-PLAN.md
-last_updated: "2026-03-26T15:57:03.323Z"
-last_activity: 2026-03-26 — v1.8 roadmap created
+status: Phase 31 complete - ready for Phase 32
+stopped_at: Phase 31 complete - SEM-06 achieved
+last_updated: "2026-03-27T00:20:00.000Z"
+last_activity: 2026-03-27 — Phase 31 complete (SEM-06)
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 3
-  completed_plans: 1
+  completed_phases: 3
+  total_plans: 7
+  completed_plans: 7
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (v1.8 milestone started)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Roadmap defined - ready for planning
+**Current focus:** Phase 31 planning - Write Path Incremental Embedding
 
 ## Current Position
 
-Phase: Not started (roadmap defined)
+Phase: 32 (Query Path - Semantic Search CLI)
 Plan: —
-Status: Roadmap defined
-Last activity: 2026-03-26 — v1.8 roadmap created
+Status: Ready for planning
+Last activity: 2026-03-27 — Phase 31 complete (SEM-06)
 
 ## v1.8 Phase Structure
 
@@ -116,6 +116,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 32]: search --semantic CLI using ChromaDB similarity search
 - [Phase 32]: article related <id> using ChromaDB query_by_ids for similar articles
 - [Phase 33]: Graceful error handling for articles without embeddings (pre-v1.8)
+- [Phase 30]: D-03: ChromaDB uses sentence_transformers.SentenceTransformer(all-MiniLM-L6-v2)
+- [Phase 30]: D-04: Model pre-download triggered during CLI startup alongside init_db()
+- [Phase 30]: D-05: get_embedding_function() as public API with module-level caching
 
 ### Technical Notes
 
@@ -158,8 +161,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-26T15:57:03.318Z
-Stopped at: Completed 30-01-PLAN.md
+Last session: 2026-03-27T00:15:00Z
+Stopped at: Phase 31 complete - stopped by --no-transition
 
 ## Quick Tasks Completed
 
@@ -194,3 +197,7 @@ Stopped at: Completed 30-01-PLAN.md
 | Phase 28-storage-unit-tests P28-01 | 3min | 3 tasks | 1 files |
 | 260326-t0b | 查看 bigmodel.cn glm-coding 套餐价格 | 2026-03-26 | 5f7e757 | Verified | [260326-t0b-bigmodel-cn-glm-coding](./quick/260326-t0b-bigmodel-cn-glm-coding/) |
 | Phase 30 P30-01 | 0 | 2 tasks | 2 files |
+| Phase 30 P30-02 | (see 30-02-SUMMARY.md) | 1 task | 1 files |
+| Phase 30 P30-03 | 5min | 1 task | 3 files |
+| Phase 31 P31-01 | <1 | 2 tasks | 2 files |
+| Phase 31 P31-02 | <1 | 1 task | 1 files |

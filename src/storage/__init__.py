@@ -3,7 +3,7 @@
 from src.storage.vector import (
     add_article_embedding,
     get_chroma_collection,
-    _get_embedding_function,
+    get_embedding_function,
 )
 from src.storage.sqlite import (
     get_db,

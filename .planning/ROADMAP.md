@@ -86,7 +86,7 @@
 ### 🚧 v1.8 ChromaDB 语义搜索 (Phases 30-33)
 
 - [ ] **Phase 30: Semantic Search Infrastructure** - ChromaDB setup, embedding service, model pre-download
-- [ ] **Phase 31: Write Path - Incremental Embedding** - Embed articles during fetch, reindex command
+- [x] **Phase 31: Write Path - Incremental Embedding** - Embed articles during fetch, reindex command (completed 2026-03-26)
 - [ ] **Phase 32: Query Path - Semantic Search CLI** - search --semantic, article related
 - [ ] **Phase 33: Polish - Error Handling** - Graceful handling for pre-v1.8 articles
 
@@ -119,8 +119,8 @@ Plans:
   4. Articles are deduplicated by ID before embedding (no duplicate vectors)
 **Plans**: 2 plans
 Plans:
-- [ ] 31-01-PLAN.md — Add add_article_embedding() to vector.py and export from __init__.py
-- [ ] 31-02-PLAN.md — Integrate add_article_embedding in fetch.py after store_article_async()
+- [x] 31-01-PLAN.md — Add add_article_embedding() to vector.py and export from __init__.py
+- [x] 31-02-PLAN.md — Integrate add_article_embedding in fetch.py after store_article_async()
 
 ### Phase 32: Query Path - Semantic Search CLI
 **Goal**: Users can discover articles using natural language queries
@@ -179,7 +179,7 @@ Plans:
 | 28. Storage层单元测试 | 1/1 | ✅ Complete | 2026-03-25 |
 | 29. CLI集成测试 | 1/1 | ✅ Complete | 2026-03-25 |
 | 30. Semantic Search Infrastructure | 3/3 | ✅ Complete | 2026-03-27 |
-| 31. Write Path - Incremental Embedding | 2/2 | In progress | - |
+| 31. Write Path - Incremental Embedding | 2/2 | Complete   | 2026-03-26 |
 | 32. Query Path - Semantic Search CLI | 0/1 | Not started | - |
 | 33. Polish - Error Handling | 0/1 | Not started | - |
 

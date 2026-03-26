@@ -10,11 +10,11 @@ Requirements for ChromaDB semantic search milestone.
 ### Semantic Search
 
 - [x] **SEM-01**: ChromaDB integration — PersistentClient for local vector storage alongside SQLite
-- [ ] **SEM-02**: Embedding service — sentence-transformers `all-MiniLM-L6-v2` generating 384-dim vectors for article content
-- [ ] **SEM-03**: Model pre-download — Embedding model downloaded at startup (not on first query)
+- [x] **SEM-02**: Embedding service — sentence-transformers `all-MiniLM-L6-v2` generating 384-dim vectors for article content
+- [x] **SEM-03**: Model pre-download — Embedding model downloaded at startup (not on first query)
 - [ ] **SEM-04**: `search --semantic "query"` — Semantic search CLI using ChromaDB query
 - [ ] **SEM-05**: `article related <id>` — Find semantically similar articles using ChromaDB similarity search
-- [ ] **SEM-06**: Incremental embedding — New articles automatically generate embedding during fetch
+- [x] **SEM-06**: Incremental embedding — New articles automatically generate embedding during fetch
 - [ ] **SEM-07**: Error handling — Graceful handling when article has no embedding
 
 ### Future (Deferred)
@@ -61,11 +61,11 @@ Requirements for uvloop async concurrency milestone.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SEM-01 | Phase 30 | Complete |
-| SEM-02 | Phase 30 | Pending |
-| SEM-03 | Phase 30 | Pending |
+| SEM-02 | Phase 30 | Complete |
+| SEM-03 | Phase 30 | Complete |
 | SEM-04 | Phase 32 | Pending |
 | SEM-05 | Phase 32 | Pending |
-| SEM-06 | Phase 31 | Pending |
+| SEM-06 | Phase 31 | Complete |
 | SEM-07 | Phase 33 | Pending |
 | NANO-01 | Phase 23 | Complete |
 | NANO-02 | Phase 24 | Deferred |

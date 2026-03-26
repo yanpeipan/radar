@@ -28,6 +28,7 @@ src/rss_reader.egg-info/requires.txt
 src/rss_reader.egg-info/top_level.txt
 src/storage/__init__.py
 src/storage/sqlite.py
+src/storage/vector.py
 src/tags/__init__.py
 src/tags/ai_tagging.py
 src/tags/default_tag_parser.py
@@ -36,5 +37,8 @@ src/tags/tag_rules.py
 src/utils/__init__.py
 src/utils/github.py
 tests/test_ai_tagging.py
+tests/test_cli.py
 tests/test_config.py
 tests/test_fetch.py
+tests/test_providers.py
+tests/test_storage.py
