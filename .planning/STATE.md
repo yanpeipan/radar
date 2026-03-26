@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: uvloop并发支持
 status: Milestone complete
-stopped_at: Completed 29-cli-integration-tests 29-01 plan
-last_updated: "2026-03-25T05:55:00.435Z"
+stopped_at: Milestone v1.7 pytest测试框架 summary generated
+last_updated: "2026-03-25T05:58:29.352Z"
 progress:
   total_phases: 30
   completed_phases: 29
@@ -145,8 +145,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-25T05:50:59.520Z
-Stopped at: Completed 29-cli-integration-tests 29-01 plan
+Last session: 2026-03-25T05:58:29.340Z
+Stopped at: Milestone v1.7 pytest测试框架 summary generated
 
 ## Quick Tasks Completed
 
@@ -179,3 +179,4 @@ Stopped at: Completed 29-cli-integration-tests 29-01 plan
 | Phase 21 P01 | <1 | 4 tasks | 4 files |
 | Phase 27-provider-unit-tests P01 | 200 | 3 tasks | 1 files |
 | Phase 28-storage-unit-tests P28-01 | 3min | 3 tasks | 1 files |
+| 260326-t0b | 查看 bigmodel.cn glm-coding 套餐价格 | 2026-03-26 | 5f7e757 | Verified | [260326-t0b-bigmodel-cn-glm-coding](./quick/260326-t0b-bigmodel-cn-glm-coding/) |
