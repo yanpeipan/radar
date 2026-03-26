@@ -1,286 +1,262 @@
-# Feature Research: pytest Testing Coverage
+# Feature Research: Semantic Search & Related Articles
 
-**Domain:** Python CLI RSS Reader App Testing
-**Researched:** 2026-03-25
-**Confidence:** MEDIUM-HIGH
+**Domain:** Personal RSS reader with vector semantic search
+**Researched:** 2026-03-26
+**Confidence:** MEDIUM (web search tools unavailable, used WebFetch on official docs + training data)
 
 ## Feature Landscape
 
-### Table Stakes (Core Test Categories)
+### Table Stakes (Users Expect These)
 
-These are the essential test categories for a CLI RSS reader with SQLite storage and provider plugins. Missing any of these leaves significant coverage gaps.
+Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Storage Layer Tests** | All data operations go through `src/storage/sqlite.py` | MEDIUM | Requires isolated temp DB per test, fixture for common operations |
-| **Provider Plugin Tests** | Plugin architecture is core to extensibility | MEDIUM | Mock HTTP responses, test `discover()` and `fetch()` methods |
-| **Tag Parser Tests** | Tag system affects article metadata quality | LOW | Pure functions with sample input/output |
-| **CLI Command Tests** | User-facing interface must work correctly | MEDIUM | Use Click's `CliRunner` for invocation tests |
-| **Integration Tests** | End-to-end workflows must function | MEDIUM | Test `fetch --all` with mocked providers |
+| Semantic search query | Users want natural language search, not just keyword matching | MEDIUM | Requires embedding generation + ChromaDB query |
+| Related articles | "More like this" is standard UX for content consumption | MEDIUM | Similarity search using article embedding |
+| Search result relevance ranking | Results should be ordered by relevance | LOW | ChromaDB returns ordered results by default |
+| Hybrid search (keyword + semantic) | Users may want exact matches AND semantic matches | HIGH | FTS5 already exists, combining adds complexity |
 
-### Differentiators (Advanced Testing Patterns)
+### Differentiators (Competitive Advantage)
 
-Features that elevate test quality but are not strictly required.
+Features that set the product apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Async Fetch Tests** | uvloop/httpx async path critical for performance | HIGH | Requires `pytest-asyncio` with proper event loop handling |
-| **Provider Priority/Routing Tests** | Plugin routing determines which provider handles each URL | MEDIUM | Test `ProviderRegistry.discover_or_default()` behavior |
-| **FTS5 Search Tests** | Full-text search is a key user feature | LOW | Test search queries against known article data |
-| **Error Recovery Tests** | Network failures, malformed feeds, DB locked scenarios | MEDIUM | Verify graceful degradation and user-facing errors |
-| **Concurrent Fetch Tests** | Semaphore limits concurrent crawls | HIGH | Test concurrency limits and SQLite write serialization |
+| Incremental embedding on fetch | New articles automatically become searchable semantically | MEDIUM | Hook into fetch pipeline, batch embedding generation |
+| Feed-filtered semantic search | "Only show me articles similar to X within feed Y" | LOW | ChromaDB supports metadata filtering via `where` clause |
+| Semantic tag suggestions | "This article seems related to tags [A, B]" | MEDIUM | Uses similarity against tag clusters |
+| Cross-feed discovery | Find related content across different feeds | LOW | Natural outcome of semantic search across all articles |
 
-### Anti-Features (Testing Patterns to Avoid)
+### Anti-Features (Commonly Requested, Often Problematic)
 
-| Anti-Pattern | Why Problematic | Alternative |
-|--------------|-----------------|-------------|
-| **Live network calls in CI** | Flaky, slow, rate-limited | Mock HTTP responses with `responses` or `httpx`'s `AsyncClient` mocking |
-| **Shared SQLite DB across tests** | State leakage causes flaky tests | Use `tmp_path` fixture for per-test isolated DB |
-| **Testing implementation details** | Brittle, refactoring breaks tests | Test behavior through public interfaces |
-| **Mocking everything** | Loses integration value | Reserve mocks for external dependencies (HTTP, GitHub API) |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Real-time semantic search | Instant results as you type | Embedding generation is expensive, CPU-bound | Debounced search with progress indicator |
+| Full LLM summarization of results | "AI-powered insights" | API cost, latency, complexity | Pre-computed summaries on demand |
+| Collaborative filtering | "Users like you also read..." | Requires user data, multi-user architecture | Tag-based similarity (already exists) |
+| Automatic article categorization | "Put this in category X" | Taxonomy management overhead | Use semantic search + existing tags |
 
 ## Feature Dependencies
 
 ```
-Storage Tests (tmp_path DB)
-    └──requires──> Fixtures for common data (feeds, articles)
+Semantic Search CLI
+    └──requires──> Embedding Generation Service
+                        └──requires──> sentence-transformers model
+                        └──requires──> ChromaDB collection
 
-Provider Tests
-    └──requires──> Mock HTTP responses (RSS XML, HTML pages)
-    └──requires──> ProviderRegistry fixture
+Article Related
+    └──requires──> Embedding Generation Service (same)
+    └──requires──> Existing article embedding (in ChromaDB)
 
-Tag Parser Tests
-    └──requires──> Sample feeds with known tag outcomes
-
-CLI Tests
-    └──requires──> CliRunner invocation
-    └──requires──> Isolated filesystem (Click's `isolated_filesystem`)
-    └──requires──> In-memory or temp DB
-
-Integration Tests (fetch --all)
-    └──requires──> All of the above working together
-    └──requires──> Async event loop setup (uvloop or standard asyncio)
-
-Async Tests
-    └──requires──> pytest-asyncio configuration
-    └──requires──> Proper fixture scoping (function vs session)
+Incremental Embedding
+    └──requires──> Semantic Search CLI (same service)
+    └──triggered by──> fetch --all (new articles)
 ```
+
+### Dependency Notes
+
+- **Semantic search requires embedding generation:** The `all-MiniLM-L6-v2` model must be loaded and used to encode query text. First query has model loading overhead (~2-5 seconds).
+- **Related articles requires existing embedding:** If an article was stored before ChromaDB integration, it has no embedding. Need migration strategy.
+- **ChromaDB is separate from SQLite:** Vectors stored in ChromaDB (`chroma.sqlite`), not in existing `articles.db`. Data remains synchronized via article ID.
 
 ## MVP Definition
 
-### Launch With (v1.7)
+### Launch With (v1.8)
 
-Minimum viable test coverage for the milestone to be considered successful.
+Minimum viable product -- what is needed to validate the concept.
 
-- [ ] **conftest.py fixtures**: temp DB (`tmp_path`), sample RSS feed data, mock HTTP responses
-- [ ] **Storage tests**: `store_article()`, `get_articles()`, `search_articles()`, feed CRUD
-- [ ] **Provider tests**: RSSProvider, GitHubProvider, GitHubReleaseProvider with mocked HTTP
-- [ ] **Tag parser tests**: DefaultTagParser, ReleaseTagParser with sample inputs
-- [ ] **CLI tests**: `feed add`, `feed list`, `article list`, `article detail` using CliRunner
+- [ ] `search --semantic "query"` -- Semantic search using sentence-transformers + ChromaDB. Returns top-k similar articles by cosine similarity. **Why essential:** Core value proposition of the milestone.
+- [ ] `article related <id>` -- Find articles similar to a given article ID. **Why essential:** Natural companion to semantic search; validates embedding quality.
+- [ ] Incremental embedding on fetch -- New articles automatically generate embeddings and store in ChromaDB. **Why essential:** Without this, semantic search degrades over time as new content lacks embeddings.
+- [ ] Progress indicator for embedding generation -- Users should see feedback during batch embedding. **Why essential:** Embedding generation is slow; silent failure frustrates users.
 
-### Add After Validation (v1.8+)
+### Add After Validation (v1.x)
 
-Features to add once basic coverage exists.
+Features to add once core is working.
 
-- [ ] **Async fetch tests**: Test `fetch --all` with mocked async providers
-- [ ] **Error path tests**: Malformed feeds, network timeouts, DB locked scenarios
-- [ ] **Provider priority tests**: Registry routing behavior with multiple matching providers
-- [ ] **FTS search tests**: Verify search relevance and query handling
+- [ ] `search "query" --hybrid` -- Combine FTS5 keyword results with semantic reranking. **Trigger:** User feedback requesting exact-match searches.
+- [ ] Batch backfill embedding -- CLI command to generate embeddings for existing articles. **Trigger:** Users want to search old content semantically.
+- [ ] Feed-filtered semantic search -- `search --semantic "query" --feed-id X`. **Trigger:** Users with many feeds want scoped discovery.
 
 ### Future Consideration (v2+)
 
-Features to defer until core tests are stable.
+Features to defer until product-market fit is established.
 
-- [ ] **Concurrent fetch stress tests**: Verify Semaphore limits under load
-- [ ] **Performance benchmarks**: Track test execution time as a metric
-- [ ] **Coverage targets**: Enforce minimum coverage percentages via tooling
+- [ ] Semantic tag clustering -- Auto-discover tag groups via embedding similarity. **Why defer:** Existing DBSCAN clustering works; marginal benefit unclear.
+- [ ] Topic modeling / dimensionality reduction -- Visualize article landscape. **Why defer:** Visualization outside CLI scope; would need web UI.
+- [ ] LLM-powered search refinement -- Rewrite queries for better retrieval. **Why defer:** API dependency, cost, complexity.
 
-## Test Categories Breakdown
+## Feature Prioritization Matrix
 
-### 1. Unit Tests (Pure Functions)
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Semantic search CLI | HIGH | MEDIUM | P1 |
+| Related articles | HIGH | LOW | P1 |
+| Incremental embedding | HIGH | MEDIUM | P1 |
+| Progress indicator | MEDIUM | LOW | P1 |
+| Hybrid search | MEDIUM | HIGH | P2 |
+| Backfill embedding | MEDIUM | MEDIUM | P2 |
+| Feed-filtered search | MEDIUM | LOW | P2 |
+| Semantic tag clustering | LOW | MEDIUM | P3 |
 
-**Complexity:** LOW
+**Priority key:**
+- P1: Must have for launch
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
 
-| Module | What to Test | Approach |
-|--------|--------------|----------|
-| `src/tags/default_tag_parser.py` | Tag extraction from text | Sample inputs with expected outputs |
-| `src/tags/release_tag_parser.py` | Semantic version parsing | Known version strings with expected tags |
-| `src/tags/tag_rules.py` | Rule-based tag matching | Sample rules with test inputs |
-| `src/storage/sqlite.py` | Individual functions | Isolated DB, single operation per test |
+## CLI UX Patterns
 
-**Example test:**
-```python
-def test_default_tag_parser_extracts_keywords():
-    parser = DefaultTagParser()
-    result = parser.parse("Python 3.12 released with performance improvements")
-    assert "python" in result
-    assert "release" in result
+### Existing CLI Patterns (from codebase review)
+
+The current CLI follows these conventions:
+
+```
+article list [--limit] [--feed-id] [--tag] [--tags] [--verbose]
+article view <article_id> [--verbose]
+article open <article_id>
+article tag [<article_id> <tag_name>] [--auto] [--rules]
+search <query> [--limit] [--feed-id]
 ```
 
-### 2. Storage Layer Tests (SQLite Operations)
+- Top-level commands: `feed`, `article`, `search`, `fetch`
+- Article subcommands: `list`, `view`, `open`, `tag`
+- Options use `--flag` syntax
+- Required arguments use positional syntax
+- Error output uses `click.secho(..., fg="red")`
 
-**Complexity:** MEDIUM
+### Semantic Search CLI Proposal
 
-| Operation | What to Test |
-|-----------|--------------|
-| `store_feed()` | Insert feed, verify retrieval, handle duplicates |
-| `store_article()` | Insert article, verify with different ID generators |
-| `get_articles()` | Filtering by feed, pagination, ordering |
-| `search_articles()` | FTS5 query matching, relevance ordering |
-| `update_feed_metadata()` | Update fields, verify persistence |
+**Option A: Separate command (cleanest)**
+```
+search --semantic "query" [--limit] [--feed-id]
+```
+- Pros: Clear separation from keyword search
+- Cons: Two separate commands for related functionality
 
-**Key fixtures:**
-- `empty_db` - Fresh DB for each test
-- `db_with_feeds` - Pre-populated with sample feeds
-- `db_with_articles` - Pre-populated with sample articles
+**Option B: Flag on existing search**
+```
+search "query" [--semantic] [--limit] [--feed-id]
+```
+- Pros: Single command, easy to switch between keyword/semantic
+- Cons: Semantic search is architecturally different (requires embedding), may confuse users expecting similar behavior
 
-**Example test:**
-```python
-def test_store_article_with_nanoid(db_with_feeds, sample_article_data):
-    article_id = store_article(db_with_feeds, sample_article_data)
-    assert len(article_id) == 21  # nanoid default length
-    assert article_id.isalnum() or '-' in article_id  # URL-safe
+**Option C: Subcommand**
+```
+search semantic "query" [--limit] [--feed-id]
+search keyword "query" [--limit] [--feed-id]
+```
+- Pros: Explicit, extensible (could add `search hybrid`)
+- Cons: More verbose
+
+**Recommendation: Option B** -- The existing `search` command is FTS5-only. Adding a `--semantic` flag clearly indicates the mode. Users can experiment easily.
+
+### Related Articles CLI Proposal
+
+**Proposed syntax:**
+```
+article related <article_id> [--limit] [--feed-id]
 ```
 
-### 3. Provider Tests (Plugin Architecture)
+- Uses `article` as parent (consistent with `article view`, `article open`)
+- `related` subcommand follows pattern of sibling subcommands
+- Options match semantic search: `--limit`, `--feed-id`
 
-**Complexity:** MEDIUM
+### Embedding Generation Feedback
 
-| Provider | What to Test | Mock Strategy |
-|----------|--------------|---------------|
-| `RSSProvider` | Parses RSS/Atom, returns articles | Mock httpx response with sample RSS XML |
-| `GitHubProvider` | GitHub repo URL handling, API calls | Mock PyGithub responses |
-| `GitHubReleaseProvider` | Release extraction, version parsing | Mock PyGithub release data |
-| `DefaultProvider` | Fallback HTML scraping | Mock httpx response with HTML |
-
-**Key fixtures:**
-- `rss_feed_xml` - Sample RSS 2.0 and Atom 1.0 feeds
-- `github_release_data` - Sample GitHub API responses
-- `html_page_content` - Sample HTML for scraping
-
-**Example test:**
-```python
-@responses.activate
-def test_rss_provider_discovers_articles(sample_rss_feed):
-    responses.add(responses.GET, 'https://example.com/feed.xml',
-                  body=sample_rss_feed, status=200)
-    provider = RSSProvider()
-    articles = provider.discover('https://example.com/feed.xml')
-    assert len(articles) > 0
-    assert articles[0].title is not None
+**During fetch (automatic):**
+```
+Fetching feed: Example Feed... 5 new articles
+Generating embeddings... [████████████░░░░] 12s
 ```
 
-### 4. CLI Tests (Click Commands)
-
-**Complexity:** MEDIUM
-
-| Command | What to Test |
-|---------|--------------|
-| `feed add <url>` | Success, invalid URL, duplicate feed |
-| `feed list` | Empty state, populated list, formatting |
-| `article list` | Filters, pagination, search integration |
-| `article detail <id>` | Found, not found, formatting |
-| `fetch --all` | With mocked providers, concurrency handling |
-| `tag <article_id> <tags>` | Success, invalid article |
-
-**Key fixtures:**
-- `cli_runner` - CliRunner instance
-- `isolated_db` - DB isolated via tmp_path + CliRunner's filesystem
-- `populated_db` - DB with sample data for list/detail tests
-
-**Example test:**
-```python
-def test_feed_list_empty(cli_runner, empty_db):
-    result = cli_runner.invoke(feed_list, [], obj={'db_path': empty_db})
-    assert result.exit_code == 0
-    assert 'No feeds found' in result.output
+**Backfill command (manual):**
+```
+$ rss-reader embed --all
+Generating embeddings for 2479 existing articles...
+[████████████████████████████] 4m 32s
+Done. 2479 articles embedded.
 ```
 
-### 5. Integration Tests (End-to-End)
+## ChromaDB Integration Patterns
 
-**Complexity:** MEDIUM-HIGH
-
-| Workflow | What to Test |
-|----------|--------------|
-| `feed add` then `fetch --all` | Full add-and-fetch cycle |
-| `article list` then `article detail` | List navigation |
-| Search then tag | Search -> detail -> tag chain |
-| `fetch --all` with concurrency | Multiple feeds fetched in parallel |
-
-**Key fixtures:**
-- `integration_env` - Full app environment with temp DB
-- `mocked_providers` - All HTTP calls mocked
-
-## Fixture Design
-
-### conftest.py Structure
+### Collection Configuration
 
 ```python
-# conftest.py - Root fixtures
-import pytest
-from click.testing import CliRunner
+import chromadb
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-@pytest.fixture
-def cli_runner():
-    return CliRunner()
-
-@pytest.fixture
-def sample_rss_feed():
-    """Valid RSS 2.0 feed XML string"""
-
-@pytest.fixture
-def sample_atom_feed():
-    """Valid Atom 1.0 feed XML string"""
-
-@pytest.fixture
-def sample_github_release():
-    """PyGithub Release object fixture"""
-
-@pytest.fixture
-def empty_db(tmp_path):
-    """Fresh SQLite DB path per test"""
-    db_path = tmp_path / "test.db"
-    # Initialize schema
-    yield str(db_path)
+# Default uses all-MiniLM-L6-v2 (384 dimensions)
+client = chromadb.PersistentClient(path="./data/chroma")
+collection = client.create_collection(
+    name="articles",
+    embedding_function=DefaultEmbeddingFunction()
+)
 ```
 
-### Scoping Strategy
+### Adding Article Embeddings
 
-| Fixture | Scope | Reason |
-|---------|-------|--------|
-| `cli_runner` | function | Not thread-safe |
-| `empty_db` | function | Per-test isolation |
-| `sample_rss_feed` | session | Static data, no mutation |
-| `mocked_providers` | function | May have state |
+```python
+# Batch add for incremental updates
+collection.add(
+    ids=[article_id],
+    documents=[article_content],  # title + description + content
+    metadatas=[{
+        "feed_id": feed_id,
+        "pub_date": pub_date,
+        "url": link
+    }]
+)
+```
 
-## Testing Tooling
+### Semantic Search Query
 
-### Required Packages
+```python
+# Query by text (ChromaDB embeds automatically)
+results = collection.query(
+    query_texts=["machine learning optimization"],
+    n_results=10,
+    where={"feed_id": feed_id},  # optional filter
+    include=["documents", "metadatas", "distances"]
+)
+```
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `pytest` | 8.x | Test framework |
-| `pytest-asyncio` | 0.23.x | Async test support |
-| `responses` | 0.25.x | Sync HTTP mocking |
-| `pytest-httpx` | 0.30.x | Async HTTP mocking alternative |
-| `pytest-cov` | 5.x | Coverage reporting |
+### Related Articles Query
 
-### Optional (Future)
+```python
+# Get embedding for source article
+article_embedding = collection.get(ids=[article_id])["embeddings"][0]
 
-| Package | Purpose |
-|---------|---------|
-| `pytest-xdist` | Parallel test execution |
-| `faker` | Generate test data |
-| `freezegun` | Time-based testing |
+# Find similar articles
+results = collection.query(
+    query_embeddings=[article_embedding],
+    n_results=6,  # 5 + source article
+    include=["documents", "metadatas", "distances"]
+)
+# Exclude source article from results
+```
+
+## Competitor Feature Analysis
+
+| Feature | Feedly | Miniflux | Fresh RSS | Our Approach |
+|---------|--------|----------|-----------|--------------|
+| Keyword search | FULL-TEXT | FULL-TEXT | FULL-TEXT (plugin) | FTS5 (existing) |
+| Semantic search | AI Pro addon | NOT AVAILABLE | NOT AVAILABLE | Native via ChromaDB |
+| Related articles | "More like this" | NOT AVAILABLE | NOT AVAILABLE | `article related` |
+| Search filters | Feed, tag, date | Feed, tag, status | Feed, tag | Feed ID (existing) |
+| Embedding model | OpenAI | N/A | N/A | sentence-transformers (local) |
+
+**Key insight:** Semantic search and related articles are NOT table stakes in RSS readers. Most competitors either lack them entirely or offer as paid/Cloud-only features. This is a genuine differentiator for a personal, local-first tool.
 
 ## Sources
 
-- [Click Testing Documentation](https://click.palletsprojects.com/en/8.1.x/testing/) (HIGH confidence)
-- [Pytest Fixtures Best Practices](https://docs.pytest.org/en/stable/explanation/fixtures.html) (HIGH confidence)
-- [Pytest Monkeypatching](https://docs.pytest.org/en/stable/how-to/monkeypatch.html) (HIGH confidence)
-- [Pytest tmp_path for Temp Directories](https://docs.pytest.org/en/stable/how-to/tmp_path.html) (HIGH confidence)
+- [ChromaDB Query Documentation](https://docs.trychroma.com/docs/querying-collections/query-and-get) (HIGH confidence)
+- [ChromaDB Add Data Documentation](https://docs.trychroma.com/docs/collections/add-data) (HIGH confidence)
+- [ChromaDB Embeddings Documentation](https://docs.trychroma.com/docs/embeddings) (HIGH confidence)
+- [SBERT Pretrained Models](https://www.sbert.net/docs/pretrained_models.html) (HIGH confidence)
+- [LangChain RAG Tutorial](https://docs.langchain.com/oss/python/langchain/rag) (MEDIUM confidence)
+- [PrivateGPT Architecture](https://github.com/imartinez/privateGPT) (MEDIUM confidence)
 
 ---
-
-*Feature research for: pytest testing coverage*
-*Researched: 2026-03-25*
+*Feature research for: ChromaDB semantic search in RSS reader*
+*Researched: 2026-03-26*

@@ -1,459 +1,371 @@
-# Architecture Research: pytest Test Organization
+# Architecture Research: ChromaDB Semantic Search Integration
 
-**Domain:** Python CLI Application Testing (RSS Reader)
-**Researched:** 2026-03-25
-**Confidence:** MEDIUM-HIGH (based on established pytest patterns and project structure analysis)
+**Domain:** Personal资讯系统 (RSS reader with vector search)
+**Researched:** 2026-03-26
+**Confidence:** MEDIUM (documentation fragmented, PyPI/main docs not fully aligned; verified core patterns via official sources)
 
 ## Executive Summary
 
-This project uses a Python CLI application with Click framework, SQLite storage, and a Provider plugin architecture. The existing tests are minimal (4 test files with basic fixtures). The v1.7 milestone requires expanding to cover Providers, Storage layer, and CLI integration tests.
+ChromaDB is an embedded vector database that coexists naturally alongside SQLite. The integration pattern is **not** to replace SQLite or merge data stores, but to use SQLite for article metadata and ChromaDB for embedding storage and similarity search. ChromaDB runs in-process (embedded mode) with its own persistence, making it a zero-infrastructure addition like SQLite itself.
 
-The recommended approach is:
-- **Single root conftest.py** for project-wide fixtures (database, temp files)
-- **Flat test file structure** mirroring `src/` modules: `test_providers.py`, `test_storage.py`, `test_cli.py`
-- **Fixture scope decisions** based on resource cost and isolation needs
-- **Click CliRunner** for CLI integration testing
-
-## Standard pytest Project Structure
-
-### Recommended Directory Layout
-
-```
-tests/
-├── __init__.py              # Makes tests a package
-├── conftest.py              # Root fixtures: temp_db, sample_feed, sample_article, cli_runner
-├── test_fetch.py            # Existing: async fetch tests
-├── test_config.py           # Existing: config tests
-├── test_ai_tagging.py       # Existing: AI tagging tests
-├── test_providers.py        # NEW: Provider plugin tests (RSSProvider, GitHubReleaseProvider)
-├── test_storage.py          # NEW: SQLite storage layer tests
-└── test_cli.py              # NEW: CLI command integration tests
-```
-
-### Alternative Considered: Per-Module Conftest
-
-```
-tests/
-├── conftest.py              # Common fixtures (temp_db, sample_article)
-├── providers/
-│   ├── conftest.py          # Provider-specific fixtures
-│   └── test_rss_provider.py
-├── storage/
-│   ├── conftest.py          # Storage-specific fixtures
-│   └── test_sqlite.py
-└── cli/
-    ├── conftest.py          # CLI-specific fixtures
-    └── test_commands.py
-```
-
-**Why NOT this approach** for this project:
-- Adds unnecessary nesting for a project with ~10 source modules
-- Session-scoped fixtures (like temp_db) cannot be easily shared across nested conftest.py files
-- Increases complexity without proportional benefit for a personal CLI tool
-
-## Recommended Fixtures
-
-### Root conftest.py Fixtures
-
-```python
-"""Root pytest fixtures for radar tests."""
-import pytest
-import tempfile
-import os
-from pathlib import Path
-
-# --- Database Fixtures ---
-
-@pytest.fixture(scope="session")
-def temp_db_path():
-    """Session-scoped temp database path (shared across all tests in session)."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
-    yield db_path
-    os.unlink(db_path)
-
-
-@pytest.fixture(scope="function")
-def temp_db(temp_db_path):
-    """Function-scoped database connection pointing to temp path.
-
-    Tests should patch src.storage.sqlite.get_db_path() to return this path.
-    """
-    # Patch the module-level _DB_PATH or use monkeypatch
-    pass
-
-
-@pytest.fixture(scope="function")
-def initialized_db(temp_db_path):
-    """Database that has been initialized with schema (tables created)."""
-    from src.storage.sqlite import init_db, _get_connection
-    # Override get_db_path temporarily and init
-    import src.storage.sqlite as storage_module
-    original_path = storage_module._DB_PATH
-    storage_module._DB_PATH = Path(temp_db_path)
-    init_db()
-    yield temp_db_path
-    storage_module._DB_PATH = original_path
-
-
-# --- Sample Data Fixtures ---
-
-@pytest.fixture
-def sample_feed():
-    """Sample feed for testing."""
-    from src.models import Feed
-    return Feed(
-        id="test-feed-1",
-        name="Test Feed",
-        url="https://example.com/feed.xml",
-        etag=None,
-        last_modified=None,
-        last_fetched=None,
-        created_at="2024-01-01T00:00:00+00:00",
-    )
-
-
-@pytest.fixture
-def sample_article():
-    """Sample article data for testing."""
-    return {
-        "id": "test-article-1",
-        "title": "Test Article Title",
-        "url": "https://example.com/article",
-        "description": "This is a test article description",
-        "content": "<p>Full article content here</p>",
-        "source": "test",
-        "pub_date": "2024-01-15T10:30:00+08:00",
-    }
-
-
-# --- CLI Fixtures ---
-
-@pytest.fixture
-def cli_runner():
-    """Click CliRunner for testing CLI commands."""
-    from click.testing import CliRunner
-    return CliRunner()
-
-
-@pytest.fixture
-def isolated_cli_env(cli_runner):
-    """CliRunner with isolated filesystem (for testing file operations)."""
-    return CliRunner(mix_stderr=False, isolate_internationalization=True)
-```
-
-### Fixture Scope Decisions
-
-| Fixture | Scope | Rationale |
-|---------|-------|-----------|
-| `temp_db_path` | session | Expensive to create (file I/O), safe to share |
-| `initialized_db` | function | Tests may modify schema/data, need isolation |
-| `sample_feed` | function | Stateless, cheap to create |
-| `sample_article` | function | Stateless, cheap to create |
-| `cli_runner` | session | CliRunner is stateless, reusable |
-| `isolated_cli_env` | function | Filesystem isolation per test |
-
-## Test File Organization
-
-### test_providers.py
-
-Tests for `src/providers/` module:
-- RSSProvider.match() URL matching
-- RSSProvider.crawl() and crawl_async() with mocked httpx
-- GitHubReleaseProvider.match() and priority ordering
-- ProviderRegistry.discover() and discover_or_default()
-- TagParser chain integration
-
-```python
-"""Tests for Provider plugin architecture."""
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-
-from src.providers import discover, discover_or_default, get_all_providers
-
-
-class TestProviderDiscovery:
-    """Test provider URL matching and discovery."""
-
-    def test_rss_provider_matches_feed_url(self):
-        """RSS provider should match RSS feed URLs."""
-        from src.providers.rss_provider import RSSProvider
-        provider = RSSProvider()
-        assert provider.match("https://example.com/feed.xml")
-
-    def test_github_release_provider_matches_github_releases(self):
-        """GitHubReleaseProvider should match github.com/*/releases URLs."""
-        from src.providers.github_release_provider import GitHubReleaseProvider
-        provider = GitHubReleaseProvider()
-        assert provider.match("https://github.com/example/repo/releases")
-
-    def test_discover_returns_matching_providers(self):
-        """discover() returns providers sorted by priority."""
-        providers = discover("https://github.com/example/repo/releases")
-        assert len(providers) >= 1
-        # GitHubReleaseProvider (priority 200) should be first
-        assert providers[0].priority() >= 200
-
-    def test_discover_or_default_falls_back_to_rss(self):
-        """Unknown URL falls back to RSS provider."""
-        providers = discover_or_default("https://unknown-site.com/feed")
-        assert len(providers) == 1
-        assert providers[0].__class__.__name__ == "RSSProvider"
-```
-
-### test_storage.py
-
-Tests for `src/storage/sqlite.py`:
-- init_db() creates correct schema
-- store_article() inserts and updates
-- list_articles(), search_articles() queries
-- Tag operations (add_tag, tag_article, etc.)
-- Feed operations (add_feed, list_feeds, etc.)
-
-```python
-"""Tests for SQLite storage layer."""
-import pytest
-from src.storage.sqlite import (
-    init_db, store_article, list_articles, add_feed, list_feeds,
-    tag_article, get_article_tags
-)
-
-
-@pytest.fixture
-def storage_db(initialized_db):
-    """Initialized database for storage tests."""
-    return initialized_db
-
-
-class TestArticleStorage:
-    """Test article CRUD operations."""
-
-    def test_store_article_inserts_new(self, storage_db):
-        """store_article creates new article with generated ID."""
-        article_id = store_article(
-            guid="test-guid-1",
-            title="Test Title",
-            content="Test content",
-            link="https://example.com/article1",
-            feed_id="test-feed",
-        )
-        assert article_id is not None
-        assert len(article_id) > 0
-
-    def test_store_article_updates_existing_by_guid(self, storage_db):
-        """store_article with existing guid updates rather than inserts."""
-        # Insert first
-        id1 = store_article(
-            guid="same-guid",
-            title="Original Title",
-            content="Original content",
-            link="https://example.com/original",
-            feed_id="test-feed",
-        )
-        # Same guid should return same ID
-        id2 = store_article(
-            guid="same-guid",
-            title="Updated Title",
-            content="Updated content",
-            link="https://example.com/updated",
-            feed_id="test-feed",
-        )
-        assert id1 == id2
-
-
-class TestFeedStorage:
-    """Test feed operations."""
-
-    def test_add_and_list_feeds(self, storage_db, sample_feed):
-        """Feeds can be added and listed."""
-        added = add_feed(sample_feed)
-        feeds = list_feeds()
-        assert len(feeds) == 1
-        assert feeds[0].name == "Test Feed"
-```
-
-### test_cli.py
-
-Integration tests for CLI commands using Click CliRunner:
-- feed add/list/remove commands
-- article list/detail/search commands
-- tag add/list commands
-- fetch --all command
-
-```python
-"""Integration tests for CLI commands."""
-import pytest
-from click.testing import CliRunner
-from src.cli import cli
-
-
-@pytest.fixture
-def cli_runner():
-    return CliRunner(mix_stderr=False)
-
-
-@pytest.fixture
-def invoke(cli_runner):
-    """Helper to invoke CLI commands."""
-    def _invoke(*args, **kwargs):
-        return cli_runner.invoke(cli, args, **kwargs)
-    return _invoke
-
-
-class TestFeedCommands:
-    """Test feed management commands."""
-
-    def test_feed_list_empty(self, invoke):
-        """feed list shows no feeds initially."""
-        result = invoke("feed", "list")
-        assert result.exit_code == 0
-        # May show empty state message
-
-    def test_feed_add_rss(self, invoke):
-        """feed add accepts RSS URL."""
-        result = invoke("feed", "add", "https://example.com/feed.xml")
-        assert result.exit_code == 0
-
-
-class TestArticleCommands:
-    """Test article display commands."""
-
-    def test_article_list(self, invoke):
-        """article list shows articles."""
-        result = invoke("article", "list")
-        assert result.exit_code == 0
-
-    def test_article_list_with_limit(self, invoke):
-        """article list accepts --limit flag."""
-        result = invoke("article", "list", "--limit", "5")
-        assert result.exit_code == 0
-```
-
-## Module-Specific conftest.py (Optional Enhancement)
-
-For larger projects, a conftest.py per source module provides better organization:
-
-```
-tests/
-├── conftest.py                    # Common fixtures only
-├── test_providers.py
-├── providers/
-│   ├── conftest.py                # RSS feed samples, mock httpx client
-│   └── test_rss_provider.py
-├── storage/
-│   ├── conftest.py                # DB fixtures with schema
-│   └── test_sqlite.py
-└── cli/
-    ├── conftest.py                # CliRunner fixture
-    └── test_article.py
-```
-
-**Rule:** Fixtures that are ONLY used by one module's tests belong in that module's conftest.py.
-
-## Test Categorization
-
-### Unit Tests (fast, no I/O)
-- Provider.match() logic
-- Storage function logic (string manipulation, query building)
-- Tag parser chain
-- Data model validation
-
-### Integration Tests (slower, with I/O)
-- CLI command execution (uses CliRunner but still exercises real code paths)
-- Database operations (even with temp DB, still I/O)
-- Provider crawl() with mocked HTTP responses
-
-### Async Tests
-- Use `@pytest.mark.asyncio` for async test functions
-- Existing `test_fetch.py` shows the pattern with `AsyncMock` and `patch`
-- For true async tests, use `pytest-asyncio` plugin
-
-## Anti-Patterns to Avoid
-
-### Anti-Pattern 1: Global State in Fixtures
-
-**Bad:**
-```python
-# conftest.py
-db_connection = None  # Shared mutable state!
-
-@pytest.fixture
-def temp_db():
-    global db_connection
-    db_connection = create_db()
-    yield db_connection
-    db_connection.close()
-```
-
-**Why bad:** Tests can pollute each other's state, causing flaky tests.
-
-**Good:** Use function-scoped fixtures with explicit setup/teardown.
-
-### Anti-Pattern 2: Importing Application Code in conftest
-
-**Bad:**
-```python
-# conftest.py
-from src.storage.sqlite import init_db  # Init at import time!
-init_db()
-```
-
-**Why bad:** Initializes production database or creates side effects at test collection time.
-
-**Good:** Initialize fixtures inside the fixture function, not at module level.
-
-### Anti-Pattern 3: Testing Implementation Details
-
-**Bad:**
-```python
-def test_provider_uses_correct_regex():
-    # Testing internal _url_pattern attribute
-    assert provider._url_pattern.match("...")
-```
-
-**Why bad:** Refactoring internal implementation breaks tests.
-
-**Good:** Test public behavior (match() returns correct bool for given URLs).
-
-## CLI Testing with Click
-
-### CliRunner Best Practices
-
-```python
-from click.testing import CliRunner
-
-@pytest.fixture
-def cli_runner():
-    return CliRunner(mix_stderr=False)
-
-
-def test_cli_with_isolated_filesystem(cli_runner):
-    """Use CliRunner's isolated filesystem for file operations."""
-    with cli_runner.isolated_filesystem():
-        result = cli_runner.invoke(cli, ["feed", "export", "OPML"])
-        assert result.exit_code == 0
-```
-
-### Testing Async CLI Commands
-
-For `fetch --all` which uses uvloop.run():
-```python
-@pytest.mark.asyncio
-async def test_fetch_all_cli():
-    """Test fetch --all command."""
-    with patch("src.application.fetch.storage_list_feeds", return_value=[]):
-        result = cli_runner.invoke(cli, ["fetch", "--all"])
-        assert result.exit_code == 0
-```
-
-## Sources
-
-- [pytest Documentation: Fixtures](https://docs.pytest.org/en/latest/reference/fixtures.html) (HIGH)
-- [pytest Documentation: Writing hooks](https://docs.pytest.org/en/latest/reference/reference.html#hooks) (HIGH)
-- [Click Documentation: Testing Cli](https://click.palletsprojects.com/en/latest/testing/) (HIGH)
-- [Python Testing with pytest: fixtures and scopes](https://docs.pytest.org/en/latest/how-to/fixtures.html#scope-sharing-fixtures) (MEDIUM)
+**Key insight:** ChromaDB's `PersistentClient` writes to a local directory, completely separate from the SQLite database file. Both databases serve different purposes and can operate independently.
 
 ---
 
-*Architecture research for: pytest test organization*
-*Researched: 2026-03-25*
+## ChromaDB Deployment Modes
+
+### Mode Comparison
+
+| Mode | Use Case | Storage | Trade-offs |
+|------|----------|---------|------------|
+| `chromadb.Client()` (in-memory) | Prototyping only | RAM only, lost on restart | Fast but no persistence |
+| `chromadb.PersistentClient(path="...")` | Local CLI app (recommended) | Local disk directory | Survives restarts, zero infra |
+| `chromadb.HttpClient(host, port)` | Client-server, multi-process | Chroma server process | Requires running server |
+
+**For this project:** `PersistentClient` is the correct choice. It stores data in a local directory (e.g., `./data/chroma_db/`) and requires no external service, matching the "纯本地应用" constraint.
+
+---
+
+## Recommended Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         CLI Layer                            │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ search --fts  │  │ search --sem │  │ article related│    │
+│  │  (FTS5)       │  │ (ChromaDB)   │  │  (ChromaDB)    │    │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
+├─────────┴────────────────┴─────────────────┴────────────────┤
+│                    Storage Layer                             │
+│  ┌─────────────────────────┐  ┌────────────────────────────┐ │
+│  │   SQLite (articles)     │  │  ChromaDB (embeddings)     │ │
+│  │   src/storage/sqlite.py│  │  src/storage/vector.py     │ │
+│  │   - Article CRUD       │  │  - Collection mgmt        │ │
+│  │   - FTS5 keyword search│  │  - add/query embeddings   │ │
+│  └─────────────────────────┘  └────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│                  Embedding Service                          │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ sentence-transformers (all-MiniLM-L6-v2)               ││
+│  │ src/embedding.py                                       ││
+│  │ - encode(text) -> 384-dim vector                       ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Component Responsibilities
+
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| `src/storage/vector.py` | ChromaDB client lifecycle, collection CRUD | New file, wraps `chromadb.PersistentClient` |
+| `src/embedding.py` | Text -> embedding vector | `sentence-transformers.SentenceTransformer` |
+| `src/storage/sqlite.py` | Existing article storage (unchanged) | Already implemented |
+| CLI commands | Interface for semantic search | Extend existing `src/cli/search.py` |
+
+---
+
+## Data Flow
+
+### Flow 1: Article Fetch with Embedding Generation
+
+```
+[Provider.fetch_article()]
+    ↓
+[Article stored in SQLite via storage.py]
+    ↓
+[embedding_service.encode(article.content) → 384-dim vector]
+    ↓
+[vector_storage.add_embedding(article_id, vector, metadata)]
+```
+
+**Implementation:** After `storage.store_article()` succeeds in the existing crawl flow, call `vector_storage.add_embedding()`.
+
+### Flow 2: Semantic Search
+
+```
+[CLI: search --semantic "query text"]
+    ↓
+[embedding_service.encode(query) → 384-dim vector]
+    ↓
+[vector_storage.query(query_vector, n_results=10) → article_ids]
+    ↓
+[storage.get_articles_by_ids(article_ids) → full article objects]
+    ↓
+[Render results with article titles/urls]
+```
+
+### Flow 3: Related Articles
+
+```
+[CLI: article related <article_id>]
+    ↓
+[vector_storage.get_embedding(article_id) → source vector]
+    ↓
+[vector_storage.query(source_vector, n_results=5, exclude=[article_id]) → related_ids]
+    ↓
+[storage.get_articles_by_ids(related_ids) → related articles]
+    ↓
+[Render related articles]
+```
+
+---
+
+## ChromaDB Data Model
+
+### Collection
+
+A ChromaDB collection is analogous to a table. For this project:
+
+```python
+collection = client.get_or_create_collection(
+    name="articles",
+    metadata={"description": "Article content embeddings"}
+)
+```
+
+### Document Record Structure
+
+```python
+collection.add(
+    ids=[article.id],              # String ID (matches SQLite article.id)
+    embeddings=[embedding_vector], # 384-dim numpy array (all-MiniLM-L6-v2)
+    documents=[article.content],   # Full text for reference (optional)
+    metadatas=[{
+        "title": article.title,
+        "url": article.url,
+        "pub_date": article.pub_date.isoformat() if article.pub_date else None,
+        "feed_id": article.feed_id,
+    }]
+)
+```
+
+**Note:** `ids` should match the `article.id` from SQLite (nanoid format) to enable cross-referencing between the two stores.
+
+---
+
+## Integration Points
+
+### 1. Embedding Service (`src/embedding.py`) - NEW
+
+```python
+from sentence_transformers import SentenceTransformer
+
+class EmbeddingService:
+    _model = None
+
+    @classmethod
+    def get_model(cls):
+        if cls._model is None:
+            # all-MiniLM-L6-v2: 384-dim, fast, CPU-friendly
+            cls._model = SentenceTransformer("all-MiniLM-L6-v2")
+        return cls._model
+
+    def encode(self, text: str) -> list[float]:
+        """Generate embedding vector for text."""
+        model = self.get_model()
+        embedding = model.encode(text, convert_to_numpy=True)
+        return embedding.tolist()
+```
+
+**Dependencies added:** `sentence-transformers`, `torch`
+
+### 2. Vector Storage Layer (`src/storage/vector.py`) - NEW
+
+```python
+import chromadb
+from chromadb import PersistentClient
+from pathlib import Path
+
+class VectorStorage:
+    def __init__(self, persist_path: str = "./data/chroma_db"):
+        self.client = PersistentClient(path=persist_path)
+        self.collection = self.client.get_or_create_collection(
+            name="articles",
+            metadata={"description": "Article content embeddings"}
+        )
+
+    def add_embedding(self, article_id: str, text: str, metadata: dict):
+        """Add embedding for an article."""
+        embedding = embedding_service.encode(text)
+        self.collection.add(
+            ids=[article_id],
+            embeddings=[embedding],
+            documents=[text],
+            metadatas=[metadata]
+        )
+
+    def query(self, query_text: str, n_results: int = 10, exclude_ids: list[str] = None):
+        """Find similar articles by text query."""
+        embedding = embedding_service.encode(query_text)
+        results = self.collection.query(
+            query_embeddings=[embedding],
+            n_results=n_results,
+            include=["metadatas", "distances"]
+        )
+        return results  # {ids, distances, metadatas}
+
+    def get_related(self, article_id: str, n_results: int = 5):
+        """Find articles related to a given article."""
+        result = self.collection.get(ids=[article_id], include=["embeddings"])
+        if not result["ids"]:
+            return []
+        embedding = result["embeddings"][0]
+        results = self.collection.query(
+            query_embeddings=[embedding],
+            n_results=n_results + 1,  # +1 because query article may be included
+            include=["metadatas", "distances"]
+        )
+        return results
+```
+
+### 3. CLI Integration - MODIFY `src/cli/search.py`
+
+```python
+# src/cli/search.py - additions
+import click
+from ...storage.vector import vector_storage
+from ...embedding import embedding_service
+
+@click.command()
+@click.option("--semantic", "search_type", flag_value="semantic", default=False)
+@click.option("--fts", "search_type", flag_value="fts", default=True)
+@click.argument("query")
+def search(query, search_type):
+    """Search articles by keyword or semantics."""
+    if search_type == "semantic":
+        results = vector_storage.query(query, n_results=20)
+        # Render from metadata
+        for i, (article_id, metadata, distance) in enumerate(zip(
+            results["ids"][0], results["metadatas"][0], results["distances"][0]
+        )):
+            click.echo(f"[{i+1}] {metadata['title']} (similarity: {1-distance:.3f})")
+    else:
+        # Existing FTS5 logic
+        ...
+```
+
+---
+
+## Project Structure
+
+```
+src/
+├── embedding.py              # NEW: sentence-transformers wrapper
+├── storage/
+│   ├── sqlite.py             # EXISTING: article/feed CRUD
+│   ├── vector.py             # NEW: ChromaDB wrapper
+│   └── __init__.py
+├── providers/                # EXISTING: RSSProvider, etc.
+├── cli/
+│   ├── search.py             # MODIFY: add --semantic flag
+│   └── article.py            # MODIFY: add related command
+└── crawl.py                  # MODIFY: call vector_storage after store_article()
+
+data/
+├── articles.db               # EXISTING: SQLite
+└── chroma_db/                # NEW: ChromaDB persistence
+    └── (ChromaDB files)
+```
+
+---
+
+## Build Order
+
+### Phase 1: Infrastructure (do first)
+- Add `chromadb`, `sentence-transformers`, `torch` to dependencies
+- Create `src/embedding.py` - basic model loading and encode()
+- Create `src/storage/vector.py` - ChromaDB client initialization
+- Verify ChromaDB persists to `./data/chroma_db/`
+
+### Phase 2: Write Path (before testing queries)
+- Integrate embedding generation into article fetch flow
+- After `storage.store_article()` succeeds in crawl, call `vector_storage.add_embedding()`
+- Add CLI command `reindex` to batch-generate embeddings for existing articles
+- Handle duplicate IDs gracefully (upsert or skip)
+
+### Phase 3: Query Path (requires write path)
+- Add `search --semantic` CLI command
+- Add `article related <id>` CLI command
+- Implement result pagination (ChromaDB returns ordered by similarity)
+
+### Phase 4: Polish
+- Error handling for missing embeddings (articles before v1.8)
+- Batch embedding for performance (sentence-transformers supports batch encode)
+- Progress reporting for `reindex` command
+
+---
+
+## Scaling Considerations
+
+| Scale | ChromaDB Behavior |
+|-------|------------------|
+| 0-10K articles | ChromaDB embedded mode handles easily. all-MiniLM-L6-v2 is fast on CPU. |
+| 10K-100K articles | Query latency may increase. Consider adding `where` filters to reduce search space. |
+| 100K+ articles | May need to switch to client-server Chroma deployment with more RAM. |
+
+**For this project:** Embedded mode is appropriate. The target corpus is personal-scale (thousands of articles, not millions).
+
+---
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Storing Embeddings in SQLite
+
+**What people do:** Try to store embedding vectors as BLOBs in SQLite to "keep everything in one place."
+**Why it's wrong:** SQLite is not designed for vector operations. ChromaDB provides HNSW indexing for fast similarity search; SQLite cannot do this efficiently.
+**Do this instead:** Accept two data stores. SQLite + ChromaDB is not a problem, it's the correct architecture.
+
+### Anti-Pattern 2: Generating Embeddings Synchronously During Fetch
+
+**What people do:** Call `model.encode()` synchronously inside the crawl loop.
+**Why it's wrong:** Sentence-transformers model loading is slow (~seconds on first call). Blocking the fetch pipeline makes users wait.
+**Do this instead:** Load model once at startup (lazy singleton pattern). Generate embeddings after article is stored.
+
+### Anti-Pattern 3: Re-embedding on Every Query
+
+**What people do:** Re-encode the query text on every search without caching.
+**Why it's wrong:** While encoding is faster than search, it still adds latency.
+**Do this instead:** Encode query on-demand (fast, ~10-50ms). For high-frequency queries, consider caching, but unlikely needed for personal use.
+
+### Anti-Pattern 4: Storing Full Article Text in ChromaDB
+
+**What people do:** Pass entire article content as `documents` parameter.
+**Why it's wrong:** ChromaDB stores documents for you, but SQLite already has the full content. Duplication wastes ChromaDB storage.
+**Do this instead:** Store only the content reference (article_id) in ChromaDB. Retrieve full content from SQLite when displaying results.
+
+---
+
+## Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| ChromaDB PersistentClient with `./data/chroma_db/` | Matches "纯本地应用" constraint. No external service needed. |
+| all-MiniLM-L6-v2 model | 384-dim vectors (small), fast on CPU, good quality, auto-downloaded by ChromaDB |
+| Separate `src/embedding.py` service | Single responsibility, testable, swappable (could use OpenAI embeddings later) |
+| Separate `src/storage/vector.py` | Mirrors existing `sqlite.py` storage pattern. ChromaDB lifecycle in one place. |
+| Article ID as ChromaDB document ID | Enables cross-reference between ChromaDB results and SQLite articles |
+| Batch reindex command | Existing articles need embeddings too. Cannot just do new articles. |
+
+---
+
+## Gaps / Phase-Specific Research Needed
+
+- **Batch embedding performance:** sentence-transformers supports `model.encode(list_of_texts)` - verify batch size for optimal throughput
+- **ChromaDB upsert behavior:** If `add` is called with an existing ID, does it update or error? Need to verify
+- **Metadata filtering:** ChromaDB supports `where` clauses on metadata - could filter by feed_id for feed-specific search
+
+---
+
+## Sources
+
+- [ChromaDB PyPI (v1.5.5, March 2026)](https://pypi.org/project/chromadb/) — HIGH confidence
+- [ChromaDB Embedding Functions Docs](https://docs.trychroma.com/docs/embeddings/embedding-functions) — HIGH confidence
+- [sentence-transformers PyPI](https://pypi.org/project/sentence-transformers/) — HIGH confidence
+- [ChromaDB GitHub](https://github.com/chroma-core/chroma) — MEDIUM confidence (PyPI more authoritative for API)
+
+---
+
+*Architecture research for: ChromaDB semantic search integration*
+*Researched: 2026-03-26*

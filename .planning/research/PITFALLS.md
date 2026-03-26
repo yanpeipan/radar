@@ -1,262 +1,216 @@
-# Pitfalls Research: Adding pytest to Existing Python CLI Project
+# Pitfalls Research
 
-**Domain:** Python pytest testing for CLI applications with SQLite and async code
-**Researched:** 2026-03-25
-**Confidence:** MEDIUM-HIGH
-
-## Executive Summary
-
-Adding pytest to an existing untested codebase requires discipline to avoid common mistakes that create brittle, over-mocked tests that verify implementation details rather than behavior. This project specifically needs to test Click CLI commands, SQLite storage operations, and async fetch functionality with uvloop/httpx.
+**Domain:** ChromaDB + sentence-transformers semantic search integration in Python content aggregation app
+**Researched:** 2026-03-26
+**Confidence:** MEDIUM (official docs limited, primarily GitHub issues and community discussions)
 
 ## Critical Pitfalls
 
-### Pitfall 1: Testing Private Functions
+### Pitfall 1: ChromaDB SQLite File Descriptor Leaks
 
 **What goes wrong:**
-Tests break when internal implementation changes, even when behavior remains correct. Refactoring becomes risky because tests become obstacles rather than safeguards.
+After running queries, ChromaDB fails with `sqlite3.OperationalError: unable to open database file` or `OSError: [Errno 24] Too many open files`. The service crashes intermittently after working fine initially.
 
 **Why it happens:**
-Developers naturally reach for "test everything" and end up testing `_private_functions`, `__init__` internals, and implementation details because they are visible and concrete.
+ChromaDB opens new SQLite connections for each operation but does not properly close them. Under load or after many queries, the process exhausts its file descriptor limit. This is a known bug in ChromaDB's sqlite pool implementation (GitHub issue #4039).
 
 **How to avoid:**
-- Test only public interfaces (module-level functions, class public methods)
-- If a function is complex enough to need testing, consider whether it should be public
-- Ask: "Would this test break if I refactored internals but kept behavior identical?"
+- Use ChromaDB in single-process mode (EphemeralClient or single PersistentClient instance)
+- Set `ulimit -n` to a high value before running (e.g., `ulimit -n 65536`)
+- Monitor open file descriptors with `lsof -p <pid>` for your Python process
+- Implement connection pooling at the application level if using PersistentClient
+- Consider using ChromaDB's HTTP client mode with a single worker to isolate the issue
 
 **Warning signs:**
-- Tests importing modules with `from src.module import _private_func`
-- Test names containing words like "internal", "helper", "private"
-- Tests that assert on intermediate state rather than final outcomes
+- `OSError: [Errno 24] Too many open files` appears in logs before the SQLite error
+- Query latency increases over time
+- Number of open files grows monotonically
 
 **Phase to address:**
-TEST-01 (pytest framework setup) should establish testing conventions that prevent this.
+This is a ChromaDB infrastructure issue — address in the **embedding storage phase** when setting up ChromaDB integration. Mitigation strategies should be in place before handling large article volumes.
 
 ---
 
-### Pitfall 2: Over-Mocking Database Layer
+### Pitfall 2: Embedding Function Not Persisted Across Restarts
 
 **What goes wrong:**
-Tests mock `sqlite3.connect` or storage functions, creating a false sense of security. Tests pass but real database operations fail in production because the mock never matched reality.
+A collection created with a custom embedding function (e.g., OpenAIEmbeddingFunction, or sentence-transformers) loses its embedding function after client restart. Subsequent queries fail or produce incorrect results.
 
 **Why it happens:**
-Developers want fast, isolated tests and reach for `unittest.mock.patch` on database functions. This is especially tempting when the database layer is complex.
+ChromaDB stores collection metadata (name, settings) but not the embedding function itself. When you recreate a client, the collection re-opens with the default embedding function unless you explicitly re-specify it.
 
 **How to avoid:**
-- Use in-memory SQLite (`:memory:`) for tests rather than mocking
-- Create a test database once per test session, reset between tests
-- Use `tmp_path` fixture to create isolated temporary database files
-
-**Warning signs:**
-- `mock.patch("sqlite3.connect")` in tests
-- Tests that never actually touch a real database
-- Assertions that mock was called rather than assertions on data
-
-**Correct approach for this project:**
-```python
-@pytest.fixture
-def test_db(tmp_path):
-    """Create isolated test database."""
-    db_path = tmp_path / "test.db"
-    # Copy schema if needed, or create fresh
-    yield db_path
-    # Cleanup automatic via tmp_path cleanup
-
-@pytest.fixture
-def storage(test_db):
-    """Storage instance pointing at test database."""
-    from src.storage.sqlite import Storage
-    return Storage(test_db)
-```
-
-**Phase to address:**
-TEST-02 (Provider tests) and TEST-03 (Storage tests) must use real database fixtures.
-
----
-
-### Pitfall 3: Not Testing Edge Cases
-
-**What goes wrong:**
-Tests only cover the happy path. Edge cases like empty feeds, malformed HTML, network timeouts, and database locks are never tested, leading to production failures.
-
-**Why it happens:**
-Happy path tests are easier to write. Edge cases require understanding failure modes and setting up appropriate conditions.
-
-**How to avoid:**
-- List edge cases before writing tests: empty, None, zero, max values, malformed input
-- Add tests for each failure mode the code is supposed to handle
-- Use `@pytest.mark.parametrize` for testing multiple edge cases
-
-**Warning signs:**
-- Tests that only use "normal" inputs
-- No tests for error conditions (400, 500 responses, timeouts)
-- No tests for empty results (empty feed, no articles found)
-
-**Phase to address:**
-TEST-02 (Provider tests) should include edge case coverage.
-
----
-
-### Pitfall 4: Click CLI Tests Using Subprocess
-
-**What goes wrong:**
-Tests invoke the CLI via `subprocess.run()` or `os.system()`, capturing output but making assertions difficult. This also slows tests significantly.
-
-**Why it happens:**
-It feels natural to "actually run" the CLI. The `click.testing.CliRunner` is not always discovered.
-
-**How to avoid:**
-Use `click.testing.CliRunner` for all CLI tests:
+- Always pass the same `embedding_function` when getting a collection: `client.get_collection("name", embedding_function=my_ef)`
+- Store the embedding function configuration alongside your app's configuration
+- Create a helper function that consistently initializes collections with the correct embedding function
+- Document which embedding function each collection uses
 
 ```python
-from click.testing import CliRunner
-from src.cli.main import cli
+# Correct pattern
+def get_articles_collection(client):
+    return client.get_collection(
+        "articles",
+        embedding_function=sentence_transformer_ef
+    )
 
-@pytest.fixture
-def runner():
-    return CliRunner()
-
-def test_fetch_command(runner, test_db):
-    """Test fetch command with isolated filesystem."""
-    with runner.isolated_filesystem():
-        result = runner.invoke(cli, ['--db', str(test_db), 'fetch'])
-        assert result.exit_code == 0
+# Wrong - loses embedding function after restart
+collection = client.get_collection("articles")
 ```
 
 **Warning signs:**
-- `subprocess.run`, `os.system`, or `Popen` in test code
-- Tests that cannot assert on exception details
-- Slow test execution from process spawning
+- Query results change unexpectedly after application restart
+- Embedding dimension mismatches when querying
+- Collection works initially but fails after code deployment
 
 **Phase to address:**
-TEST-04 (CLI tests) must use CliRunner properly.
+**Embedding generation phase** — the embedding function setup must be consistent and documented before any articles are added.
 
 ---
 
-### Pitfall 5: Async Test Event Loop Issues
+### Pitfall 3: Model Download on First Query Causes Timeout
 
 **What goes wrong:**
-Tests hang, fail with "event loop already running", or produce inconsistent results with async code using uvloop. Tests might pass in isolation but fail together.
+The first semantic search query hangs for 30+ seconds or times out. Subsequent queries are fast.
 
 **Why it happens:**
-uvloop replaces the default asyncio event loop. pytest-asyncio may not handle this correctly without proper configuration. Fixture and test scopes can conflict with event loop lifecycle.
+The default sentence-transformers model (`all-MiniLM-L6-v2`) downloads ~90MB of model files on first use. If network is slow or the first query is in a time-sensitive context, users experience long delays.
 
 **How to avoid:**
-- Use `pytest-asyncio` with proper configuration
-- Mark async tests with `@pytest.mark.asyncio`
-- For uvloop, ensure event loop is created and closed properly per test
-- Use function-scoped event loops (default) to avoid state leakage
+- Explicitly download/bake in the model at application startup, before any user query
 
-**Correct configuration for uvloop:**
 ```python
-# conftest.py
-import pytest
-import asyncio
-import uvloop
+from sentence_transformers import SentenceTransformer
 
-@pytest.fixture(scope="function")
-def event_loop():
-    """Create function-scoped event loop for uvloop."""
-    loop = uvloop.new_event_loop()
-    yield loop
-    loop.close()
+# At startup / initialization
+model = SentenceTransformer('all-MiniLM-L6-v2')
+# Warm up the model
+model.encode(["warmup"])
+```
+
+- Cache the model in a known location using `model.save()`
+- Consider bundling a smaller model or using ONNX for faster initialization
+- Set appropriate timeouts and show progress to users during first load
+
+**Warning signs:**
+- First search command takes >10 seconds
+- Logs show model downloading or `Downloading [...]` messages
+- ChromaDB collection creation is slow
+
+**Phase to address:**
+**Embedding generation phase** — model initialization should happen during app startup, not on first query.
+
+---
+
+### Pitfall 4: HNSW Index Corruption from Concurrent Access
+
+**What goes wrong:**
+HNSW index fails to load with `Error loading hnsw index` or `Error constructing hnsw segment reader`. The collection becomes unqueryable.
+
+**Why it happens:**
+ChromaDB's HNSW index (backed by hnswlib) has thread-safety limitations:
+- `add_items` and `knn_query` cannot run concurrently on the same index
+- `resize_index` is not thread-safe with `add_items` and `knn_query`
+- Pickling an index while adding items is not thread-safe (GitHub hnswlib issues)
+
+ChromaDB has known HNSW bugs including memory leaks and deleted nodes being counted toward `ef` (GitHub issue #3486).
+
+**How to avoid:**
+- Use ChromaDB in single-threaded mode for writing (no concurrent add operations)
+- Query operations (`knn_query`) can be concurrent but not with writes
+- Set `allow_reset=True` in Settings only if you can afford data loss for recovery
+- Implement application-level locking if you need concurrent writes to the same collection
+- Monitor index size — oversized indexes are more likely to corrupt
+
+**Warning signs:**
+- `Error loading hnsw index` in logs
+- Inconsistent query results (sometimes empty, sometimes correct)
+- Application crashes during concurrent write + read operations
+
+**Phase to address:**
+**Embedding storage phase** — the ChromaDB configuration and deployment mode must be decided before concurrent article fetching is implemented.
+
+---
+
+### Pitfall 5: Query Parameter In-Place Mutation Corruption
+
+**What goes wrong:**
+Query results become corrupted across calls. The `include` parameter accumulates mutations causing wrong results or validation errors.
+
+**Why it happens:**
+ChromaDB's CollectionCommon.py (line 307-314) mutates the `include` list in-place without copying it. If you reuse the same list object across multiple queries, mutations accumulate (GitHub issue #5857).
+
+**How to avoid:**
+Always pass a fresh list for the `include` parameter:
+
+```python
+# Wrong - can cause corruption
+my_include = ["embeddings", "documents"]
+collection.query(query_texts=["test1"], include=my_include)
+collection.query(query_texts=["test2"], include=my_include)  # my_include is now mutated
+
+# Correct - always use fresh list
+collection.query(query_texts=["test1"], include=["embeddings", "documents"])
+collection.query(query_texts=["test2"], include=["embeddings", "documents"])
 ```
 
 **Warning signs:**
-- "RuntimeError: event loop is running" errors
-- Tests that hang indefinitely
-- Intermittent failures that depend on test order
-- Memory leaks from unreleased event loops
+- Query results vary for the same query string
+- Validation errors in newer ChromaDB versions
+- Sporadic empty result sets
 
 **Phase to address:**
-TEST-01 setup must configure async testing correctly.
+**Query implementation phase** — wrap all query calls with fresh parameter lists.
 
 ---
 
-### Pitfall 6: Fixture Scope Causing State Leakage
+### Pitfall 6: Collection Deletion Leaves Orphaned Files
 
 **What goes wrong:**
-Tests pass individually but fail when run together. Data from one test appears in another. Database state persists between tests.
+Calling `delete_collection()` does not remove the data files from disk. Over time, disk usage grows unbounded even after deleting articles and collections.
 
 **Why it happens:**
-Session or module-scoped fixtures share state across tests. If fixtures aren't properly isolated or reset, tests become order-dependent.
+Known bug in ChromaDB: `delete_collection` and `collection.delete(ids)` do not properly clean up the underlying storage files. The folder in `./chroma/{uuid}` persists (GitHub issues #5520, #1309).
 
 **How to avoid:**
-- Use function-scoped fixtures by default for test data
-- Reset database state in fixtures, not just at session start
-- If using module scope, ensure proper teardown
+- Periodically run a cleanup routine that identifies and removes orphaned ChromaDB data directories
+- Track collection IDs in your SQLite database and explicitly clean up ChromaDB storage when articles are deleted
+- Use `client.reset()` only as a last resort (deletes ALL collections)
+- Monitor `./chroma` directory size separately from your SQLite database
 
-**Warning signs:**
-- Tests pass with `pytest -v` but fail with `pytest` (verbose can mask issues)
-- Tests must be run in specific order
-- "Database locked" errors appearing randomly
-- Data from deleted feeds still appearing
-
-**Phase to address:**
-TEST-01 (conftest.py setup) must establish proper fixture scopes.
-
----
-
-### Pitfall 7: Testing Click Context Without Proper Isolation
-
-**What goes wrong:**
-CLI tests pollute the real database or configuration files. Tests modify production data or depend on environment variables that aren't set in test context.
-
-**Why it happens:**
-Click applications often use global state (current working directory, environment variables, default database paths). Tests don't properly isolate from this.
-
-**How to avoid:**
-- Use `runner.isolated_filesystem()` for tests that create files
-- Use `monkeypatch` to set environment variables per test
-- Explicitly pass `--db` with test database path in CLI tests
-
-**Warning signs:**
-- Tests that leave files in current directory
-- Tests that depend on `HOME` or `USER` environment variables
-- "Database already exists" errors when running tests multiple times
-
-**Phase to address:**
-TEST-04 (CLI integration tests) must use proper isolation.
-
----
-
-## Moderate Pitfalls
-
-### Pitfall 8: Asserting on Exact Exception Messages
-
-**What goes wrong:**
-Tests fail when error messages change, even though the error behavior is correct.
-
-**How to avoid:**
-Assert on exception type first, message second:
 ```python
-with pytest.raises(OperationalError):
-    # Only verify the operation fails, not the exact message
-    storage.locked_operation()
+import shutil
+import os
+
+def cleanup_chroma_orphans(client, valid_collection_ids):
+    chroma_dir = "./chroma"
+    if not os.path.exists(chroma_dir):
+        return
+    for folder in os.listdir(chroma_dir):
+        folder_path = os.path.join(chroma_dir, folder)
+        if os.path.isdir(folder_path) and folder not in valid_collection_ids:
+            shutil.rmtree(folder_path)
 ```
 
----
+**Warning signs:**
+- `./chroma` directory grows despite deleting articles
+- `delete_collection()` returns success but disk usage unchanged
+- Multiple ChromaDB versions or restarts cause data accumulation
 
-### Pitfall 9: Not Testing Provider Plugin Architecture
-
-**What goes wrong:**
-Tests only test the concrete implementations, missing bugs in the plugin loading, registry lookup, or protocol adherence.
-
-**How to avoid:**
-- Test that the registry correctly loads providers
-- Test that `ContentProvider` protocol is actually implemented
-- Test provider priority ordering
+**Phase to address:**
+**Embedding storage phase** — implement cleanup alongside the storage implementation to prevent accumulation.
 
 ---
 
-### Pitfall 10: Forgetting to Test TagParser Chaining
+## Technical Debt Patterns
 
-**What goes wrong:**
-Tag parser chain may break silently if one parser fails. Multiple parsers returning conflicting results may not be handled.
-
-**How to avoid:**
-- Test `chain_tag_parsers` with mock parsers
-- Test behavior when one parser raises exception
-- Test deduplication logic
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Using default embedding function without explicit configuration | Simpler initial code | Embedding function loss on restart, inconsistent results | Never for production |
+| Letting ChromaDB manage its own SQLite | No separate setup | File descriptor leaks, persistence bugs | Only for very low-volume apps |
+| Not setting `ef` parameter for HNSW | Default works | Suboptimal search quality/speed | Only for initial prototyping |
+| Storing all embeddings in a single collection | Simpler code | Performance degradation at scale | Only for <10k articles |
+| Using relative paths for ChromaDB persistence | Works on dev machine | Path resolution issues in production | Only for single-user local apps |
+| Ignoring model warmup | Faster startup perceived | First query timeout | Only for CLI tools run once |
 
 ---
 
@@ -264,12 +218,12 @@ Tag parser chain may break silently if one parser fails. Multiple parsers return
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| SQLite + pytest | Using production database file | Use `tmp_path` or `:memory:` |
-| SQLite + async | Database locks from concurrent writes | Serialize writes via Lock in tests |
-| Click + CliRunner | Forgetting `isolated_filesystem` | Always use for file-creating commands |
-| httpx + tests | Making real network requests | Use `respx` or `httpx-mock` |
-| uvloop + pytest | Event loop not properly closed | Use fixture-scoped loop with cleanup |
-| feedparser + tests | Mocking the entire library | Use sample RSS/Atom fixtures |
+| ChromaDB + SQLite | Two separate database files with no coordination | Track ChromaDB collection IDs in SQLite; coordinate deletions |
+| ChromaDB + sentence-transformers | Model downloaded on first query | Pre-download and warmup model at startup |
+| ChromaDB + asyncio | Concurrent writes corrupt HNSW | Use asyncio.Lock for write operations to same collection |
+| ChromaDB + uvloop | Event loop conflicts with ChromaDB's threading | Use ChromaDB in main thread or separate process |
+| ChromaDB + httpx async fetch | Fast article ingestion floods ChromaDB | Add backpressure / batching for embedding writes |
+| ChromaDB + existing FTS5 | Redundant search capabilities | ChromaDB for semantic, FTS5 for keyword; do not duplicate |
 
 ---
 
@@ -277,28 +231,45 @@ Tag parser chain may break silently if one parser fails. Multiple parsers return
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Real network in tests | Tests slow, flaky, depend on internet | Use fixtures with sample data or mocks | At 100+ tests, CI becomes unusable |
-| Session-scoped DB fixture | Tests leak state between modules | Use function scope for test data | When tests modified by different developers |
-| Too many parametrized tests | Combinatorial explosion | Limit parameters, test boundary cases | With 5+ parameters of 3+ values each |
+| Large article batch ingestion | Memory spikes, HNSW index corruption | Batch embeddings (100-500 articles), add with pauses | >10k articles in single batch |
+| Using default HNSW `ef` | Slow queries or low recall | Set `ef=200` for better accuracy, tune based on results | >100k vectors |
+| No embedding cache | Repeated encoding of same content | Cache article embeddings in SQLite before ChromaDB | When re-fetching articles |
+| Single large collection | Query latency increases | Partition by feed or time period | >500k total article embeddings |
+| Not indexing on metadata | Slow filtered queries | Create separate collections or use ChromaDB's metadata indexing | When filtering by feed/tag/time |
 
 ---
 
-## Security Mistakes (Testing Context)
+## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Hardcoded credentials in test fixtures | Accidental exposure in VCS | Use environment variables or `.env.example` |
-| Test database in VCS | Production-like data leaked | Use `tmp_path`, ignore test DBs in `.gitignore` |
-| Secrets in mock responses | False sense of security | Use fake/example credentials in test data |
+| Storing embeddings without article content | Cannot reconstruct original text | Always store full article text alongside embedding |
+| No input sanitization on query_texts | Potential injection via malformed queries | Sanitize user query input before passing to ChromaDB |
+| Exposing ChromaDB HTTP server without auth | Unauthorized data access | Use local-only PersistentClient for personal tool |
+| Storing sensitive article metadata in ChromaDB | Data leakage if device compromised | Keep sensitive metadata in main SQLite only |
+
+---
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| First semantic search is slow | User thinks app is broken | Show "loading model..." message on first search |
+| Empty results for valid queries | User confused about semantic vs keyword | Clearly label semantic search; offer keyword fallback |
+| No similarity score explanation | User doesn't understand relevance | Show distance/similarity score alongside results |
+| Semantic search replacing FTS5 | Keyword searches become less discoverable | Keep both; semantic for "related", FTS5 for "exact" |
+| No indication of search mode | User uses wrong command | Visual distinction between `search` and `search --semantic` |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **CLI tests:** Often only test happy path -- verify error cases tested
-- [ ] **Provider tests:** Often miss testing plugin loading failures -- verify registry tests exist
-- [ ] **Storage tests:** Often mock database instead of using real one -- verify integration tests
-- [ ] **Async tests:** Often don't actually test concurrency -- verify race conditions tested
+- [ ] **Embedding generation:** Model downloads successfully but warmup not done — verify first query is fast
+- [ ] **Embedding storage:** ChromaDB collection created but embedding function not saved — verify across restart
+- [ ] **Article deletion:** Article deleted from SQLite but ChromaDB orphan files remain — verify disk usage
+- [ ] **Semantic search:** Query returns results but similarity scores not shown — verify result quality
+- [ ] **Collection cleanup:** `delete_collection` called but data folder persists — verify cleanup routine
+- [ ] **Incremental updates:** New articles added but embeddings not generated — verify background job works
 
 ---
 
@@ -306,10 +277,12 @@ Tag parser chain may break silently if one parser fails. Multiple parsers return
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Over-mocked tests | HIGH | Rewrite to use real database fixtures; remove mocks incrementally |
-| State leakage | MEDIUM | Clear database between tests; check fixture scopes |
-| Event loop issues | MEDIUM | Reconfigure pytest-asyncio; ensure uvloop properly closed |
-| Click isolation | LOW | Add CliRunner.isolated_filesystem(); verify no file pollution |
+| ChromaDB file descriptor exhaustion | MEDIUM | Restart process, increase ulimit, switch to single-worker mode |
+| HNSW index corruption | HIGH | Delete collection, re-embed all articles, restore from backup |
+| Embedding function loss | MEDIUM | Re-specify embedding function, verify dimension consistency |
+| Orphaned ChromaDB storage | LOW | Run cleanup script to remove `./chroma` directories for deleted collections |
+| Query corruption from mutation | LOW | Restart application, pass fresh list objects to queries |
+| Model not pre-downloaded | LOW | Pre-download model, add warmup at startup |
 
 ---
 
@@ -317,25 +290,29 @@ Tag parser chain may break silently if one parser fails. Multiple parsers return
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Testing private functions | TEST-01: Setup conventions | Code review checklist for test imports |
-| Over-mocking database | TEST-03: Storage tests | Tests must use real `Storage` with `tmp_path` |
-| Missing edge cases | TEST-02: Provider tests | Parametrized tests for RSS empty, malformed |
-| Click CLI subprocess | TEST-04: CLI tests | Verify only `CliRunner.invoke` used |
-| Async event loop issues | TEST-01: pytest-asyncio config | Tests must run clean with `-v --tb=short` |
-| Fixture state leakage | TEST-01: conftest fixtures | `pytest --collect-only` then run to verify isolation |
-| Click context isolation | TEST-04: CLI integration | Verify no files in cwd after tests |
+| File descriptor leaks | Phase: Embedding Storage Infrastructure | Monitor open files during extended use |
+| Embedding function persistence | Phase: Embedding Generation | Restart app, verify query still works |
+| Model download timeout | Phase: Embedding Generation | First query should be <2 seconds after warmup |
+| HNSW corruption | Phase: Embedding Storage | Test concurrent read/write scenarios |
+| Query parameter mutation | Phase: Query Implementation | Run same query 10x, verify consistent results |
+| Orphaned storage files | Phase: Embedding Storage | Delete articles, verify disk usage decreases |
+| asyncio conflicts | Phase: Async Integration | Test uvloop + ChromaDB coexistence |
 
 ---
 
 ## Sources
 
-- [pytest Fixture Documentation](https://docs.pytest.org/en/latest/explanation/fixtures.html) (HIGH confidence)
-- [Click Testing Documentation](https://click.palletsprojects.com/en/latest/testing/) (HIGH confidence)
-- [Python sqlite3 Documentation](https://docs.python.org/3/library/sqlite3.html) (HIGH confidence)
-- [pytest xunit setup](https://docs.pytest.org/en/latest/how-to/xunit_setup.html) (HIGH confidence)
-- [pytest unittest integration](https://docs.pytest.org/en/latest/how-to/unittest.html) (HIGH confidence)
+- [ChromaDB GitHub Issue #4039](https://github.com/chroma-core/chroma/issues/4039) — SQLite file descriptor leak (HIGH confidence)
+- [ChromaDB GitHub Issue #3486](https://github.com/chroma-core/chroma/issues/3486) — HNSW bugs (HIGH confidence)
+- [ChromaDB GitHub Issue #5857](https://github.com/chroma-core/chroma/issues/5857) — Query parameter mutation corruption (HIGH confidence)
+- [ChromaDB GitHub Issue #6021](https://github.com/chroma-core/chroma/issues/6021) — Embedding function not persisted (HIGH confidence)
+- [ChromaDB GitHub Issue #5520](https://github.com/chroma-core/chroma/issues/5520) — Collection deletion leaves files (HIGH confidence)
+- [ChromaDB GitHub Issue #1309](https://github.com/chroma-core/chroma/issues/1309) — PersistentClient delete_collection bug (HIGH confidence)
+- [ChromaDB GitHub Issue #6432](https://github.com/chroma-core/chroma/issues/6432) — Multi-worker inconsistency (HIGH confidence)
+- [hnswlib GitHub](https://github.com/nmslib/hnswlib) — Thread safety warnings, distance metric limitations (HIGH confidence)
+- [sentence-transformers Documentation](https://www.sbert.net/docs/pretrained_models.html) — Model selection, common mistakes (HIGH confidence)
+- [ChromaDB Documentation](https://docs.trychroma.com/docs/overview) — Embedding configuration (MEDIUM confidence — API docs partially unavailable)
 
 ---
-
-*Pitfalls research for: pytest testing on Python CLI with SQLite and async*
-*Researched: 2026-03-25*
+*Pitfalls research for: ChromaDB + sentence-transformers semantic search in Python RSS reader*
+*Researched: 2026-03-26*
