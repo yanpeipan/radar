@@ -128,17 +128,26 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
                 timeout=10.0,
             ) as client:
                 response = await client.get(start_url)
-                if response.status_code != 200:
-                    return []
-                html = response.text
-                page_url = str(response.url)
-                return await _discover_feeds_on_page(html, page_url)
+                if response.status_code == 200:
+                    html = response.text
+                    page_url = str(response.url)
+                    return await _discover_feeds_on_page(html, page_url)
+                # Non-200: fall through to well-known path probing
         except Exception:
-            return []
+            pass
+
+        # Fall back to well-known path probing (handles sites that return 403, etc.)
+        return await _probe_well_known_paths(start_url)
 
     # Deep crawl (max_depth > 1)
     # Normalize start URL
     normalized_start = normalize_url_for_visit(start_url)
+
+    # Probe well-known paths on start URL first (before BFS crawl)
+    # This handles sites that return 403/404 on main page but have feeds at well-known paths
+    start_feeds = await _probe_well_known_paths(start_url)
+    if start_feeds:
+        return start_feeds
 
     # BFS queue: (url, depth)
     queue: deque[tuple[str, int]] = deque()

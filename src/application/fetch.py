@@ -14,7 +14,7 @@ from typing import Optional
 from src.application.feed import FeedNotFoundError, fetch_one, get_feed
 from src.models import Feed
 from src.providers import discover_or_default
-from src.storage import list_feeds as storage_list_feeds, store_article_async, add_article_embedding
+from src.storage import list_feeds as storage_list_feeds, store_article_async
 from src.utils import generate_article_id
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,8 @@ async def fetch_one_async(feed: Feed) -> dict:
 
             # Generate embedding for semantic search (D-09)
             try:
+                # Lazy import to avoid torch dependency when embeddings are not needed
+                from src.storage.vector import add_article_embedding
                 await asyncio.to_thread(
                     add_article_embedding,
                     article_id=article_guid,
@@ -142,6 +144,8 @@ async def fetch_url_async(url: str) -> dict:
 
             # Generate embedding for semantic search
             try:
+                # Lazy import to avoid torch dependency when embeddings are not needed
+                from src.storage.vector import add_article_embedding
                 await asyncio.to_thread(
                     add_article_embedding,
                     article_id=article_guid,

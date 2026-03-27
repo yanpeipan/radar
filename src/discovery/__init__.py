@@ -100,7 +100,9 @@ async def discover_feeds(url: str, max_depth: int = 1) -> list[DiscoveredFeed]:
     except ValueError:
         return []
 
-    # Fetch page HTML
+    # Fetch page HTML (try even if non-200, since autodiscovery may still find feeds)
+    html: str | None = None
+    page_url = normalized
     try:
         async with httpx.AsyncClient(
             headers=BROWSER_HEADERS,
@@ -108,16 +110,14 @@ async def discover_feeds(url: str, max_depth: int = 1) -> list[DiscoveredFeed]:
             timeout=10.0,
         ) as client:
             response = await client.get(normalized)
-            if response.status_code != 200:
-                return []
-            html = response.text
-            page_url = str(response.url)
+            if response.status_code == 200:
+                html = response.text
+                page_url = str(response.url)
     except Exception as e:
         logger.debug(f"Failed to fetch page {normalized}: {e}")
-        return []
 
-    # Try autodiscovery first
-    discovered = parse_link_elements(html, page_url)
+    # Try autodiscovery first (only if we have HTML)
+    discovered = parse_link_elements(html, page_url) if html else []
 
     if discovered:
         # Validate and filter autodiscovery feeds concurrently

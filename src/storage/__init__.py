@@ -1,12 +1,10 @@
-"""Storage package for SQLite database operations."""
+"""Storage package for SQLite database operations.
 
-from src.storage.vector import (
-    add_article_embedding,
-    get_chroma_collection,
-    get_embedding_function,
-    search_articles_semantic,
-    get_related_articles,
-)
+Vector storage (ChromaDB) imports are lazy to avoid torch import overhead.
+Import vector functions directly from src.storage.vector when needed:
+    from src.storage.vector import search_articles_semantic, add_article_embedding
+"""
+
 from src.storage.sqlite import (
     get_db,
     init_db,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.storage import get_related_articles as storage_get_related_articles
+from src.storage.vector import get_related_articles as storage_get_related_articles
 
 
 def get_related_articles_display(article_id: str, limit: int = 5, verbose: bool = False) -> list[dict[str, str]]:

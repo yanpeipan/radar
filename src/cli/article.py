@@ -11,8 +11,8 @@ from rich.panel import Panel
 from rich.table import Table
 from src.application.articles import get_article_detail, list_articles, search_articles
 from src.application.search import format_semantic_results, format_fts_results
-from src.application.related import get_related_articles_display
-from src.storage import search_articles_semantic
+# Lazy import: from src.application.related import get_related_articles_display
+# Lazy import: from src.storage.vector import search_articles_semantic
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +132,8 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
     verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
     try:
         if semantic:
+            # Lazy import to avoid torch dependency for non-semantic search
+            from src.storage.vector import search_articles_semantic
             results = search_articles_semantic(query_text=query, limit=limit)
             if not results: click.secho("No articles found matching your semantic search."); return
             formatted = format_semantic_results(results, verbose=verbose)
@@ -166,6 +168,8 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
 def article_related(ctx: click.Context, article_id: str, limit: int) -> None:
     verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
     try:
+        # Lazy import to avoid torch dependency when not using related articles
+        from src.application.related import get_related_articles_display
         results = get_related_articles_display(article_id=article_id, limit=limit, verbose=verbose)
         if not results: click.secho("No related articles found."); return
         if results and results[0].get("no_embedding"):

@@ -14,7 +14,6 @@ from src.application.feed import (
     remove_feed,
     fetch_one,
 )
-from src.application.fetch import fetch_all_async, fetch_ids_async, fetch_one_async_by_id
 import uvloop
 from src.discovery import discover_feeds, DiscoveredFeed
 from src.cli.discover import _display_feeds
@@ -309,6 +308,9 @@ def fetch(ctx: click.Context, do_fetch_all: bool, concurrency: int, ids: tuple) 
 
       rss-reader fetch <feed_id> [<feed_id>...]  Fetch specific feeds by ID
     """
+    # Lazy import to avoid torch dependency for non-fetch commands
+    from src.application.fetch import fetch_all_async, fetch_ids_async, fetch_one_async_by_id
+
     # Case 1: ID arguments provided
     if ids:
         try:

@@ -45,13 +45,22 @@ async def validate_feed(url: str) -> tuple[bool, str | None]:
             # Also check against FEED_CONTENT_TYPES
             for ft in FEED_CONTENT_TYPES:
                 if ft in content_type:
-                    # Determine feed_type from content type
+                    # Determine feed_type from content type or URL extension
                     if 'rss' in content_type:
                         return True, 'rss'
                     if 'atom' in content_type:
                         return True, 'atom'
                     if 'rdf' in content_type:
                         return True, 'rdf'
+                    # For text/xml or application/xml, detect from URL path
+                    if 'xml' in content_type:
+                        lower_url = url.lower()
+                        if '/rss' in lower_url or '.rss' in lower_url or '/feed' in lower_url:
+                            return True, 'rss'
+                        if '/atom' in lower_url:
+                            return True, 'atom'
+                        if '/rdf' in lower_url:
+                            return True, 'rdf'
 
             return False, None
 

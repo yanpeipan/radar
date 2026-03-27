@@ -11,6 +11,7 @@ WELL_KNOWN_PATHS: tuple[str, ...] = (
     "/atom.xml",
     "/feed.xml",
     "/index.xml",
+    "/news/rss.xml",
 )
 
 # MIME types for feed Content-Type validation (DISC-04)
