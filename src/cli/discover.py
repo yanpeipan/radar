@@ -74,6 +74,7 @@ from src.cli import cli
     "--discover-deep",
     default=1,
     type=click.IntRange(1, 10),
+    dest="discover_depth",
     help="Crawl depth for feed discovery (default: 1)",
 )
 @click.pass_context

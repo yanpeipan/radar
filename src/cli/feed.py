@@ -147,6 +147,7 @@ def feed(ctx: click.Context) -> None:
     "--discover-deep",
     default=1,
     type=click.IntRange(1, 10),
+    dest="discover_depth",
     help="Discovery crawl depth (default: 1)",
 )
 @click.pass_context
