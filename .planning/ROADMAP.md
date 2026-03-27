@@ -86,7 +86,7 @@
 
 ### 🚧 v1.9 Automatic Discovery Feed (Phases 34-37)
 
-- [ ] **Phase 34: Discovery Core Module** — HTML parsing, path probing, URL resolution, feed validation
+- [x] **Phase 34: Discovery Core Module** — HTML parsing, path probing, URL resolution, feed validation
 - [ ] **Phase 35: Discovery CLI Command** — `discover <url>` command
 - [ ] **Phase 36: Feed Add Integration** — `--discover` and `--automatic` flags
 - [ ] **Phase 37: Deep Crawling** — BFS crawler, robots.txt, documentation
@@ -116,7 +116,9 @@ Plans:
   2. User can run `discover <url> --discover-deep 1` to limit crawling to depth 1 (current page only)
   3. User can run `discover <url> --discover-deep 2` to enable BFS crawling up to depth 2
   4. CLI output shows feed URL, feed type (RSS/Atom/RDF), and title if available
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 35-01-PLAN.md — Discovery CLI command (discover.py, registration)
 
 ### Phase 36: Feed Add Integration
 **Goal**: Users can add feeds via discovery using `feed add <url> --discover --automatic --discover-deep`
@@ -241,7 +243,7 @@ Plans:
 | 31. Write Path - Incremental Embedding | 2/2 | ✅ Complete | 2026-03-26 |
 | 32. Query Path - Semantic Search CLI | — | ✅ Complete | 2026-03-27 |
 | 33. Polish - Error Handling | — | ✅ Complete | 2026-03-27 |
-| 34. Discovery Core Module | 0/3 | Not started | - |
+| 34. Discovery Core Module | 3/3 | ✅ Complete | 2026-03-27 |
 | 35. Discovery CLI Command | — | Not started | - |
 | 36. Feed Add Integration | — | Not started | - |
 | 37. Deep Crawling | — | Not started | - |
