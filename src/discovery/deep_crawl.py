@@ -104,8 +104,92 @@ async def _probe_well_known_paths(page_url: str, html: str | None = None) -> lis
     return results
 
 
+async def _find_feed_links_on_page(html: str, page_url: str) -> list[DiscoveredFeed]:
+    """Find feed links on a page using CSS selectors.
+
+    Uses CSS attribute selectors to find links containing feed-related
+    patterns (rss, feed, atom, .xml) directly on the page.
+
+    Args:
+        html: Raw HTML content.
+        page_url: URL the HTML was fetched from.
+
+    Returns:
+        List of DiscoveredFeed found via CSS selector link discovery.
+    """
+    from urllib.parse import urlparse as _urlparse
+
+    results = []
+    page = Selector(content=html)
+
+    # Check for <base href> override
+    base_override: str | None = None
+    head = page.find('head')
+    if head:
+        base_tag = head.find('base[href]')
+        if base_tag:
+            base_override = base_tag.attrib['href']
+
+    # Use CSS selectors to find feed-like links directly
+    feed_selectors = [
+        'a[href*="rss"]',
+        'a[href*="feed"]',
+        'a[href*="atom"]',
+        'a[href$=".xml"]',
+    ]
+
+    found_urls: set[str] = set()
+
+    for selector in feed_selectors:
+        for anchor in page.css(selector):
+            href = anchor.attrib.get('href', '')
+
+            # Skip non-HTTP URLs
+            if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
+                continue
+
+            # Resolve relative URLs
+            if base_override:
+                absolute = urljoin(base_override, href)
+            else:
+                absolute = urljoin(page_url, href)
+
+            parsed = _urlparse(absolute)
+
+            # Skip non-HTTP(S)
+            if parsed.scheme not in ('http', 'https'):
+                continue
+
+            # Skip different hosts
+            if parsed.netloc.lower() != _urlparse(page_url).netloc.lower():
+                continue
+
+            # Skip non-HTML resources (simple heuristic)
+            path = parsed.path.lower()
+            if any(path.endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg', '.woff', '.pdf', '.zip', '.mp3', '.mp4')):
+                continue
+
+            if absolute in found_urls:
+                continue
+            found_urls.add(absolute)
+
+            # Validate via HTTP
+            is_valid, feed_type = await validate_feed(absolute)
+            if is_valid:
+                title = await _extract_feed_title(absolute)
+                results.append(DiscoveredFeed(
+                    url=absolute,
+                    title=title,
+                    feed_type=feed_type,
+                    source='css_selector',
+                    page_url=page_url,
+                ))
+
+    return results
+
+
 async def _discover_feeds_on_page(html: str, page_url: str) -> list[DiscoveredFeed]:
-    """Discover feeds on a single page via autodiscovery + well-known paths.
+    """Discover feeds on a single page via autodiscovery + CSS selectors + well-known paths.
 
     Args:
         html: Raw HTML content.
@@ -133,7 +217,12 @@ async def _discover_feeds_on_page(html: str, page_url: str) -> list[DiscoveredFe
         if valid_feeds:
             return valid_feeds
 
-    # Fallback to well-known path probing (pass html for dynamic subdir discovery)
+    # Try CSS selector link discovery
+    css_feeds = await _find_feed_links_on_page(html, page_url)
+    if css_feeds:
+        return css_feeds
+
+    # Fallback to well-known path probing
     return await _probe_well_known_paths(page_url, html)
 
 
