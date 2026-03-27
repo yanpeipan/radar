@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: ChromaDB 语义搜索
 status: completed
-stopped_at: Completed quick task 260327-g38
-last_updated: "2026-03-27T03:38:00.000Z"
-last_activity: "2026-03-27 — Completed quick task 260327-g38: 删除 orphaned crawl module files"
+stopped_at: Completed quick task 260327-ghv
+last_updated: "2026-03-27T12:00:00.000Z"
+last_activity: "2026-03-27 — Completed quick task 260327-ghv: src/cli/article.py 保持代码行数少于200"
 progress:
   total_phases: 4
   completed_phases: 3
@@ -220,3 +220,4 @@ Stopped at: Completed quick task 260327-eqg
 | 260327-feu | Remove preload_embedding_model from CLI init | 2026-03-27 | e091ed5 | Verified | [260327-feu-remove-preload-embedding-model-from-cli-](./quick/260327-feu-remove-preload-embedding-model-from-cli-/) |
 | 260327-fsm | src/cli/feed.py 参数urls改为ids | 2026-03-27 | 00b3c16 | Verified | [260327-fsm-src-cli-feed-py-urls-ids](./quick/260327-fsm-src-cli-feed-py-urls-ids/) |
 | 260327-g38 | 删除 orphaned crawl module files (src/application/crawl.py, src/cli/crawl.py) | 2026-03-27 | c3da6d0 | Verified | [260327-g38-remove-src-application-crawl-py-and-src-](./quick/260327-g38-remove-src-application-crawl-py-and-src-/) |
+| 260327-ghv | src/cli/article.py 保持代码行数少于200，cli层不做业务逻辑 | 2026-03-27 | e535741 | Verified | [260327-ghv-src-cli-article-py-200-cli-application](./quick/260327-ghv-src-cli-article-py-200-cli-application/) |
