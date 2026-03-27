@@ -623,6 +623,22 @@ def get_article(article_id: str) -> Optional[list]:
         )
 
 
+def get_article_id_by_url(url: str) -> Optional[str]:
+    """Get article nanoid by URL (guid).
+
+    Args:
+        url: The article URL (stored as guid in SQLite)
+
+    Returns:
+        The SQLite article nanoid (id), or None if not found.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM articles WHERE guid = ?", (url,))
+        row = cursor.fetchone()
+        return row["id"] if row else None
+
+
 def get_article_detail(article_id: str) -> Optional[dict]:
     """Get full article details including content and tags."""
     with get_db() as conn:

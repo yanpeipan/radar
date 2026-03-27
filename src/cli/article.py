@@ -323,6 +323,9 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
                     similarity = "N/A"
                 if verbose:
                     click.secho(f"\nTitle: {title}")
+                    sqlite_id = result.get("sqlite_id")
+                    if sqlite_id:
+                        click.secho(f"ID: {sqlite_id[:8]}")
                     click.secho(f"URL: {url}")
                     click.secho(f"Similarity: {similarity}")
                     doc = result.get("document") or ""
@@ -330,7 +333,9 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
                         preview = doc[:150] + "..." if len(doc) > 150 else doc
                         click.secho(f"Content preview: {preview}")
                 else:
-                    click.secho(f"{title[:50]} | Similarity: {similarity}")
+                    sqlite_id = result.get("sqlite_id")
+                    id_display = f"{sqlite_id[:8]} | " if sqlite_id else ""
+                    click.secho(f"{id_display}{title[:40]} | Similarity: {similarity}")
         else:
             # FTS5 keyword search
             articles = search_articles(query=query, limit=limit, feed_id=feed_id)

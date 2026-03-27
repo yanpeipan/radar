@@ -144,7 +144,7 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
         limit: Maximum number of results to return
 
     Returns:
-        List of dicts with keys: article_id, title, url, distance, document
+        List of dicts with keys: article_id, sqlite_id, title, url, distance, document
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -177,8 +177,13 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
     distances = results.get("distances", [[]])[0]
 
     for i, article_id in enumerate(ids):
+        # Look up SQLite article nanoid from URL (guid)
+        from src.storage.sqlite import get_article_id_by_url
+        sqlite_id = get_article_id_by_url(article_id) if article_id else None
+
         articles.append({
             "article_id": article_id,
+            "sqlite_id": sqlite_id,
             "title": metadatas[i].get("title") if metadatas[i] else None,
             "url": metadatas[i].get("url") if metadatas[i] else None,
             "distance": distances[i] if i < len(distances) else None,
