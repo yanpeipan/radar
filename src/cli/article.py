@@ -9,8 +9,6 @@ import click
 from rich.console import Console
 from rich.table import Table
 from src.application.articles import get_article_detail, list_articles, search_articles, ArticleListItem
-# Lazy import: from src.application.related import get_related_articles_display
-# Lazy import: from src.storage.vector import search_articles_semantic
 
 logger = logging.getLogger(__name__)
 
