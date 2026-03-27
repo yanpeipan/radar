@@ -333,11 +333,11 @@ def _format_date_for_display(pub_date: str | None) -> str:
     return pub_date[:10] if len(pub_date) >= 10 else pub_date
 
 
-def print_articles(items: list[dict[str, Any]], verbose: bool = False) -> None:
+def print_articles(items: list[Any], verbose: bool = False) -> None:
     """Print formatted articles to console.
 
     Args:
-        items: List of formatted article dicts from format_articles()
+        items: List of ArticleListItem (list/search) or dict (semantic).
         verbose: If True, show detailed output with full fields
     """
     import click
@@ -350,10 +350,37 @@ def print_articles(items: list[dict[str, Any]], verbose: bool = False) -> None:
     click.secho("ID | Title | Source | Date | Score\n" + "-" * 80)
 
     for item in items:
+        # Determine if this is an ArticleListItem or dict
+        if hasattr(item, '__dataclass_fields__'):  # ArticleListItem
+            article_id = item.id
+            title = item.title
+            source = item.feed_name
+            date = item.pub_date
+            score = item.score
+            link = item.link
+            description = item.description
+        else:  # dict (semantic search)
+            article_id = item.get("sqlite_id") or item.get("id") or ""
+            title = item.get("title") or "No title"
+            url = item.get("url")
+            source = urlparse(url).netloc[:15] if url else "-"
+            date = item.get("pub_date") or "-"
+            score = item.get("score", 1.0)
+            link = url
+            description = item.get("document")
+
         if verbose:
-            _print_article_verbose(item)
+            _print_article_verbose({
+                "id": article_id,
+                "title": title,
+                "source": source,
+                "date": date,
+                "score": score,
+                "link": link,
+                "description_preview": description[:100] + "..." if description and len(description) > 100 else description,
+            })
         else:
-            click.secho(f"{item['id'][:8]} | {item['title'][:60]} | {item['source'][:15]} | {item['date'][:10]} | {item['score'][:4]}")
+            click.secho(f"{article_id[:8]} | {title[:60]} | {source[:15]} | {date[:10] if date else '-'} | {str(score)[:4]}")
 
 
 def _print_article_verbose(item: dict[str, Any]) -> None:
