@@ -96,58 +96,9 @@ def init_db() -> None:
     Feeds table stores feed sources with metadata for conditional fetching.
     Articles table stores individual items with foreign key to feeds.
     """
-    with get_db() as conn:
-        cursor = conn.cursor()
+    from src.storage.sqlite.init import DatabaseInitializer
 
-        # Feeds table: stores RSS/Atom feed sources
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS feeds (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                url TEXT NOT NULL UNIQUE,
-                etag TEXT,
-                last_modified TEXT,
-                last_fetched TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                weight REAL DEFAULT 0.3
-            )
-        """)
-
-        # Articles table: stores individual feed items
-        # Note: id is NOT PRIMARY KEY - same article can exist in multiple feeds
-        # with UNIQUE(feed_id, id) constraint
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS articles (
-                id TEXT NOT NULL,
-                feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
-                title TEXT,
-                link TEXT,
-                guid TEXT NOT NULL,
-                pub_date TEXT,
-                description TEXT,
-                content TEXT,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(feed_id, id)
-            )
-        """)
-
-        # Indexes for common query patterns
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_pub_date ON articles(pub_date)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_articles_link ON articles(link)")
-
-        # FTS5 virtual table for full-text search
-        # Uses porter tokenizer for English stemming
-        cursor.execute("""
-            CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(
-                title,
-                description,
-                content,
-                tokenize='porter ascii'
-            )
-        """)
-
-        conn.commit()
+    DatabaseInitializer().init_db()
 
 
 def store_article(

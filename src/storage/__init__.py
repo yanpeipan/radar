@@ -5,7 +5,7 @@ Import vector functions directly from src.storage.vector when needed:
     from src.storage.vector import search_articles_semantic, add_article_embedding
 """
 
-from src.storage.sqlite import (
+from src.storage.sqlite.impl import (
     get_db,
     init_db,
     store_article,
@@ -23,3 +23,5 @@ from src.storage.sqlite import (
     ensure_crawled_feed,
     get_articles_by_ids,
 )
+
+from src.storage.sqlite.init import DatabaseInitializer

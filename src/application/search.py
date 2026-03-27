@@ -333,16 +333,3 @@ def _format_date_for_display(pub_date: str | None) -> str:
 
     # Fallback: return as-is (should not reach here normally)
     return pub_date[:10] if len(pub_date) >= 10 else pub_date
-
-
-def _print_article_verbose(item: dict[str, Any]) -> None:
-    """Print a single article in verbose mode."""
-    import click
-    click.secho(f"\nTitle: {item['title']}")
-    if item.get('id'): click.secho(f"ID: {item['id']}")
-    if item.get('source'): click.secho(f"Source: {item['source']}")
-    if item.get('date'): click.secho(f"Date: {item['date']}")
-    if item.get('link'): click.secho(f"Link: {item['link']}")
-    if item.get('url'): click.secho(f"URL: {item['url']}")
-    if item.get('description_preview'): click.secho(f"Description: {item['description_preview']}")
-    if item.get('document_preview'): click.secho(f"Content preview: {item['document_preview']}")
