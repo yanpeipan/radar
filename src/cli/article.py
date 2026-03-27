@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from src.application.articles import get_article_detail, list_articles, search_articles
-from src.application.search import format_semantic_results, format_fts_results, rank_semantic_results, format_articles
+from src.application.search import format_semantic_results, format_fts_results, rank_semantic_results, rank_list_results, rank_fts_results, format_articles
 # Lazy import: from src.application.related import get_related_articles_display
 # Lazy import: from src.storage.vector import search_articles_semantic
 
@@ -59,7 +59,8 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], verbose
         table.add_column("Source", max_width=20)
         table.add_column("Date", max_width=10)
 
-        formatted = format_articles(articles, mode='list', verbose=verbose)
+        ranked = rank_list_results(articles)
+        formatted = format_articles(ranked, verbose=verbose)
         for item in formatted:
             table.add_row(item['id'][:8] if not verbose else item['id'], item['title'][:50], item['source'][:20], item['date'][:10])
         console.print(table)
@@ -144,7 +145,8 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
         else:
             articles = search_articles(query=query, limit=limit, feed_id=feed_id)
             if not articles: click.secho("No articles found matching your search."); return
-            formatted = format_fts_results(articles, verbose=verbose)
+            ranked = rank_fts_results(articles)
+            formatted = format_articles(ranked, verbose=verbose)
             click.secho("ID | Title | Source | Date | Score\n" + "-" * 80)
             for item in formatted:
                 if verbose:
