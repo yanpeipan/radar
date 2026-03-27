@@ -1,16 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: TBD
+milestone: v1.0
+milestone_name: milestone
 status: planning
-stopped_at: "Milestone v1.9/v1.10/v1.11 completed — all phases verified"
-last_updated: "2026-03-28T00:00:00.000Z"
-last_activity: 2026-03-28
+stopped_at: "Completed quick task 260328-3bv: feed weight refactor for semantic search"
+last_updated: "2026-03-28"
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 10
-  completed_plans: 10
+  total_phases: 40
+  completed_phases: 39
+  total_plans: 66
+  completed_plans: 65
 ---
 
 # Project State
@@ -177,8 +176,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-28T00:12:00.000Z
-Stopped at: Completed quick task 260328-2v6: unified article list formatting
+Last session: 2026-03-28
+Stopped at: Completed quick task 260328-3bv: feed weight refactor for semantic search
 
 ## Quick Tasks Completed
 
@@ -239,6 +238,7 @@ Stopped at: Completed quick task 260328-2v6: unified article list formatting
 | Phase 37 P37-01 | <5 | 4 tasks | 5 files |
 | Phase 37 P37-02 | ~3 | 3 tasks | 2 files |
 | 260328-173 | Unified Rich progress bar and elapsed time UI for src.cli commands | 2026-03-28 | — | Verified | [260328-173-src-cli-ui](./quick/260328-173-src-cli-ui/) |
+| 260328-3bv | Refactor source weight to use feed.weight from database, delete domain matching | 2026-03-28 | ff6f478 | Verified | [260328-3bv-feeds-weight](./quick/260328-3bv-feeds-weight/) |
 | 260327-sp3 | Implement regex-based feed path matching with generate_feed_candidates() | 2026-03-27 | e5e38d9 | Verified | [260327-sp3-implement-regex-based-feed-path-matching](./quick/260327-sp3-implement-regex-based-feed-path-matching/) |
 | 260327-t7d | Refactor src/discovery HTML parsing from BeautifulSoup to Scrapling | 2026-03-27 | b12cf01 | Verified | [260327-t7d-scrapling-src-discovery](./quick/260327-t7d-scrapling-src-discovery/) |
 | 260327-tpu | Replace httpx with Scrapling Fetcher in deep_crawl | 2026-03-27 | bbe0da8 | Verified | [260327-tpu-replace-beautifulsoup-with-scrapling-in-](./quick/260327-tpu-replace-beautifulsoup-with-scrapling-in-/) |
