@@ -303,8 +303,8 @@ Plans:
 | 35. Discovery CLI Command | 1/1 | ✅ Complete | 2026-03-27 |
 | 36. Feed Add Integration | 1/1 | ✅ Complete | 2026-03-27 |
 | 37. Deep Crawling | 2/2 | Complete    | 2026-03-27 |
-| 38. Search Result Ranking | 1/1 | Complete   | 2026-03-27 |
-| 39. uvloop Best Practices Review | 1/1 | ✅ Complete | 2026-03-28 |
+| 38. Search Result Ranking | 1/1 | Complete    | 2026-03-27 |
+| 39. uvloop Best Practices Review | 1/1 | Complete    | 2026-03-27 |
 | 40. Comprehensive uvloop Audit | 1/1 | ✅ Complete | 2026-03-28 |
 
 ---
