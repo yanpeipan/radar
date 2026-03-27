@@ -249,3 +249,4 @@ Stopped at: Completed Quick Task 260327-sp3 - regex-based feed path matching
 | 260327-us7 | Remove dead code is_bozo_feed (never called) | 2026-03-27 | 1fc6c58 | Verified | [260327-us7-is-bozo-feed-dead-code](./quick/260327-us7-is-bozo-feed-dead-code/) |
 | 260327-adaptive | Enable adaptive fetch strategy in deep_crawl (DynamicFetcher fallback) | 2026-03-27 | — | Verified | [260327-adaptive-deep-crawl](./quick/260327-adaptive-deep-crawl/) |
 | 260327-vbz | Refactor Scrapling attrib API (attrib.get() → attrib[]) | 2026-03-27 | a78e185 | Verified | [260327-vbz-scrapling-attrib](./quick/260327-vbz-scrapling-attrib/) |
+| 2026-03-27 | fast | Remove _discover_feed_subdirs, use _FALLBACK_SUBDIR_NAMES | ✅ |
