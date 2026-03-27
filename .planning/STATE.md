@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Automatic Discovery Feed
 status: executing
-stopped_at: Completed Quick Task 260328-173 - Unified Rich progress bar and elapsed time UI
-last_updated: "2026-03-28T17:00:00.000Z"
+stopped_at: "Completed quick task 260328-2h9: unified search format"
+last_updated: "2026-03-27T17:52:19.587Z"
 last_activity: 2026-03-27
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 9
+  completed_plans: 8
 ---
 
 # Project State
@@ -184,13 +184,14 @@ Decisions are logged in PROJECT.md Key Decisions table.
 
 ## Session Continuity
 
-Last session: 2026-03-28T17:00:00.000Z
-Stopped at: Completed Quick Task 260328-173 - Unified Rich progress bar and elapsed time UI
+Last session: 2026-03-27T17:52:19.581Z
+Stopped at: Completed quick task 260328-2h9: unified search format
 
 ## Quick Tasks Completed
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260328-2h9 | 统一返回结构：{id[:8]} | {title[:60]} | {source[:15]} | {date[:10]} | {score[:4]} | 2026-03-27 | f5fc86b | Verified | [260328-2h9-id-8-title-60-source-15-date-10-score-4-](./quick/260328-2h9-id-8-title-60-source-15-date-10-score-4-/) |
 | 260325-2am | src.cli fetch支持指定一个或多个链接 | 2026-03-24 | (pending) | Gaps | [260325-2am-src-cli-fetch](./quick/260325-2am-src-cli-fetch/) |
 | 2026-03-25 | 260325-0a9 | db.py → src/storage/sqlite.py | Moved db.py to storage/, made _get_connection private, updated all imports, removed broken get_release_detail code |
 | 2026-03-25 | 260325-035 | ai_tagging.py, tag_rules.py → src/tags/ | Moved to src/tags/, updated imports in default_tag_parser, feed, article, tag, test |
@@ -251,3 +252,4 @@ Stopped at: Completed Quick Task 260328-173 - Unified Rich progress bar and elap
 | 260327-adaptive | Enable adaptive fetch strategy in deep_crawl (DynamicFetcher fallback) | 2026-03-27 | — | Verified | [260327-adaptive-deep-crawl](./quick/260327-adaptive-deep-crawl/) |
 | 260327-vbz | Refactor Scrapling attrib API (attrib.get() → attrib[]) | 2026-03-27 | a78e185 | Verified | [260327-vbz-scrapling-attrib](./quick/260327-vbz-scrapling-attrib/) |
 | 2026-03-27 | fast | Remove _discover_feed_subdirs, use _FALLBACK_SUBDIR_NAMES | ✅ |
+| Phase 38 P38-01 | ~3min | 3 tasks | 3 files |
