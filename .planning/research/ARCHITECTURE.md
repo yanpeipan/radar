@@ -1,371 +1,385 @@
-# Architecture Research: ChromaDB Semantic Search Integration
+# Architecture Research: Feed Auto-Discovery
 
-**Domain:** Personal资讯系统 (RSS reader with vector search)
-**Researched:** 2026-03-26
-**Confidence:** MEDIUM (documentation fragmented, PyPI/main docs not fully aligned; verified core patterns via official sources)
+**Domain:** RSS reader CLI with automatic feed discovery
+**Project:** v1.9 Automatic Discovery Feed
+**Researched:** 2026-03-27
+**Confidence:** HIGH
 
 ## Executive Summary
 
-ChromaDB is an embedded vector database that coexists naturally alongside SQLite. The integration pattern is **not** to replace SQLite or merge data stores, but to use SQLite for article metadata and ChromaDB for embedding storage and similarity search. ChromaDB runs in-process (embedded mode) with its own persistence, making it a zero-infrastructure addition like SQLite itself.
+Feed auto-discovery allows users to provide a website URL instead of a direct feed URL, and the system automatically finds associated RSS/Atom/RDF feeds. This is orthogonal to the existing Provider plugin architecture -- providers fetch and parse content from known feed URLs, while a new Discovery module locates feed URLs on web pages.
 
-**Key insight:** ChromaDB's `PersistentClient` writes to a local directory, completely separate from the SQLite database file. Both databases serve different purposes and can operate independently.
+**Key insight:** Discovery is a URL -> [URLs] transformation that does not fit the crawl/parse pattern of ContentProvider Protocol. It belongs in a separate service module, not as a provider plugin.
 
----
+## How Discovery Integrates with Existing Architecture
 
-## ChromaDB Deployment Modes
-
-### Mode Comparison
-
-| Mode | Use Case | Storage | Trade-offs |
-|------|----------|---------|------------|
-| `chromadb.Client()` (in-memory) | Prototyping only | RAM only, lost on restart | Fast but no persistence |
-| `chromadb.PersistentClient(path="...")` | Local CLI app (recommended) | Local disk directory | Survives restarts, zero infra |
-| `chromadb.HttpClient(host, port)` | Client-server, multi-process | Chroma server process | Requires running server |
-
-**For this project:** `PersistentClient` is the correct choice. It stores data in a local directory (e.g., `./data/chroma_db/`) and requires no external service, matching the "纯本地应用" constraint.
-
----
-
-## Recommended Architecture
-
-### System Overview
+### Existing Architecture Layers
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         CLI Layer                            │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ search --fts  │  │ search --sem │  │ article related│    │
-│  │  (FTS5)       │  │ (ChromaDB)   │  │  (ChromaDB)    │    │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
-├─────────┴────────────────┴─────────────────┴────────────────┤
-│                    Storage Layer                             │
-│  ┌─────────────────────────┐  ┌────────────────────────────┐ │
-│  │   SQLite (articles)     │  │  ChromaDB (embeddings)     │ │
-│  │   src/storage/sqlite.py│  │  src/storage/vector.py     │ │
-│  │   - Article CRUD       │  │  - Collection mgmt        │ │
-│  │   - FTS5 keyword search│  │  - add/query embeddings   │ │
-│  └─────────────────────────┘  └────────────────────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│                  Embedding Service                          │
-│  ┌─────────────────────────────────────────────────────────┐│
-│  │ sentence-transformers (all-MiniLM-L6-v2)               ││
-│  │ src/embedding.py                                       ││
-│  │ - encode(text) -> 384-dim vector                       ││
-│  └─────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────┘
+CLI Layer (src/cli/)
+    feed.py, article.py
+         ↓
+Application Layer (src/application/)
+    feed.py, fetch.py
+         ↓
+Provider Layer (src/providers/)
+    RSSProvider, GitHubReleaseProvider
+    Protocol: ContentProvider (match, crawl, crawl_async, parse, feed_meta)
+         ↓
+Storage Layer (src/storage/)
+    sqlite.py - SQLite operations
 ```
 
-### Component Responsibilities
+### Why Discovery is NOT a New Provider
 
-| Component | Responsibility | Implementation |
-|-----------|----------------|----------------|
-| `src/storage/vector.py` | ChromaDB client lifecycle, collection CRUD | New file, wraps `chromadb.PersistentClient` |
-| `src/embedding.py` | Text -> embedding vector | `sentence-transformers.SentenceTransformer` |
-| `src/storage/sqlite.py` | Existing article storage (unchanged) | Already implemented |
-| CLI commands | Interface for semantic search | Extend existing `src/cli/search.py` |
+The Provider plugin pattern (ContentProvider Protocol) is designed for:
+- Fetching content from a known URL
+- Parsing that content into articles
+- Returning metadata about the feed
 
----
+Discovery is different: given a website URL (non-feed), find associated feed URLs. This is a unidirectional transformation (URL -> [URLs]) that does not fit the crawl/parse pattern.
 
-## Data Flow
+**Discovery is a separate service module**, not a provider. It produces feed URLs that can then be passed to existing `add_feed()` flow.
 
-### Flow 1: Article Fetch with Embedding Generation
-
-```
-[Provider.fetch_article()]
-    ↓
-[Article stored in SQLite via storage.py]
-    ↓
-[embedding_service.encode(article.content) → 384-dim vector]
-    ↓
-[vector_storage.add_embedding(article_id, vector, metadata)]
-```
-
-**Implementation:** After `storage.store_article()` succeeds in the existing crawl flow, call `vector_storage.add_embedding()`.
-
-### Flow 2: Semantic Search
-
-```
-[CLI: search --semantic "query text"]
-    ↓
-[embedding_service.encode(query) → 384-dim vector]
-    ↓
-[vector_storage.query(query_vector, n_results=10) → article_ids]
-    ↓
-[storage.get_articles_by_ids(article_ids) → full article objects]
-    ↓
-[Render results with article titles/urls]
-```
-
-### Flow 3: Related Articles
-
-```
-[CLI: article related <article_id>]
-    ↓
-[vector_storage.get_embedding(article_id) → source vector]
-    ↓
-[vector_storage.query(source_vector, n_results=5, exclude=[article_id]) → related_ids]
-    ↓
-[storage.get_articles_by_ids(related_ids) → related articles]
-    ↓
-[Render related articles]
-```
-
----
-
-## ChromaDB Data Model
-
-### Collection
-
-A ChromaDB collection is analogous to a table. For this project:
-
-```python
-collection = client.get_or_create_collection(
-    name="articles",
-    metadata={"description": "Article content embeddings"}
-)
-```
-
-### Document Record Structure
-
-```python
-collection.add(
-    ids=[article.id],              # String ID (matches SQLite article.id)
-    embeddings=[embedding_vector], # 384-dim numpy array (all-MiniLM-L6-v2)
-    documents=[article.content],   # Full text for reference (optional)
-    metadatas=[{
-        "title": article.title,
-        "url": article.url,
-        "pub_date": article.pub_date.isoformat() if article.pub_date else None,
-        "feed_id": article.feed_id,
-    }]
-)
-```
-
-**Note:** `ids` should match the `article.id` from SQLite (nanoid format) to enable cross-referencing between the two stores.
-
----
-
-## Integration Points
-
-### 1. Embedding Service (`src/embedding.py`) - NEW
-
-```python
-from sentence_transformers import SentenceTransformer
-
-class EmbeddingService:
-    _model = None
-
-    @classmethod
-    def get_model(cls):
-        if cls._model is None:
-            # all-MiniLM-L6-v2: 384-dim, fast, CPU-friendly
-            cls._model = SentenceTransformer("all-MiniLM-L6-v2")
-        return cls._model
-
-    def encode(self, text: str) -> list[float]:
-        """Generate embedding vector for text."""
-        model = self.get_model()
-        embedding = model.encode(text, convert_to_numpy=True)
-        return embedding.tolist()
-```
-
-**Dependencies added:** `sentence-transformers`, `torch`
-
-### 2. Vector Storage Layer (`src/storage/vector.py`) - NEW
-
-```python
-import chromadb
-from chromadb import PersistentClient
-from pathlib import Path
-
-class VectorStorage:
-    def __init__(self, persist_path: str = "./data/chroma_db"):
-        self.client = PersistentClient(path=persist_path)
-        self.collection = self.client.get_or_create_collection(
-            name="articles",
-            metadata={"description": "Article content embeddings"}
-        )
-
-    def add_embedding(self, article_id: str, text: str, metadata: dict):
-        """Add embedding for an article."""
-        embedding = embedding_service.encode(text)
-        self.collection.add(
-            ids=[article_id],
-            embeddings=[embedding],
-            documents=[text],
-            metadatas=[metadata]
-        )
-
-    def query(self, query_text: str, n_results: int = 10, exclude_ids: list[str] = None):
-        """Find similar articles by text query."""
-        embedding = embedding_service.encode(query_text)
-        results = self.collection.query(
-            query_embeddings=[embedding],
-            n_results=n_results,
-            include=["metadatas", "distances"]
-        )
-        return results  # {ids, distances, metadatas}
-
-    def get_related(self, article_id: str, n_results: int = 5):
-        """Find articles related to a given article."""
-        result = self.collection.get(ids=[article_id], include=["embeddings"])
-        if not result["ids"]:
-            return []
-        embedding = result["embeddings"][0]
-        results = self.collection.query(
-            query_embeddings=[embedding],
-            n_results=n_results + 1,  # +1 because query article may be included
-            include=["metadatas", "distances"]
-        )
-        return results
-```
-
-### 3. CLI Integration - MODIFY `src/cli/search.py`
-
-```python
-# src/cli/search.py - additions
-import click
-from ...storage.vector import vector_storage
-from ...embedding import embedding_service
-
-@click.command()
-@click.option("--semantic", "search_type", flag_value="semantic", default=False)
-@click.option("--fts", "search_type", flag_value="fts", default=True)
-@click.argument("query")
-def search(query, search_type):
-    """Search articles by keyword or semantics."""
-    if search_type == "semantic":
-        results = vector_storage.query(query, n_results=20)
-        # Render from metadata
-        for i, (article_id, metadata, distance) in enumerate(zip(
-            results["ids"][0], results["metadatas"][0], results["distances"][0]
-        )):
-            click.echo(f"[{i+1}] {metadata['title']} (similarity: {1-distance:.3f})")
-    else:
-        # Existing FTS5 logic
-        ...
-```
-
----
-
-## Project Structure
+## Recommended Project Structure
 
 ```
 src/
-├── embedding.py              # NEW: sentence-transformers wrapper
-├── storage/
-│   ├── sqlite.py             # EXISTING: article/feed CRUD
-│   ├── vector.py             # NEW: ChromaDB wrapper
-│   └── __init__.py
-├── providers/                # EXISTING: RSSProvider, etc.
-├── cli/
-│   ├── search.py             # MODIFY: add --semantic flag
-│   └── article.py            # MODIFY: add related command
-└── crawl.py                  # MODIFY: call vector_storage after store_article()
-
-data/
-├── articles.db               # EXISTING: SQLite
-└── chroma_db/                # NEW: ChromaDB persistence
-    └── (ChromaDB files)
+├── discovery/                  # NEW: Feed auto-discovery module
+│   ├── __init__.py
+│   ├── parser.py              # HTML link element parsing
+│   ├── fetcher.py             # HTTP fetching with robots.txt
+│   ├── common_paths.py        # Common feed path heuristics
+│   └── models.py              # DiscoveredFeed dataclass
+├── providers/
+│   ├── ...
+│   └── ...
+└── ...
 ```
 
----
+## New Components
 
-## Build Order
+### 1. DiscoveredFeed Model (src/discovery/models.py)
 
-### Phase 1: Infrastructure (do first)
-- Add `chromadb`, `sentence-transformers`, `torch` to dependencies
-- Create `src/embedding.py` - basic model loading and encode()
-- Create `src/storage/vector.py` - ChromaDB client initialization
-- Verify ChromaDB persists to `./data/chroma_db/`
+```python
+@dataclass
+class DiscoveredFeed:
+    """Represents a feed discovered from a website URL."""
+    url: str                  # The feed URL
+    title: Optional[str]      # Feed title (from <link> title attribute or feed itself)
+    feed_type: str            # "rss", "atom", "rdf"
+    source: str               # How discovered: "link_element", "common_path", "well_known"
+    page_url: str             # The original page URL that yielded this feed
+```
 
-### Phase 2: Write Path (before testing queries)
-- Integrate embedding generation into article fetch flow
-- After `storage.store_article()` succeeds in crawl, call `vector_storage.add_embedding()`
-- Add CLI command `reindex` to batch-generate embeddings for existing articles
-- Handle duplicate IDs gracefully (upsert or skip)
+### 2. Discovery Service (src/discovery/__init__.py)
 
-### Phase 3: Query Path (requires write path)
-- Add `search --semantic` CLI command
-- Add `article related <id>` CLI command
-- Implement result pagination (ChromaDB returns ordered by similarity)
+```python
+async def discover_feeds(
+    url: str,
+    depth: int = 1,
+    follow_common_paths: bool = True,
+    respect_robots_txt: bool = False,
+) -> List[DiscoveredFeed]:
+    """
+    Discover feed URLs from a website URL.
 
-### Phase 4: Polish
-- Error handling for missing embeddings (articles before v1.8)
-- Batch embedding for performance (sentence-transformers supports batch encode)
-- Progress reporting for `reindex` command
+    Args:
+        url: Website URL to scan for feeds.
+        depth: Crawl depth (1 = same page only, 2+ = follow internal links).
+        follow_common_paths: Also try common feed paths (/feed, /rss, etc.).
+        respect_robots_txt: If True, check robots.txt before fetching.
 
----
+    Returns:
+        List of DiscoveredFeed objects.
+    """
+```
 
-## Scaling Considerations
+### 3. HTML Link Element Parser (src/discovery/parser.py)
 
-| Scale | ChromaDB Behavior |
-|-------|------------------|
-| 0-10K articles | ChromaDB embedded mode handles easily. all-MiniLM-L6-v2 is fast on CPU. |
-| 10K-100K articles | Query latency may increase. Consider adding `where` filters to reduce search space. |
-| 100K+ articles | May need to switch to client-server Chroma deployment with more RAM. |
+Standard HTML `<head>` parsing for `<link>` elements:
 
-**For this project:** Embedded mode is appropriate. The target corpus is personal-scale (thousands of articles, not millions).
+```python
+def parse_link_elements(html: bytes, page_url: str) -> List[DiscoveredFeed]:
+    """Extract feed URLs from <link> elements in HTML <head>.
 
----
+    Finds links like:
+    - <link rel="alternate" type="application/rss+xml" href="...">
+    - <link rel="alternate" type="application/atom+xml" href="...">
+    - <link rel="alternate" type="application/rdf+xml" href="...">
+    """
+```
+
+Feed types mapped from Content-Type:
+- `application/rss+xml` -> RSS 2.0
+- `application/atom+xml` -> Atom 1.0
+- `application/rdf+xml` -> RDF/RSS 1.0
+- `application/xml`, `text/xml` -> ambiguous, need to fetch and parse to confirm
+
+### 4. Common Paths Heuristic (src/discovery/common_paths.py)
+
+Many sites put feeds at predictable locations:
+
+```python
+COMMON_FEED_PATHS = [
+    "/feed",
+    "/feed/",
+    "/rss",
+    "/rss.xml",
+    "/atom.xml",
+    "/feed.xml",
+    "/index.xml",
+    "/blog/feed",
+    "/posts/feed",
+    "/feed/rss",
+    "/api/feed",
+]
+
+async def try_common_paths(base_url: str) -> List[DiscoveredFeed]:
+    """Try fetching common feed paths to discover feeds."""
+```
+
+### 5. Depth-Aware Crawler (src/discovery/fetcher.py)
+
+For depth > 1, crawl internal links:
+
+```python
+async def discover_with_depth(
+    url: str,
+    depth: int,
+    seen_urls: Set[str],
+) -> List[DiscoveredFeed]:
+    """Crawl website up to specified depth, collecting feed URLs."""
+    # BFS with depth limit
+    # Only follow same-domain links
+    # Track visited URLs to avoid cycles
+```
+
+## Data Flow
+
+### Flow 1: `feed add <url> --discover`
+
+```
+CLI: feed add <url> --discover --depth=1
+    ↓
+Application Layer: add_feed_with_discovery(url, depth)
+    ↓
+Discovery Service: discover_feeds(url, depth=1)
+    ↓
+  - Fetch HTML from url
+  - parse_link_elements() → DiscoveredFeed[]
+  - if no feeds found + follow_common_paths:
+      try_common_paths(url) → DiscoveredFeed[]
+    ↓
+Return list of DiscoveredFeed
+    ↓
+CLI presents feeds to user OR (if --automatic) auto-subscribes all
+    ↓
+For each selected feed_url:
+    add_feed(feed_url) → existing flow
+```
+
+### Flow 2: `discover <url>` (new command)
+
+```
+CLI: discover <url> --depth=1
+    ↓
+Discovery Service: discover_feeds(url, depth=1)
+    ↓
+Return list of DiscoveredFeed
+    ↓
+CLI displays table of found feeds with:
+    - URL
+    - Title
+    - Type
+    - Source
+```
+
+## CLI Integration
+
+### New Command: `discover`
+
+```python
+@cli.command("discover")
+@click.argument("url")
+@click.option("--depth", default=1, type=click.IntRange(1, 5), help="Crawl depth (default: 1)")
+@click.option("--automatic", is_flag=True, help="Auto-subscribe all discovered feeds")
+@click.pass_context
+def discover(ctx: click.Context, url: str, depth: int, automatic: bool) -> None:
+    """Discover RSS/Atom feeds from a website URL.
+
+    Examples:
+
+      rss-reader discover https://example.com
+      rss-reader discover https://example.com --depth=2
+      rss-reader discover https://example.com --automatic
+    """
+```
+
+### Modified Command: `feed add`
+
+```python
+@feed.command("add")
+@click.argument("url")
+@click.option("--discover/--no-discover", default=True, help="Auto-discover feeds (default: on)")
+@click.option("--depth", default=1, type=click.IntRange(1, 5), help="Discovery depth when --discover")
+@click.option("--automatic", is_flag=True, help="Subscribe to all discovered feeds without prompting")
+@click.pass_context
+def feed_add(ctx: click.Context, url: str, discover: bool, depth: int, automatic: bool) -> None:
+    """Add a new feed by URL.
+
+    If URL is a website (not a feed), automatically discovers associated feeds.
+    Use --no-discover to add as direct feed URL.
+    """
+```
+
+## Integration Points
+
+### Integration with Existing Layer: Application (Minimal Change)
+
+The discovery module is called from the CLI layer. It produces feed URLs that the CLI passes to existing `add_feed()`. No changes to Provider or Storage layers required.
+
+```python
+# src/application/feed.py (additions)
+
+def add_feed_with_discovery(url: str, depth: int = 1) -> List[Feed]:
+    """Add feed(s) from URL with auto-discovery.
+
+    If URL is a direct feed URL, behaves like add_feed().
+    If URL is a website, discovers and adds all associated feeds.
+
+    Returns:
+        List of added Feed objects.
+    """
+    from src.discovery import discover_feeds
+
+    # First try as direct feed (existing behavior)
+    providers = discover_or_default(url)
+    if providers:
+        try:
+            feed = add_feed(url)
+            return [feed]
+        except ValueError:
+            pass  # Not a direct feed, try discovery
+
+    # Auto-discovery path
+    discovered = discover_feeds(url, depth=depth)
+    if not discovered:
+        raise ValueError(f"No feeds found at {url}")
+
+    added_feeds = []
+    for d in discovered:
+        try:
+            feed = add_feed(d.url)
+            added_feeds.append(feed)
+        except ValueError as e:
+            if "already exists" in str(e):
+                continue  # Skip already-subscribed feeds
+            raise
+
+    return added_feeds
+```
+
+### Integration with Existing Layer: Providers (No Change)
+
+Providers remain unchanged. Discovery produces feed URLs, providers consume them.
+
+### Integration with Existing Layer: Storage (No Change)
+
+Storage layer unchanged. Feeds are stored via existing `add_feed()`.
+
+## Depth Configuration
+
+| Depth | Behavior | Use Case |
+|-------|----------|----------|
+| 1 | Parse only the given page's HTML | Simple sites with feeds linked in homepage |
+| 2 | Also scan linked pages (same domain) | Sites with feeds in subdirectories |
+| 3+ | BFS crawl with cycle detection | Complex sites with feeds behind multiple clicks |
+
+**Recommendation:** Default depth=1. Deeper discovery increases HTTP requests and latency.
+
+## Crawler Behavior at Each Depth
+
+### Depth 1 (Same Page Only)
+
+1. Fetch HTML from URL
+2. Parse `<head>` for `<link type="application/*+xml">`
+3. Try common paths: `/feed`, `/rss`, `/atom.xml`
+4. Return DiscoveredFeed[]
+
+### Depth 2+ (Multi-Page Crawl)
+
+1. Do depth 1
+2. Parse HTML for internal links (`<a href>` on same domain)
+3. BFS queue: unvisited links
+4. For each link up to depth limit:
+   - Fetch HTML
+   - Parse for link elements
+   - Extract more internal links
+5. Deduplicate and return all DiscoveredFeed[]
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Storing Embeddings in SQLite
+### Anti-Pattern 1: Discovery as Provider
 
-**What people do:** Try to store embedding vectors as BLOBs in SQLite to "keep everything in one place."
-**Why it's wrong:** SQLite is not designed for vector operations. ChromaDB provides HNSW indexing for fast similarity search; SQLite cannot do this efficiently.
-**Do this instead:** Accept two data stores. SQLite + ChromaDB is not a problem, it's the correct architecture.
+**What people try:** Force discovery into ContentProvider protocol by creating a provider that returns feed URLs instead of articles.
 
-### Anti-Pattern 2: Generating Embeddings Synchronously During Fetch
+**Why it's wrong:** Providers are built for URL -> Articles. Discovery is URL -> [URLs]. Different input/output shapes. The Protocol methods (crawl, parse) don't map to discovery semantics.
 
-**What people do:** Call `model.encode()` synchronously inside the crawl loop.
-**Why it's wrong:** Sentence-transformers model loading is slow (~seconds on first call). Blocking the fetch pipeline makes users wait.
-**Do this instead:** Load model once at startup (lazy singleton pattern). Generate embeddings after article is stored.
+**Do this instead:** New discovery service module outside provider system.
 
-### Anti-Pattern 3: Re-embedding on Every Query
+### Anti-Pattern 2: Discovery Inside feed_add()
 
-**What people do:** Re-encode the query text on every search without caching.
-**Why it's wrong:** While encoding is faster than search, it still adds latency.
-**Do this instead:** Encode query on-demand (fast, ~10-50ms). For high-frequency queries, consider caching, but unlikely needed for personal use.
+**What people try:** Put discovery logic directly in `add_feed()` function.
 
-### Anti-Pattern 4: Storing Full Article Text in ChromaDB
+**Why it's wrong:** Violates single responsibility. `add_feed()` should only handle adding a known feed URL.
 
-**What people do:** Pass entire article content as `documents` parameter.
-**Why it's wrong:** ChromaDB stores documents for you, but SQLite already has the full content. Duplication wastes ChromaDB storage.
-**Do this instead:** Store only the content reference (article_id) in ChromaDB. Retrieve full content from SQLite when displaying results.
+**Do this instead:** Discovery is a separate concern. CLI layer decides whether to call discovery, then calls `add_feed()` for results.
 
----
+### Anti-Pattern 3: Infinite Crawling
 
-## Key Design Decisions
+**What people try:** Depth without limit, following all links.
 
-| Decision | Rationale |
-|----------|-----------|
-| ChromaDB PersistentClient with `./data/chroma_db/` | Matches "纯本地应用" constraint. No external service needed. |
-| all-MiniLM-L6-v2 model | 384-dim vectors (small), fast on CPU, good quality, auto-downloaded by ChromaDB |
-| Separate `src/embedding.py` service | Single responsibility, testable, swappable (could use OpenAI embeddings later) |
-| Separate `src/storage/vector.py` | Mirrors existing `sqlite.py` storage pattern. ChromaDB lifecycle in one place. |
-| Article ID as ChromaDB document ID | Enables cross-reference between ChromaDB results and SQLite articles |
-| Batch reindex command | Existing articles need embeddings too. Cannot just do new articles. |
+**Why it's wrong:** Cycles, huge HTTP load, potential for getting banned.
 
----
+**Do this instead:** Hard depth limit (default 1, max 5). Track visited URLs. Respect rate limiting.
 
-## Gaps / Phase-Specific Research Needed
+## Build Order
 
-- **Batch embedding performance:** sentence-transformers supports `model.encode(list_of_texts)` - verify batch size for optimal throughput
-- **ChromaDB upsert behavior:** If `add` is called with an existing ID, does it update or error? Need to verify
-- **Metadata filtering:** ChromaDB supports `where` clauses on metadata - could filter by feed_id for feed-specific search
+### Phase 1: Discovery Module Core (do first)
+- Create `src/discovery/` package
+- Create `src/discovery/models.py` - DiscoveredFeed dataclass
+- Create `src/discovery/parser.py` - HTML link element parsing
+- Create `src/discovery/common_paths.py` - common feed path heuristics
+- Create `src/discovery/__init__.py` - `discover_feeds()` function for depth=1
+- Test: verify parser extracts link elements correctly
 
----
+### Phase 2: CLI Integration
+- Add `discover` CLI command (read-only discovery)
+- Add `--discover` and `--depth` options to `feed add`
+- Add `--automatic` option for auto-subscribe
+- Test: `discover <url>` shows found feeds
+
+### Phase 3: Application Layer Integration
+- Add `add_feed_with_discovery()` in `src/application/feed.py`
+- Wire `feed add --discover` to call new function
+- Test: `feed add <website_url>` discovers and adds feeds
+
+### Phase 4: Depth > 1 Support
+- Add `src/discovery/fetcher.py` - BFS crawler with depth limit
+- Extend `discover_feeds()` to support `depth > 1`
+- Add cycle detection and URL deduplication
+- Test: depth=2 discovers feeds from subdirectories
 
 ## Sources
 
-- [ChromaDB PyPI (v1.5.5, March 2026)](https://pypi.org/project/chromadb/) — HIGH confidence
-- [ChromaDB Embedding Functions Docs](https://docs.trychroma.com/docs/embeddings/embedding-functions) — HIGH confidence
-- [sentence-transformers PyPI](https://pypi.org/project/sentence-transformers/) — HIGH confidence
-- [ChromaDB GitHub](https://github.com/chroma-core/chroma) — MEDIUM confidence (PyPI more authoritative for API)
+- [feedparser PyPI](https://pypi.org/project/feedparser/) — Feed parsing library (HIGH confidence)
+- [RSS 2.0 Specification](https://cyber.harvard.edu/rss/rss.html) — RSS 2.0 syndication format (HIGH confidence)
+- [Atom Publishing Protocol RFC 5023](https://datatracker.ietf.org/doc/html/rfc5023) — Atom feed format (HIGH confidence)
+- [HTML5 Specification - link element](https://html.spec.whatwg.org/multipage/semantics.html#the-link-element) — link element parsing (HIGH confidence)
+- [Robots.txt specification](https://www.robotstxt.org/robotstxt.html) — robots.txt parsing (HIGH confidence)
 
 ---
 
-*Architecture research for: ChromaDB semantic search integration*
-*Researched: 2026-03-26*
+*Architecture research for: Feed Auto-Discovery (v1.9)*
+*Researched: 2026-03-27*

@@ -1,152 +1,157 @@
 # Project Research Summary
 
-**Project:** ChromaDB Semantic Search Integration
-**Domain:** Vector semantic search for Python CLI RSS reader
-**Researched:** 2026-03-26
-**Confidence:** MEDIUM (Stack HIGH, Features/Architecture/Pitfalls MEDIUM)
+**Project:** v1.9 Automatic Discovery Feed
+**Domain:** RSS/Atom feed auto-discovery from website URLs (RSS reader CLI)
+**Researched:** 2026-03-27
+**Confidence:** HIGH
 
 ## Executive Summary
 
-This project adds vector semantic search to an existing Python RSS reader using ChromaDB and sentence-transformers. The approach is to layer ChromaDB alongside the existing SQLite database: SQLite remains the source of truth for article metadata and content (including FTS5 keyword search), while ChromaDB stores vector embeddings for semantic similarity search. This is not a replacement architecture but a co-existence pattern where each storage system handles what it does best.
+This is a feed auto-discovery feature for an existing RSS reader CLI. The tool discovers RSS/Atom/RDF feeds from a website URL without requiring users to know the exact feed URL. Experts implement this as a two-stage process: first parse HTML `<head>` for `<link rel="alternate">` tags (the W3C standard autodiscovery method), then fall back to probing well-known URL paths like `/feed`, `/rss`, `/atom.xml`.
 
-The recommended stack is straightforward: `chromadb` for vector storage (PersistentClient with local path), `sentence-transformers` with the `all-MiniLM-L6-v2` model for embedding generation. These libraries are already declared in the project's ML extras, reducing integration friction. The critical insight from architecture research is that ChromaDB runs embedded in-process like SQLite, requiring no external service, which aligns with the project's "pure local application" constraint.
+**No new library dependencies are required.** The existing stack (httpx for HTTP fetching, BeautifulSoup4 for HTML parsing, feedparser for feed validation, urllib.parse for URL resolution) is sufficient. Feed auto-discovery is custom logic, not a specialized library feature.
 
-The main risks are ChromaDB operational bugs (file descriptor leaks, HNSW corruption under concurrent access, orphaned storage files) and the first-query model download delay. These are manageable: use single-process PersistentClient, pre-warm the model at startup, and implement cleanup routines for orphaned files. The feature research confirms semantic search and related articles are genuine differentiators in the RSS reader space - most competitors lack these capabilities entirely or offer them only as paid cloud features.
+The recommended approach is to build a separate `src/discovery/` service module that produces feed URLs consumable by the existing `add_feed()` flow. Discovery is NOT a Provider plugin -- it is a URL-to-URLs transformation that does not fit the Provider pattern (which is URL-to-Articles). Key risks include infinite crawl loops (mitigate with visited-set + depth limit), dead feeds being subscribed (mitigate with validation before DB insert), and relative URL resolution failures (mitigate with proper urljoin).
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack centers on two primary libraries with clear roles:
+No new dependencies. All required technologies are already in the stack:
 
-**Core technologies:**
-- **chromadb 1.5.5** -- Vector database for article embeddings -- Local-first, zero-config, embedded mode matches SQLite constraint
-- **sentence-transformers 5.3.0** -- Embedding generation -- Industry standard, 384-dim all-MiniLM-L6-v2 model auto-selected by ChromaDB
-- **torch >=2.0.0** -- Backend for sentence-transformers -- Already in project ML extras
-- **transformers >=4.40.0** -- Model loading -- Dependency of sentence-transformers, already declared
+- **httpx (0.28.x)** -- HTTP client for fetching HTML pages (async/sync, HTTP/2)
+- **BeautifulSoup4 (4.12.x)** -- HTML parsing for `<link>` tag extraction in `<head>`
+- **feedparser (6.0.x)** -- Validates discovered feeds by parsing; handles RSS 0.9x-2.0, Atom 0.3/1.0, CDF, RDF
+- **urllib.parse (stdlib)** -- URL resolution (urljoin) for relative links in `<link href>`
+- **lxml (6.0.x)** -- Faster HTML parser backend for BeautifulSoup (already installed)
 
-**ChromaDB vs SQLite role separation:**
-- SQLite (`articles.db`) -- Article metadata, content, FTS5 keyword search
-- ChromaDB (`chroma_db/`) -- Semantic embeddings for similarity search, indexed by article ID
+**NOT recommended:** feedfinder2 (abandoned), Scrapy (overkill), Selenium (not needed), Playwright for `<link>` tags (basic HTML parsing sufficient).
 
 ### Expected Features
 
 **Must have (table stakes):**
-- `search --semantic "query"` -- Natural language search using embeddings -- Core value proposition
-- `article related <id>` -- Find semantically similar articles -- Validates embedding quality
-- Incremental embedding on fetch -- New articles automatically embedded -- Prevents search degradation
-- Progress indicator for embedding generation -- Feedback during slow operations -- Critical UX
+- HTML `<link>` tag parsing -- the W3C standard autodiscovery method. Parse `<head>` for `rel="alternate"` links with `type="application/rss+xml"`, `type="application/atom+xml"`, or `type="application/rdf+xml"`.
+- Well-known path probing -- fallback for sites without autodiscovery links. Try `/feed`, `/feed/`, `/rss`, `/rss.xml`, `/atom.xml`, `/feed.xml`, `/index.xml`.
+- Multiple feed listing -- display all discovered feeds with titles so user can choose which to subscribe.
+- `discover <url>` command -- standalone CLI command to just discover without subscribing.
+- `feed add <url> --discover` (default on) -- integrate discovery into `feed add` as the default behavior.
 
 **Should have (competitive):**
-- `search "query" --hybrid` -- Combine FTS5 + semantic reranking -- High complexity, user-request driven
-- Batch backfill embedding (`reindex` command) -- Generate embeddings for existing articles -- Essential for full functionality
-- Feed-filtered semantic search -- Scope search to specific feed -- Low complexity via ChromaDB metadata filtering
+- `--automatic` flag -- auto-subscribe all discovered feeds without prompting (power user feature).
+- Feed preview -- show article count, last updated before subscription decision.
+- `--depth` configuration -- balance between thoroughness and speed for hierarchy crawling.
 
 **Defer (v2+):**
-- Semantic tag clustering -- Auto-discover tag groups -- Existing DBSCAN works, marginal benefit unclear
-- Topic modeling / dimensionality reduction -- Visualize article landscape -- Outside CLI scope
-- LLM-powered search refinement -- Rewrite queries for better retrieval -- API dependency, cost, complexity
+- Recursive site crawling -- rarely needed, slow, potentially disrespectful to sites.
+- OPML import/export -- orthogonal to discovery.
+- Read/unread state -- orthogonal to discovery.
 
 ### Architecture Approach
 
-The system follows a layered architecture: CLI commands sit atop a storage layer with two co-existing databases (SQLite for articles, ChromaDB for embeddings), with an embedding service using sentence-transformers below. ChromaDB runs in embedded mode via `PersistentClient`, storing data in a local directory alongside the existing SQLite database. Article IDs (nanoid format) serve as the cross-reference key between both stores.
+Discovery is a separate service module (`src/discovery/`), NOT a Provider plugin. The Provider pattern is designed for URL-to-Articles; discovery is URL-to-URLs. This distinction is critical to avoid architectural misfits.
 
 **Major components:**
-1. `src/embedding.py` (NEW) -- sentence-transformers wrapper, lazy-loaded model singleton
-2. `src/storage/vector.py` (NEW) -- ChromaDB client lifecycle, collection CRUD, query methods
-3. `src/storage/sqlite.py` (EXISTING, unchanged) -- Article storage, FTS5
-4. CLI commands (`search.py`, `article.py`) (MODIFY) -- Add `--semantic` flag, `related` subcommand
+1. `src/discovery/models.py` -- `DiscoveredFeed` dataclass (url, title, feed_type, source, page_url)
+2. `src/discovery/parser.py` -- HTML `<link>` element parsing from `<head>`
+3. `src/discovery/common_paths.py` -- Well-known feed path heuristics
+4. `src/discovery/fetcher.py` -- BFS crawler with depth limit and cycle detection
+5. `src/discovery/__init__.py` -- `discover_feeds()` async function entry point
+
+CLI layer calls `discover_feeds()`, then passes results to existing `add_feed()`. No changes to Provider or Storage layers required.
 
 ### Critical Pitfalls
 
-1. **SQLite file descriptor leaks** -- ChromaDB opens connections without closing them. Mitigation: single-process mode, high `ulimit -n`, monitor with `lsof`
-2. **Embedding function not persisted** -- Collection loses custom embedding function after restart. Mitigation: always pass `embedding_function` when getting collection
-3. **Model download on first query** -- 90MB download causes 30+ second delay. Mitigation: pre-download and warmup at startup
-4. **HNSW index corruption** -- Concurrent read/write corrupts index. Mitigation: single-threaded writes, application-level locking
-5. **Query parameter in-place mutation** -- `include` list mutated across calls. Mitigation: always pass fresh list object
+1. **Infinite crawl loops** -- Sites with hub-and-spoke architectures create cycles. Prevention: maintain visited URL set, hard depth limit (default=1, max=5), total timeout per root URL.
+
+2. **Subscribing to dead/empty feeds** -- Autodiscovery links may point to defunct feeds. Prevention: validate feed URL before subscribing (fetch and require at least 1 entry or valid structure). Treat 404/410 as "not a real feed."
+
+3. **Missing autodiscovery tags** -- Many legitimate sites don't implement `<link>` autodiscovery. Prevention: always fall back to well-known path probing. Limit to 3-5 patterns to avoid excessive requests.
+
+4. **Relative feed URLs** -- HTML allows `<link href="/feed.xml">`. Prevention: always resolve with `urllib.parse.urljoin(page_url, href)`, handle `<base href>` overrides.
+
+5. **Case-sensitive attribute matching** -- Real sites use mixed case (`type="Application/Rss+Xml"`). Prevention: normalize `type.lower()` and `rel.lower()` before matching. Use BeautifulSoup (not regex) for parsing.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on research, the following phase structure is recommended:
 
-### Phase 1: Infrastructure Foundation
-**Rationale:** Cannot test write or query paths without dependencies installed and core services initialized. ChromaDB setup must be correct before any articles are added.
-**Delivers:** Dependencies installed, `src/embedding.py` (model loading/warmup), `src/storage/vector.py` (ChromaDB client), ChromaDB persistence verified at `./data/chroma_db/`
-**Avoids:** Pitfall 2 (embedding function persistence) -- initialize collections with correct embedding function from start; Pitfall 3 (model download timeout) -- pre-download model at startup
+### Phase 1: Discovery Module Core
+**Rationale:** Must establish the fundamental discovery logic before any CLI or application integration. Dependencies: None (greenfield module).
+**Delivers:** `src/discovery/` package with `DiscoveredFeed` model, `parse_link_elements()`, `try_common_paths()`, `discover_feeds(depth=1)`.
+**Implements:** STACK (httpx fetch, BeautifulSoup parsing, feedparser validation), avoids Pitfalls 3 (heuristic fallback), 4 (relative URL resolution), 5 (case normalization).
+**Research flags:** None -- well-documented W3C standard with established implementation patterns.
 
-### Phase 2: Write Path (Article Fetch Integration)
-**Rationale:** Semantic search requires embeddings to exist. The write path must be working before query path can be validated. Backfill capability needed for existing articles.
-**Delivers:** Embedding generation integrated into article fetch flow, `reindex` command for batch backfill, progress indicator for embedding generation
-**Implements:** After `storage.store_article()` succeeds, call `vector_storage.add_embedding()`
-**Avoids:** Pitfall 4 (HNSW corruption) -- single-threaded writes; Orphaned files from article deletion -- implement cleanup alongside
+### Phase 2: CLI Integration
+**Rationale:** `discover <url>` command is explicitly in the milestone spec. CLI must be working before application integration. Depends on Phase 1.
+**Delivers:** `discover` command (read-only), `--discover/--no-discover` and `--depth` options on `feed add`, `--automatic` flag.
+**Uses:** existing click decorators, Rich progress bars.
+**Addresses:** FEATURES MVP (multiple feed listing, discover command, feed add integration).
+**Research flags:** None -- standard CLI patterns already in codebase.
 
-### Phase 3: Query Path (Semantic Search CLI)
-**Rationale:** Query path depends on write path (Phase 2). Must verify embeddings exist and are queryable before building UI around results.
-**Delivers:** `search --semantic` command, `article related <id>` command, result rendering with similarity scores
-**Implements:** ChromaDB query returning article IDs, SQLite lookup for full article objects, CLI output
-**Avoids:** Pitfall 5 (query parameter mutation) -- always use fresh list for `include` parameter
+### Phase 3: Application Layer Integration
+**Rationale:** Wire `feed add --discover` to call `discover_feeds()` and pass results to `add_feed()`. Depends on Phase 2.
+**Delivers:** `add_feed_with_discovery()` in `src/application/feed.py`, fully integrated `feed add <website_url>` workflow.
+**Uses:** existing `add_feed()`, existing Provider discovery (`discover_or_default`).
+**Avoids:** Pitfall 2 (feed validation before subscribing), Pitfall 7 (URL normalization on add).
+**Research flags:** None -- application layer patterns already established.
 
-### Phase 4: Polish and Error Handling
-**Rationale:** Handle edge cases discovered during integration. Performance optimization once basic flow works.
-**Delivers:** Error handling for missing embeddings (articles before v1.8), batch embedding performance optimization, cleanup routine for orphaned ChromaDB storage files
-**Avoids:** UX pitfalls (first query slowness, empty results confusion) -- progress indicators and clear labeling
+### Phase 4: Depth > 1 Support
+**Rationale:** Depth-limited crawling is explicitly mentioned in milestone spec (`--discover-deep [n]`). Only needed if Phase 1-3 discovery finds insufficient feeds. Optional enhancement.
+**Delivers:** BFS crawler in `src/discovery/fetcher.py` with visited-set, depth limit, rate limiting, cycle detection.
+**Avoids:** Pitfall 1 (infinite crawl loops), Pitfall 8 (honoring robots.txt during crawl).
+**Research flags:** MEDIUM -- real-world crawling behavior on diverse sites needs validation.
 
 ### Phase Ordering Rationale
 
-- **Infrastructure before write before query:** Clear dependency chain. Query path requires embeddings from write path; write path requires ChromaDB infrastructure from Phase 1.
-- **Single-threaded writes established early:** HNSW corruption is a data-integrity issue; prevention in Phase 2 before concurrent access is attempted.
-- **Model warmup at startup:** Prevents first-query timeout from becoming a user experience disaster. Startup latency acceptable, mid-search freeze is not.
-- **Cleanup alongside storage:** Orphaned files accumulate silently. Building cleanup into Phase 2 (not Phase 4) prevents disk usage growth from being overlooked.
+- Phase 1 before 2: Discovery module must exist before CLI can integrate it.
+- Phase 2 before 3: CLI commands must work before application layer wires them together.
+- Phase 3 before 4: Depth crawling is an enhancement, not blocking the core discovery flow.
+- Grouping by architecture: discovery module (Phase 1) is separate from CLI (Phase 2) which is separate from application wiring (Phase 3).
+- This order avoids all critical pitfalls: Phase 1 builds URL resolution + heuristic fallback + case normalization; Phase 3 adds feed validation before subscribe.
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 2 (Write Path):** Batch embedding performance -- sentence-transformers `encode(list)` optimal batch size needs verification; ChromaDB upsert behavior (update vs error on duplicate ID) needs testing
-- **Phase 4 (Polish):** asyncio + ChromaDB thread safety details -- need to verify exact behavior with project's async fetch pipeline
+- **Phase 4 (Depth > 1):** MEDIUM confidence. Real-world site link structures vary. Recommend validation testing on 5-10 diverse sites (WordPress, static site generators, subdirectory-based category feeds).
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1 (Infrastructure):** ChromaDB PersistentClient pattern is well-documented; embedding function configuration is established
-- **Phase 3 (Query Path):** ChromaDB query API is stable; result rendering follows existing CLI patterns
+- **Phase 1:** HIGH confidence. W3C autodiscovery spec is well-documented, HTML `<link>` parsing is standard.
+- **Phase 2:** HIGH confidence. CLI patterns already established in codebase.
+- **Phase 3:** HIGH confidence. Application layer integration follows existing patterns.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Verified via PyPI, official docs, version compatibility confirmed |
-| Features | MEDIUM | Web search unavailable; used WebFetch on official docs + training data |
-| Architecture | MEDIUM | Documentation fragmented (PyPI/main docs not fully aligned); core patterns verified via official sources |
-| Pitfalls | MEDIUM | Primarily GitHub issues (community-reported bugs); some gaps in official documentation |
+| Stack | HIGH | No new dependencies. All technologies verified in existing CLAUDE.md stack. |
+| Features | HIGH | Feed autodiscovery is a mature, well-understood feature domain. W3C spec + industry practice. |
+| Architecture | HIGH | Clear separation between discovery (URL->URLs) and providers (URL->Articles). Proposed module structure follows single-responsibility. |
+| Pitfalls | MEDIUM | WebSearch was unavailable during research. Findings rely on training data + official RSS Board spec. Recommend validation against real websites during Phase 1 implementation. |
 
-**Overall confidence:** MEDIUM
-
-The stack is solid and well-verified. Feature set and architecture are well understood with clear patterns. Pitfalls research is comprehensive (six critical pitfalls documented with GitHub issues), but some ChromaDB operational behaviors (upsert, concurrent access specifics) need on-the-ground validation during implementation.
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Batch embedding performance:** sentence-transformers `encode(list_of_texts)` batch size optimization not verified -- test during Phase 2
-- **ChromaDB upsert behavior:** If `add` called with existing ID, does it update or error? Needs verification before Phase 2
-- **asyncio + ChromaDB thread safety:** Project uses async httpx for fetching; interaction with ChromaDB threading model needs explicit testing during Phase 2 or 4
+- **Real-world site testing:** No WebSearch available during research. Canonical knowledge only. Recommend Phase 1 include integration tests against 5-10 diverse real websites (WordPress, Medium, static sites, GitHub pages, subdirectory-based category feeds) to validate autodiscovery and heuristic fallback effectiveness.
+- **robots.txt enforcement scope:** PITFALLS.md notes current system uses lazy mode ignoring robots.txt. Decision needed on whether Phase 4 depth crawling should honor robots.txt or remain in lazy mode like existing explicit feed fetches.
+- **Feed URL canonicalization:** Duplicate feed subscription (Pitfall 7) requires URL normalization. This may need a shared utility if other parts of the codebase also need normalization.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [PyPI chromadb 1.5.5](https://pypi.org/project/chromadb/) -- Stack recommendations, version compatibility
-- [PyPI sentence-transformers 5.3.0](https://pypi.org/project/sentence-transformers/) -- Stack recommendations, version compatibility
-- [ChromaDB GitHub Issue #4039](https://github.com/chroma-core/chroma/issues/4039) -- File descriptor leak pitfall
-- [ChromaDB GitHub Issue #3486](https://github.com/chroma-core/chroma/issues/3486) -- HNSW corruption pitfall
-- [ChromaDB GitHub Issue #5857](https://github.com/chroma-core/chroma/issues/5857) -- Query parameter mutation pitfall
-- [ChromaDB GitHub Issue #6021](https://github.com/chroma-core/chroma/issues/6021) -- Embedding function persistence pitfall
-- [ChromaDB GitHub Issue #5520](https://github.com/chroma-core/chroma/issues/5520) -- Collection deletion orphan files pitfall
+- RSS Board -- RSS Autodiscovery (https://www.rssboard.org/rss-autodiscovery) -- official autodiscovery specification
+- Atom Specification RFC 4287 -- Link Elements (https://datatracker.ietf.org/doc/html/rfc4287#section-4.2.7) -- IETF standard for `<link>` in Atom feeds
+- HTML5 Specification -- link element (https://html.spec.whatwg.org/multipage/semantics.html#the-link-element) -- WHATWG standard
+- feedparser 6.0.x documentation -- Universal feed parser (RSS 0.9x-2.0, Atom 0.3/1.0, CDF, RDF)
+- BeautifulSoup4 documentation -- HTML parsing with `<link>` tag navigation
+- httpx documentation -- Async HTTP client with timeout and redirect support
+- Existing project code -- `src/providers/rss_provider.py`, `src/application/fetch.py`, `src/providers/__init__.py`
 
 ### Secondary (MEDIUM confidence)
-- [ChromaDB Query Documentation](https://docs.trychroma.com/docs/querying-collections/query-and-get) -- Feature implementation patterns
-- [ChromaDB Embeddings Documentation](https://docs.trychroma.com/docs/embeddings) -- Embedding function configuration
-- [sentence-transformers Documentation](https://www.sbert.net/docs/) -- Model selection
-- [LangChain RAG Tutorial](https://docs.langchain.com/oss/python/langchain/rag) -- Integration patterns reference
-
-### Tertiary (LOW confidence)
-- [PrivateGPT Architecture](https://github.com/imartinez/privateGPT) -- Alternative integration approaches (needs validation against actual ChromaDB API)
+- feedparser README -- Bozo Detection -- official but brief documentation
+- Common feed URL patterns -- Industry convention (/feed, /rss, /atom.xml, etc.) -- established practice
+- Project PROJECT.md -- v1.9 milestone specification
 
 ---
-*Research completed: 2026-03-26*
+*Research completed: 2026-03-27*
 *Ready for roadmap: yes*

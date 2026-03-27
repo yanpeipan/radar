@@ -1,151 +1,226 @@
-# Stack Research
+# Stack Research: Feed Auto-Discovery
 
-**Domain:** Vector Semantic Search for Python CLI RSS Reader
-**Researched:** 2026-03-26
+**Domain:** RSS/Atom feed auto-discovery from website URLs
+**Project:** v1.9 Automatic Discovery Feed (RSS reader CLI)
+**Researched:** 2026-03-27
 **Confidence:** HIGH
 
-## Recommended Stack
+## Executive Summary
 
-### Core Technologies
+**No new library dependencies are required.** The existing stack already contains all necessary components for feed auto-discovery:
+- `httpx` for HTTP fetching
+- `BeautifulSoup4` for HTML link tag parsing
+- `feedparser` for feed validation
+- `urllib.parse` (stdlib) for URL resolution
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **chromadb** | 1.5.5 | Vector database for article embeddings | Local-first, persistent storage, zero-config embedding handling. ChromaDB's default embedding function uses sentence-transformers `all-MiniLM-L6-v2` automatically. |
-| **sentence-transformers** | 5.3.0 | Generate article and query embeddings | Industry standard for sentence-level embeddings. 15,000+ pretrained models on HuggingFace. Project already declares this in `[ml]` extras. |
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **torch** | >=2.0.0 | Backend for sentence-transformers | Required for sentence-transformers inference. Project already declares in `[ml]` extras. |
-| **transformers** | >=4.40.0 | Model loading for sentence-transformers | Required dependency of sentence-transformers. Project already declares in `[ml]` extras. |
-| **safetensors** | >=0.4.3 | Fast model loading | Faster model loading than pickle. Already declared in `[ml]` extras. |
-| **onnxruntime** | (via sentence-transformers[onnx]) | Faster CPU inference | Optional: 2-3x speedup for embedding generation on CPU. Install with `pip install sentence-transformers[onnx]` if embedding speed becomes a concern. |
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| **pytest** | Testing | Already in project with 85 tests. Add tests for ChromaDB integration. |
-| **pytest-asyncio** | Async test support | Already present for async fetch tests. |
-
-## Installation
-
-```bash
-# Core ML dependencies (already in pyproject.toml [ml] extras)
-pip install sentence-transformers[onnx]>=3.0.0
-pip install chromadb>=1.5.5
-
-# Existing project dependencies already include:
-# - torch>=2.0.0
-# - transformers>=4.40.0
-# - safetensors>=0.4.3
-```
-
-## Integration with Existing Architecture
-
-### ChromaDB vs SQLite Role Separation
-
-| System | Purpose | Storage |
-|--------|---------|---------|
-| **SQLite (existing)** | Article metadata, content, FTS5 keyword search | `~/.rss-reader/articles.db` |
-| **ChromaDB (new)** | Semantic embeddings for similarity search | `~/.rss-reader/chroma_db/` |
-
-ChromaDB does NOT replace SQLite. It stores vector embeddings indexed by article ID, while SQLite remains the source of truth for article content.
-
-### Recommended Integration Pattern
-
-```python
-import chromadb
-from chromadb.utils import sentence_transformers
-
-# Local persistent storage in app data directory
-# Use app's config directory (platformdirs already in project)
-chroma_client = chromadb.PersistentClient(path=str(chroma_db_path))
-
-# Collection for articles — ChromaDB uses sentence-transformers
-# all-MiniLM-L6-v2 by default (384-dim embeddings)
-collection = chroma_client.get_or_create_collection(
-    name="articles",
-    metadata={"description": "Article semantic embeddings"}
-)
-
-# Add article embedding
-collection.add(
-    ids=[article_id],           # nanoid from existing articles
-    documents=[article_content], # Full text or title+content
-    metadatas=[{"title": article.title, "url": article.url}]
-)
-
-# Semantic search returns article IDs
-results = collection.query(
-    query_texts=[search_query],
-    n_results=10
-)
-article_ids = results["ids"][0]
-```
-
-### Data Flow
-
-```
-New article → SQLite (existing) → Generate embedding (sentence-transformers) → ChromaDB
-Search query → Embedding (sentence-transformers) → ChromaDB similarity search → Article IDs → SQLite lookup → Display
-```
-
-## Alternatives Considered
-
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| chromadb | faiss-cpu | If you need more control over indexing algorithms or expect >1M vectors. faiss is more manual. |
-| chromadb | qdrant | If you need a server-based vector DB. Overkill for single-user CLI. |
-| sentence-transformers | openai embeddings | Requires API key, not local-first. sentence-transformers is the right local choice. |
-| all-MiniLM-L6-v2 | all-mpnet-base-v2 | Use mpnet for higher quality at 2x speed cost. MiniLM is the right default for CLI responsiveness. |
-| ONNX (optional) | None | Skip if startup time is acceptable. Add if embedding generation is a bottleneck. |
-
-## What NOT to Use
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| ChromaDB HttpClient | Requires running a Chroma server process. Overcomplicates a local CLI. | PersistentClient with local path |
-| ChromaDB OpenAI/Cohere embedding functions | Require API keys, not local-first. | Built-in sentence-transformers (default) |
-| pgvector | Requires PostgreSQL server. Violates SQLite-only constraint. | chromadb |
-| torch with GPU | No GPU on typical CLI deployment. | CPU inference with ONNX optimization if needed |
-
-## Stack Patterns by Variant
-
-**For initial implementation:**
-- Use `chromadb.PersistentClient` with local path
-- Use ChromaDB's default embedding function (sentence-transformers `all-MiniLM-L6-v2`)
-- No ONNX needed initially
-
-**If embedding speed becomes a bottleneck (large corpus >10K articles):**
-- Add `sentence-transformers[onnx]` for 2-3x CPU speedup
-- Pre-compute embeddings for all existing articles in background
-
-**If semantic quality is insufficient:**
-- Replace `all-MiniLM-L6-v2` with `all-mpnet-base-v2` (768-dim, better quality, slower)
-
-## Version Compatibility
-
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| chromadb 1.5.5 | Python >=3.9 | Confirmed via PyPI |
-| sentence-transformers 5.3.0 | Python >=3.10 | Project requires >=3.10, compatible |
-| torch >=2.0.0 | sentence-transformers 5.3.0 | Required dependency |
-| transformers >=4.40.0 | sentence-transformers 5.3.0 | Required dependency |
-
-**Note:** Project Python requirement (`>=3.10`) is compatible with both chromadb (`>=3.9`) and sentence-transformers (`>=3.10`).
-
-## Sources
-
-- [PyPI chromadb 1.5.5](https://pypi.org/project/chromadb/) — Latest version (March 10, 2026), Python >=3.9
-- [PyPI sentence-transformers 5.3.0](https://pypi.org/project/sentence-transformers/) — Latest version (March 12, 2026), Python >=3.10, ONNX extras confirmed
-- [ChromaDB Documentation: Clients](https://docs.trychroma.com/docs/run-chroma/clients) — PersistentClient usage confirmed
-- [ChromaDB Documentation: Embeddings](https://docs.trychroma.com/docs/embeddings/embedding-functions) — Default sentence-transformers integration confirmed
-- [ChromaDB GitHub](https://github.com/chroma-core/chroma) — Custom embedding function pattern confirmed
-- [sentence-transformers Documentation](https://www.sbert.net/docs/) — Model choices and optimization options
+Feed auto-discovery is implemented as custom logic using existing infrastructure, not a specialized library.
 
 ---
 
-*Stack research for: ChromaDB vector search integration*
-*Researched: 2026-03-26*
+## Recommended Stack (Additions Only)
+
+### No New Dependencies Required
+
+| Component | Existing Version | Status | Notes |
+|-----------|------------------|--------|-------|
+| httpx | 0.28.x | SUFFICIENT | Async HTTP client for fetching HTML pages |
+| BeautifulSoup4 | 4.12.x | SUFFICIENT | Parse `<link>` tags in HTML `<head>` |
+| feedparser | 6.0.x | SUFFICIENT | Validate discovered feeds by parsing |
+| urllib.parse | (stdlib) | SUFFICIENT | URL resolution (urljoin) for relative links |
+
+### Optional: If Faster HTML Parsing Needed
+
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| lxml | 6.0.x | Faster HTML parser backend | Already installed as BeautifulSoup backend; pass `features="lxml"` to BeautifulSoup for speed |
+
+---
+
+## Feed Auto-Discovery Implementation Pattern
+
+### 1. HTML Link Tag Discovery
+
+Use BeautifulSoup to find `<link>` tags in `<head>`:
+
+```python
+from bs4 import BeautifulSoup
+import httpx
+
+async def discover_feeds_from_html(url: str) -> list[str]:
+    """Extract feed URLs from <link> tags in HTML <head>."""
+    feed_types = {
+        "application/rss+xml": "RSS",
+        "application/atom+xml": "Atom",
+        "application/rdf+xml": "RDF",
+    }
+
+    feeds = []
+    response = await httpx.AsyncClient().get(url, timeout=10.0)
+    soup = BeautifulSoup(response.text, features="lxml")
+
+    for link in soup.find_all("link"):
+        rel = link.get("rel", [])
+        link_type = link.get("type", "")
+        href = link.get("href", "")
+
+        # Check if this is a feed link
+        if "alternate" in rel and link_type in feed_types:
+            # Resolve relative URLs
+            from urllib.parse import urljoin
+            feed_url = urljoin(url, href)
+            feeds.append(feed_url)
+
+    return feeds
+```
+
+### 2. Common Feed URL Patterns
+
+Try well-known feed paths when no `<link>` tags found:
+
+```python
+COMMON_FEED_PATHS = [
+    "/feed", "/feed/", "/rss", "/rss.xml", "/atom.xml",
+    "/feed.xml", "/index.xml", "/blog/feed", "/feeds",
+    "/rss/feed", "/atom/feed", "/feed/rss", "/api/feed",
+]
+
+async def try_common_feed_paths(base_url: str) -> list[str]:
+    """Try common feed URL patterns."""
+    from urllib.parse import urljoin
+
+    discovered = []
+    for path in COMMON_FEED_PATHS:
+        feed_url = urljoin(base_url, path)
+        # Validate by attempting to parse
+        if await validate_feed(feed_url):
+            discovered.append(feed_url)
+    return discovered
+```
+
+### 3. Website Hierarchy Crawling (Optional, Depth-Limited)
+
+```python
+async def crawl_site_for_feeds(
+    url: str,
+    max_depth: int = 1,
+    max_pages: int = 20,
+) -> list[str]:
+    """Crawl site hierarchy to find feed links.
+
+    Args:
+        url: Starting URL
+        max_depth: Maximum crawl depth (1 = same page + links on it)
+        max_pages: Maximum pages to crawl
+    """
+    from urllib.parse import urljoin, urlparse
+
+    visited = set()
+    feeds = []
+
+    async def crawl_page(page_url: str, depth: int):
+        if depth > max_depth or len(visited) >= max_pages:
+            return
+
+        if page_url in visited:
+            return
+        visited.add(page_url)
+
+        # Get feeds from this page
+        page_feeds = await discover_feeds_from_html(page_url)
+        feeds.extend(page_feeds)
+
+        if depth >= max_depth:
+            return
+
+        # Extract links to same domain for further crawling
+        try:
+            response = await httpx.AsyncClient().get(page_url, timeout=10.0)
+            soup = BeautifulSoup(response.text, features="lxml")
+            base_domain = urlparse(url).netloc
+
+            for a_tag in soup.find_all("a", href=True):
+                link = urljoin(page_url, a_tag["href"])
+                parsed = urlparse(link)
+                if parsed.netloc == base_domain:
+                    await crawl_page(link, depth + 1)
+        except Exception:
+            pass
+
+    await crawl_page(url, 0)
+    return list(set(feeds))  # Deduplicate
+```
+
+---
+
+## Integration with Existing Architecture
+
+### Provider Integration Point
+
+The existing `ProviderRegistry` and `discover_or_default()` pattern should be extended:
+
+1. **New `DiscoveryProvider`** (priority: 10, lower than RSSProvider 50)
+   - Matches website URLs (not feed URLs)
+   - `crawl_async()` returns discovered feeds (not articles)
+   - Called before RSSProvider when user provides a website URL
+
+2. **Discovery logic lives in `src/application/discovery.py`**
+   - `discover_feeds(url: str) -> list[Feed]`
+   - Uses existing httpx async client
+   - Uses existing BeautifulSoup parsing
+   - Uses existing feedparser validation
+
+### CLI Integration
+
+```
+feed add <url> --discover    # Discover feeds, prompt to subscribe
+discover <url>               # Just discover, list feeds
+feed add <url> --automatic   # Discover and subscribe all without prompting
+```
+
+---
+
+## Alternatives Considered
+
+| Approach | Recommendation | Rationale |
+|----------|---------------|-----------|
+| feedfinder2 library | NOT RECOMMENDED | Abandoned (0.0.4, no recent updates), duplicates existing functionality |
+| Custom implementation with existing libs | RECOMMENDED | Leverages existing stack, full control, no new dependencies |
+| Scrapy crawler | OVERKILL | Heavy framework, not needed for feed discovery |
+| Playwright for all pages | NOT NEEDED | Basic HTML parsing sufficient for `<link>` tag discovery |
+
+---
+
+## What NOT to Add
+
+| Library | Why Avoid | Use Instead |
+|---------|-----------|-------------|
+| feedfinder2 | Abandoned, unmaintained, provides no advantage | Custom implementation with BeautifulSoup + feedparser |
+| Scrapy | Heavy dependency, overkill for feed discovery | Simple async crawling with httpx + BeautifulSoup |
+| Selenium | Browser automation overhead | Scrapling (already in stack) for JS-rendered pages |
+| new-ews / other feed libraries | Niche, not well-maintained | feedparser (already in stack) handles all feed types |
+
+---
+
+## Version Recommendations
+
+| Library | Current | Recommended | Notes |
+|---------|---------|-------------|-------|
+| httpx | 0.28.x | 0.28.x (latest) | Already on latest |
+| BeautifulSoup4 | 4.12.3 | 4.12.3+ | Upgrade to 4.14.x for bug fixes if issues arise |
+| feedparser | 6.0.12 | 6.0.12 (latest) | Already on latest |
+| lxml | 6.0.2 | 6.0.2+ (latest 6.0.x) | Already installed, use as BS4 backend |
+
+---
+
+## Sources
+
+- **feedparser 6.0.x documentation** — Universal feed parser supporting RSS 0.9x-2.0, Atom 0.3/1.0, CDF, RDF (HIGH confidence)
+- **BeautifulSoup4 documentation** — HTML parsing with `<link>` tag navigation (HIGH confidence)
+- **httpx documentation** — Async HTTP client with timeout and redirect support (HIGH confidence)
+- **Feed auto-discovery standard** — `<link rel="alternate">` tags in HTML `<head>` per W3C spec (HIGH confidence)
+- **Common feed URL patterns** — Industry standard paths: /feed, /rss, /atom.xml, /feed.xml, /index.xml (MEDIUM confidence - established convention)
+
+---
+
+*Stack research for: v1.9 Automatic Discovery Feed*
+*Researched: 2026-03-27*

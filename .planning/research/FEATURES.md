@@ -1,8 +1,8 @@
-# Feature Research: Semantic Search & Related Articles
+# Feature Research: Feed Auto-Discovery
 
-**Domain:** Personal RSS reader with vector semantic search
-**Researched:** 2026-03-26
-**Confidence:** MEDIUM (web search tools unavailable, used WebFetch on official docs + training data)
+**Domain:** RSS/Atom feed auto-discovery for website URLs
+**Researched:** 2026-03-27
+**Confidence:** HIGH (feed discovery is well-documented standard; WebSearch unavailable - using canonical knowledge)
 
 ## Feature Landscape
 
@@ -12,10 +12,10 @@ Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Semantic search query | Users want natural language search, not just keyword matching | MEDIUM | Requires embedding generation + ChromaDB query |
-| Related articles | "More like this" is standard UX for content consumption | MEDIUM | Similarity search using article embedding |
-| Search result relevance ranking | Results should be ordered by relevance | LOW | ChromaDB returns ordered results by default |
-| Hybrid search (keyword + semantic) | Users may want exact matches AND semantic matches | HIGH | FTS5 already exists, combining adds complexity |
+| HTML `<link>` tag parsing | Universal standard (RSS Advisory Board, Atom spec). All major feed readers do this. | LOW | Parse `<head>` for `rel="alternate"` links with `type="application/rss+xml"`, `type="application/atom+xml"`, or `type="application/rdf+xml"`. Existing httpx + BeautifulSoup stack can handle this. |
+| Well-known path probing | Many sites don't advertise in HTML but host feeds at predictable paths. Users expect "it found my feed at /feed". | LOW | Common paths: `/feed`, `/feed/`, `/rss`, `/rss.xml`, `/feed.xml`, `/index.xml`, `/atom.xml`, `/rdf.xml`. Try each with HEAD/GET request checking for XML content-type. |
+| Multiple feed detection | Sites often have multiple feeds (full content, summaries, categories). Users expect "found 3 feeds". | LOW | Collect all discovered `<link>` tags. Present as list for user selection. |
+| Full feed type support | Users have feeds in RSS 0.90-2.0, Atom 0.3/1.0, CDF, RDF formats. feedparser already handles all these. | LOW | feedparser.parse() accepts any of these. Only need to discover URLs. |
 
 ### Differentiators (Competitive Advantage)
 
@@ -23,240 +23,139 @@ Features that set the product apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Incremental embedding on fetch | New articles automatically become searchable semantically | MEDIUM | Hook into fetch pipeline, batch embedding generation |
-| Feed-filtered semantic search | "Only show me articles similar to X within feed Y" | LOW | ChromaDB supports metadata filtering via `where` clause |
-| Semantic tag suggestions | "This article seems related to tags [A, B]" | MEDIUM | Uses similarity against tag clusters |
-| Cross-feed discovery | Find related content across different feeds | LOW | Natural outcome of semantic search across all articles |
+| `discover <url>` standalone command | "Just check what feeds exist" without committing. Useful for exploration. | LOW | New CLI command that lists feeds without subscribing. Natural fit with existing provider pattern. |
+| `--automatic` flag (subscribe all without prompting) | Power user automation. "Add all category feeds from this site". | LOW | Simple boolean. If True, auto-subscribe all discovered feeds. If False, list and prompt. |
+| Configurable depth for hierarchy discovery | Balance between thoroughness and speed/bandwidth. | MEDIUM | Depth=1 (default): only parse `<head>` of given URL. Depth=2+: also probe paths and follow internal links. |
+| Feed preview before subscription | Show article count, last updated, title before committing. | LOW | Parse discovered feed, extract metadata. Reuse existing feed_meta() pattern. |
+| WordPress-style query param detection | WordPress uses `/?feed=rss` style URLs. Many sites run WP. | LOW | Detect `?feed=` query params. Try variations. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
+Features that seem good but create problems.
+
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Real-time semantic search | Instant results as you type | Embedding generation is expensive, CPU-bound | Debounced search with progress indicator |
-| Full LLM summarization of results | "AI-powered insights" | API cost, latency, complexity | Pre-computed summaries on demand |
-| Collaborative filtering | "Users like you also read..." | Requires user data, multi-user architecture | Tag-based similarity (already exists) |
-| Automatic article categorization | "Put this in category X" | Taxonomy management overhead | Use semantic search + existing tags |
+| Recursive site crawling for feeds | "Find all feeds on this site" sounds powerful. | HIGH | Crawling entire site is slow, potentially disrespectful (hits many pages), and rarely needed. Most sites advertise feeds in `<head>`. |
+| Real-time/automatic feed updates on discovery | "Just keep discovering new feeds". | HIGH | Adds complexity (background processes, scheduling), storage concerns, and user surprise. Discovery should be explicit, not automatic background behavior. |
+| Social media/discussion platform discovery | "Find feeds from Twitter, Reddit, etc." | MEDIUM | These don't use standard RSS/Atom. Would require platform-specific APIs (often restricted). Outside core RSS use case. |
+| Feed validation scoring/ranking | "Rank feeds by quality". | MEDIUM | Subjective. What constitutes "quality" varies by user. Adds ML/complexity without clear benefit. |
 
 ## Feature Dependencies
 
 ```
-Semantic Search CLI
-    └──requires──> Embedding Generation Service
-                        └──requires──> sentence-transformers model
-                        └──requires──> ChromaDB collection
-
-Article Related
-    └──requires──> Embedding Generation Service (same)
-    └──requires──> Existing article embedding (in ChromaDB)
-
-Incremental Embedding
-    └──requires──> Semantic Search CLI (same service)
-    └──triggered by──> fetch --all (new articles)
+Feed Auto-Discovery (new)
+    ├──requires──> HTML link tag parsing (new)
+    │                  └──requires──> httpx fetch page (reuse existing httpx)
+    │                  └──requires──> BeautifulSoup parse <head> (reuse existing stack)
+    │
+    ├──requires──> Well-known path probing (new)
+    │                  └──requires──> httpx HEAD/GET requests (reuse existing)
+    │                  └──requires──> Content-Type validation (reuse existing RSSProvider.match pattern)
+    │
+    └──requires──> Multiple feed listing (new)
+                     └──requires──> User selection CLI (reuse existing click patterns)
 ```
 
 ### Dependency Notes
 
-- **Semantic search requires embedding generation:** The `all-MiniLM-L6-v2` model must be loaded and used to encode query text. First query has model loading overhead (~2-5 seconds).
-- **Related articles requires existing embedding:** If an article was stored before ChromaDB integration, it has no embedding. Need migration strategy.
-- **ChromaDB is separate from SQLite:** Vectors stored in ChromaDB (`chroma.sqlite`), not in existing `articles.db`. Data remains synchronized via article ID.
+- **HTML link tag parsing requires httpx fetch page:** Existing httpx stack is available. Need to fetch website URL (not feed URL) and parse HTML.
+- **Well-known path probing reuses RSSProvider.match:** The pattern of checking Content-Type headers is already implemented. Reuse for probing paths.
+- **Multiple feed listing enhances `feed add --discover`:** Existing `feed add` command is the downstream consumer of discovery.
 
 ## MVP Definition
 
-### Launch With (v1.8)
+### Launch With (v1.9)
 
-Minimum viable product -- what is needed to validate the concept.
+Minimum viable product - what is needed to validate the concept.
 
-- [ ] `search --semantic "query"` -- Semantic search using sentence-transformers + ChromaDB. Returns top-k similar articles by cosine similarity. **Why essential:** Core value proposition of the milestone.
-- [ ] `article related <id>` -- Find articles similar to a given article ID. **Why essential:** Natural companion to semantic search; validates embedding quality.
-- [ ] Incremental embedding on fetch -- New articles automatically generate embeddings and store in ChromaDB. **Why essential:** Without this, semantic search degrades over time as new content lacks embeddings.
-- [ ] Progress indicator for embedding generation -- Users should see feedback during batch embedding. **Why essential:** Embedding generation is slow; silent failure frustrates users.
+- [ ] **HTML `<link>` tag parsing** - The standard autodiscovery method. Fetch website HTML, parse `<head>` for `<link rel="alternate">` tags with feed types. **Essential** - this is the primary discovery method.
+- [ ] **Well-known path probing** - Fallback for sites that don't advertise in HTML. Try `/feed`, `/feed.xml`, `/atom.xml`, `/rss.xml`, `/rss`. **Essential** - many popular sites still use this.
+- [ ] **Multiple feed listing** - Display all discovered feeds with titles so user can choose. **Essential** - otherwise discovery is not useful.
+- [ ] **`discover <url>` command** - Standalone command to just discover without subscribing. **Essential** - the milestone spec explicitly calls for this.
+- [ ] **`feed add <url> --discover` (default on)** - Integrate discovery into `feed add`. Default to discover= True. **Essential** - per milestone spec.
 
-### Add After Validation (v1.x)
+### Add After Validation (v1.9.x)
 
 Features to add once core is working.
 
-- [ ] `search "query" --hybrid` -- Combine FTS5 keyword results with semantic reranking. **Trigger:** User feedback requesting exact-match searches.
-- [ ] Batch backfill embedding -- CLI command to generate embeddings for existing articles. **Trigger:** Users want to search old content semantically.
-- [ ] Feed-filtered semantic search -- `search --semantic "query" --feed-id X`. **Trigger:** Users with many feeds want scoped discovery.
+- [ ] **`--automatic` flag** - Auto-subscribe all discovered feeds without prompting. Lower priority since most users want to review before subscribing.
+- [ ] **Feed preview** - Show article count, last updated before subscription decision. Nice UX but not critical.
+- [ ] **Depth configuration** - Add `--depth N` option for hierarchy crawling later if users request it.
 
 ### Future Consideration (v2+)
 
 Features to defer until product-market fit is established.
 
-- [ ] Semantic tag clustering -- Auto-discover tag groups via embedding similarity. **Why defer:** Existing DBSCAN clustering works; marginal benefit unclear.
-- [ ] Topic modeling / dimensionality reduction -- Visualize article landscape. **Why defer:** Visualization outside CLI scope; would need web UI.
-- [ ] LLM-powered search refinement -- Rewrite queries for better retrieval. **Why defer:** API dependency, cost, complexity.
+- [ ] **Recursive site crawling** - Only if users explicitly request and accept the speed/bandwidth tradeoff.
+- [ ] **OPML import/export** - Already in backlog, orthogonal to discovery.
+- [ ] **Read/unread state** - Already in backlog, orthogonal to discovery.
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Semantic search CLI | HIGH | MEDIUM | P1 |
-| Related articles | HIGH | LOW | P1 |
-| Incremental embedding | HIGH | MEDIUM | P1 |
-| Progress indicator | MEDIUM | LOW | P1 |
-| Hybrid search | MEDIUM | HIGH | P2 |
-| Backfill embedding | MEDIUM | MEDIUM | P2 |
-| Feed-filtered search | MEDIUM | LOW | P2 |
-| Semantic tag clustering | LOW | MEDIUM | P3 |
+| HTML `<link>` tag parsing | HIGH - universal standard | LOW | P1 |
+| Well-known path probing | HIGH - common fallback | LOW | P1 |
+| Multiple feed listing | HIGH - enables user choice | LOW | P1 |
+| `discover <url>` command | HIGH - milestone requirement | LOW | P1 |
+| `feed add --discover` integration | HIGH - milestone requirement | LOW | P1 |
+| `--automatic` flag | MEDIUM - power user feature | LOW | P2 |
+| Feed preview | MEDIUM - UX improvement | LOW | P2 |
+| Depth configuration | LOW - advanced use case | MEDIUM | P3 |
+| Recursive crawling | LOW - rarely needed | HIGH | P3 |
 
 **Priority key:**
 - P1: Must have for launch
 - P2: Should have, add when possible
 - P3: Nice to have, future consideration
 
-## CLI UX Patterns
-
-### Existing CLI Patterns (from codebase review)
-
-The current CLI follows these conventions:
-
-```
-article list [--limit] [--feed-id] [--tag] [--tags] [--verbose]
-article view <article_id> [--verbose]
-article open <article_id>
-article tag [<article_id> <tag_name>] [--auto] [--rules]
-search <query> [--limit] [--feed-id]
-```
-
-- Top-level commands: `feed`, `article`, `search`, `fetch`
-- Article subcommands: `list`, `view`, `open`, `tag`
-- Options use `--flag` syntax
-- Required arguments use positional syntax
-- Error output uses `click.secho(..., fg="red")`
-
-### Semantic Search CLI Proposal
-
-**Option A: Separate command (cleanest)**
-```
-search --semantic "query" [--limit] [--feed-id]
-```
-- Pros: Clear separation from keyword search
-- Cons: Two separate commands for related functionality
-
-**Option B: Flag on existing search**
-```
-search "query" [--semantic] [--limit] [--feed-id]
-```
-- Pros: Single command, easy to switch between keyword/semantic
-- Cons: Semantic search is architecturally different (requires embedding), may confuse users expecting similar behavior
-
-**Option C: Subcommand**
-```
-search semantic "query" [--limit] [--feed-id]
-search keyword "query" [--limit] [--feed-id]
-```
-- Pros: Explicit, extensible (could add `search hybrid`)
-- Cons: More verbose
-
-**Recommendation: Option B** -- The existing `search` command is FTS5-only. Adding a `--semantic` flag clearly indicates the mode. Users can experiment easily.
-
-### Related Articles CLI Proposal
-
-**Proposed syntax:**
-```
-article related <article_id> [--limit] [--feed-id]
-```
-
-- Uses `article` as parent (consistent with `article view`, `article open`)
-- `related` subcommand follows pattern of sibling subcommands
-- Options match semantic search: `--limit`, `--feed-id`
-
-### Embedding Generation Feedback
-
-**During fetch (automatic):**
-```
-Fetching feed: Example Feed... 5 new articles
-Generating embeddings... [████████████░░░░] 12s
-```
-
-**Backfill command (manual):**
-```
-$ rss-reader embed --all
-Generating embeddings for 2479 existing articles...
-[████████████████████████████] 4m 32s
-Done. 2479 articles embedded.
-```
-
-## ChromaDB Integration Patterns
-
-### Collection Configuration
-
-```python
-import chromadb
-from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
-
-# Default uses all-MiniLM-L6-v2 (384 dimensions)
-client = chromadb.PersistentClient(path="./data/chroma")
-collection = client.create_collection(
-    name="articles",
-    embedding_function=DefaultEmbeddingFunction()
-)
-```
-
-### Adding Article Embeddings
-
-```python
-# Batch add for incremental updates
-collection.add(
-    ids=[article_id],
-    documents=[article_content],  # title + description + content
-    metadatas=[{
-        "feed_id": feed_id,
-        "pub_date": pub_date,
-        "url": link
-    }]
-)
-```
-
-### Semantic Search Query
-
-```python
-# Query by text (ChromaDB embeds automatically)
-results = collection.query(
-    query_texts=["machine learning optimization"],
-    n_results=10,
-    where={"feed_id": feed_id},  # optional filter
-    include=["documents", "metadatas", "distances"]
-)
-```
-
-### Related Articles Query
-
-```python
-# Get embedding for source article
-article_embedding = collection.get(ids=[article_id])["embeddings"][0]
-
-# Find similar articles
-results = collection.query(
-    query_embeddings=[article_embedding],
-    n_results=6,  # 5 + source article
-    include=["documents", "metadatas", "distances"]
-)
-# Exclude source article from results
-```
-
 ## Competitor Feature Analysis
 
-| Feature | Feedly | Miniflux | Fresh RSS | Our Approach |
-|---------|--------|----------|-----------|--------------|
-| Keyword search | FULL-TEXT | FULL-TEXT | FULL-TEXT (plugin) | FTS5 (existing) |
-| Semantic search | AI Pro addon | NOT AVAILABLE | NOT AVAILABLE | Native via ChromaDB |
-| Related articles | "More like this" | NOT AVAILABLE | NOT AVAILABLE | `article related` |
-| Search filters | Feed, tag, date | Feed, tag, status | Feed, tag | Feed ID (existing) |
-| Embedding model | OpenAI | N/A | N/A | sentence-transformers (local) |
+| Feature | Inoreader | Feedly | NewsBlur | Our Approach |
+|---------|-----------|--------|----------|--------------|
+| HTML `<link>` parsing | Yes | Yes | Yes | Implement as primary method |
+| Well-known paths | Yes | Yes | Yes | Implement as fallback |
+| `discover` command | "Discover" tab | "Discover" section | Feed search | New `discover <url>` CLI command |
+| Auto-subscribe option | Yes (auto-follow) | Yes | Yes | `--automatic` flag |
+| Depth/crawl options | Limited | Limited | None | Depth=1 default, configurable later |
 
-**Key insight:** Semantic search and related articles are NOT table stakes in RSS readers. Most competitors either lack them entirely or offer as paid/Cloud-only features. This is a genuine differentiator for a personal, local-first tool.
+## Implementation Notes for Existing Stack
+
+### Reuse Opportunities
+
+1. **httpx** - Already used for HTTP requests. Fetch website HTML (not feed) via `httpx.get(url, headers=BROWSER_HEADERS)`.
+
+2. **BeautifulSoup4** - Already in stack. Parse HTML `<head>` for `<link>` tags.
+
+3. **feedparser** - Already handles all feed types (RSS 0.90-2.0, Atom 0.3/1.0, CDF, RDF). Only need to discover URLs; feedparser already registered in providers.
+
+4. **Provider pattern** - RSSProvider.match() already checks Content-Type. Reuse pattern for path probing validation.
+
+5. **Existing CLI patterns** - click decorators, Rich progress bars already in use.
+
+### New Components Needed
+
+1. **feed_discovery.py** (application layer) - Core discovery logic:
+   - `discover_feeds(url: str) -> list[DiscoveredFeed]`
+   - `probe_well_known_paths(base_url: str) -> list[DiscoveredFeed]`
+   - `parse_html_autodiscovery(html: str, base_url: str) -> list[DiscoveredFeed]`
+
+2. **CLI integration:**
+   - New `discover` command in `src/cli/feed.py`
+   - Modify `feed add` with `--discover` flag (default=True)
+
+3. **Storage integration:**
+   - DiscoveredFeed model (url, title, type, feed_url)
+   - Optional: store discovered feeds temporarily vs. subscribe immediately
 
 ## Sources
 
-- [ChromaDB Query Documentation](https://docs.trychroma.com/docs/querying-collections/query-and-get) (HIGH confidence)
-- [ChromaDB Add Data Documentation](https://docs.trychroma.com/docs/collections/add-data) (HIGH confidence)
-- [ChromaDB Embeddings Documentation](https://docs.trychroma.com/docs/embeddings) (HIGH confidence)
-- [SBERT Pretrained Models](https://www.sbert.net/docs/pretrained_models.html) (HIGH confidence)
-- [LangChain RAG Tutorial](https://docs.langchain.com/oss/python/langchain/rag) (MEDIUM confidence)
-- [PrivateGPT Architecture](https://github.com/imartinez/privateGPT) (MEDIUM confidence)
+- [RSS Advisory Board - Autodiscovery](https://www.rssboard.org/autodiscovery) (HIGH confidence - RSS standard documentation)
+- [Atom Specification - Link Elements](https://datatracker.ietf.org/doc/html/rfc4287#section-4.2.7) (HIGH confidence - IETF standard)
+- [feedparser Documentation](https://feedparser.readthedocs.io/en/latest/) (HIGH confidence - already in stack)
+- [WHATWG - Link Types](https://www.whatwg.org/specs/web-apps/current-work/multipage/link-types.html#link-type-alternate) (HIGH confidence - WHATWG standard)
 
 ---
-*Feature research for: ChromaDB semantic search in RSS reader*
-*Researched: 2026-03-26*
+
+*Feature research for: Feed Auto-Discovery (v1.9 milestone)*
+*Researched: 2026-03-27*
