@@ -5,7 +5,7 @@ milestone_name: Automatic Discovery Feed
 status: verifying
 stopped_at: Completed Phase 37-01 plan - Deep Crawling (37-01-SUMMARY.md)
 last_updated: "2026-03-27T12:46:12.000Z"
-last_activity: 2026-03-27
+last_activity: 2026-03-27 - Completed quick task 260327-tpu: Replace httpx with Scrapling Fetcher in deep_crawl
 progress:
   total_phases: 4
   completed_phases: 4
@@ -241,3 +241,4 @@ Stopped at: Completed Quick Task 260327-sp3 - regex-based feed path matching
 | Phase 37 P37-01 | <5 | 4 tasks | 5 files |
 | 260327-sp3 | Implement regex-based feed path matching with generate_feed_candidates() | 2026-03-27 | e5e38d9 | Verified | [260327-sp3-implement-regex-based-feed-path-matching](./quick/260327-sp3-implement-regex-based-feed-path-matching/) |
 | 260327-t7d | Refactor src/discovery HTML parsing from BeautifulSoup to Scrapling | 2026-03-27 | b12cf01 | Verified | [260327-t7d-scrapling-src-discovery](./quick/260327-t7d-scrapling-src-discovery/) |
+| 260327-tpu | Replace httpx with Scrapling Fetcher in deep_crawl | 2026-03-27 | bbe0da8 | Verified | [260327-tpu-replace-beautifulsoup-with-scrapling-in-](./quick/260327-tpu-replace-beautifulsoup-with-scrapling-in-/) |
