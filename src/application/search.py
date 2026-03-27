@@ -17,28 +17,29 @@ from src.storage.sqlite import get_article
 def format_semantic_results(results: list[dict[str, Any]], verbose: bool = False) -> list[dict[str, Any]]:
     """Format semantic search results for display.
 
-    Takes output from search_articles_semantic (list of dicts with article_id,
-    sqlite_id, title, url, distance, document) and converts L2 distance to
-    cosine similarity for normalized display.
+    Takes output from rank_semantic_results (list of dicts with article_id,
+    sqlite_id, title, url, distance, document, norm_similarity) and formats
+    for unified CLI presentation.
 
     Args:
-        results: List of dicts from search_articles_semantic with keys:
+        results: List of dicts from rank_semantic_results with keys:
             - article_id: ChromaDB ID (guid)
             - sqlite_id: SQLite nanoid or None
             - title: Article title or None
             - url: Article URL or None
             - distance: L2 distance (float) or None
             - document: Full content text or None
+            - norm_similarity: Normalized similarity score (0-1) from ranking
         verbose: If True, include full details (id, url, document preview).
                  If False, show truncated summary.
 
     Returns:
-        List of dicts with formatted fields:
-        - id_display: sqlite_id[:8] or "" (non-verbose), full sqlite_id or "" (verbose)
-        - title: article title
-        - source: url or "-" (non-verbose), url or "" (verbose)
-        - date: "-" (non-verbose), "" (verbose)
-        - similarity: percentage string like "85.5%" or "N/A"
+        List of dicts with unified formatted fields:
+        - id: sqlite_id[:8] or "" (non-verbose), full sqlite_id or "" (verbose)
+        - title: article title (truncated to 60 chars)
+        - source: domain from url (truncated to 15 chars) or "-"
+        - date: "-" (semantic search has no date)
+        - score: norm_similarity * 100 as percentage like "85%" or "N/A"
         - url: full url (verbose only)
         - document_preview: truncated content (verbose only)
     """
@@ -46,35 +47,47 @@ def format_semantic_results(results: list[dict[str, Any]], verbose: bool = False
     for result in results:
         title = result.get("title") or "No title"
         url = result.get("url") or ""
-        distance = result.get("distance")
         sqlite_id = result.get("sqlite_id")
+        norm_sim = result.get("norm_similarity")
+        distance = result.get("distance")
 
-        # Convert L2 distance to cosine similarity for normalized embeddings:
-        # L2_dist = sqrt(2 - 2*cos_sim) => cos_sim = 1 - dist^2/2
-        if distance is not None:
+        # Use norm_similarity if available (from rank_semantic_results),
+        # otherwise compute from distance for fallback
+        if norm_sim is not None:
+            score = f"{int(norm_sim * 100)}%"
+        elif distance is not None:
             cos_sim = max(0.0, 1.0 - (distance * distance / 2.0))
-            similarity = f"{round(cos_sim * 100, 1)}%"
+            score = f"{int(cos_sim * 100)}%"
         else:
-            similarity = "N/A"
+            score = "N/A"
+
+        # Extract domain from URL for source field
+        if url:
+            try:
+                parsed = urlparse(url)
+                source = parsed.netloc[:15] if parsed.netloc else "-"
+            except Exception:
+                source = "-"
+        else:
+            source = "-"
 
         if verbose:
             formatted.append({
-                "id_display": sqlite_id[:8] if sqlite_id else "",
+                "id": sqlite_id[:8] if sqlite_id else "",
                 "title": title,
-                "source": url or "",
-                "date": "",
-                "similarity": similarity,
+                "source": source,
+                "date": "-",
+                "score": score,
                 "url": url,
                 "document_preview": _truncate(result.get("document"), 150) if result.get("document") else "",
             })
         else:
-            id_display = f"{sqlite_id[:8]} | " if sqlite_id else ""
             formatted.append({
-                "id_display": id_display,
+                "id": sqlite_id[:8] if sqlite_id else "",
                 "title": title,
-                "source": url or "-",
+                "source": source,
                 "date": "-",
-                "similarity": similarity,
+                "score": score,
             })
     return formatted
 
