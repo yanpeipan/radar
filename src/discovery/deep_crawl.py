@@ -17,7 +17,6 @@ _scrapling_logger.disabled = True
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
 from src.discovery.common_paths import matches_feed_path_pattern, generate_feed_candidates
-from src.discovery.fetcher import validate_feed
 from src.discovery.models import DiscoveredFeed
 from src.discovery.parser import parse_link_elements, resolve_url
 from src.providers.rss_provider import BROWSER_HEADERS
@@ -140,15 +139,11 @@ async def _probe_well_known_paths(page_url: str, html: str | None = None) -> lis
     if not valid_candidates:
         return []
 
-    # Fetch titles concurrently
-    title_tasks = [_extract_feed_title(url) for url, _ in valid_candidates]
-    titles = await asyncio.gather(*title_tasks)
-
     results = []
-    for (candidate, feed_type), title in zip(valid_candidates, titles):
+    for candidate, feed_type in valid_candidates:
         results.append(DiscoveredFeed(
             url=candidate,
-            title=title,
+            title=None,
             feed_type=feed_type,
             source='well_known_path',
             page_url=page_url,
@@ -229,10 +224,9 @@ async def _find_feed_links_on_page(html: str, page_url: str) -> list[DiscoveredF
             # Validate via HTTP (quick HEAD + Content-Type only)
             is_valid, feed_type = await _quick_validate_feed(absolute)
             if is_valid:
-                title = await _extract_feed_title(absolute)
                 results.append(DiscoveredFeed(
                     url=absolute,
-                    title=title,
+                    title=None,
                     feed_type=feed_type or 'rss',
                     source='css_selector',
                     page_url=page_url,
@@ -255,18 +249,19 @@ async def _discover_feeds_on_page(html: str, page_url: str) -> list[DiscoveredFe
     discovered = parse_link_elements(html, page_url)
 
     if discovered:
-        # Validate each feed
-        valid_feeds = []
-        for feed in discovered:
-            is_valid, feed_type = await validate_feed(feed.url)
-            if is_valid:
-                valid_feeds.append(DiscoveredFeed(
-                    url=feed.url,
-                    title=feed.title,
-                    feed_type=feed_type,
-                    source=feed.source,
-                    page_url=feed.page_url,
-                ))
+        # Validate all feeds concurrently (was sequential validate_feed)
+        val_tasks = [_quick_validate_feed(f.url) for f in discovered]
+        val_results = await asyncio.gather(*val_tasks)
+        valid_feeds = [
+            DiscoveredFeed(
+                url=f.url,
+                title=f.title,
+                feed_type=vt[1] or 'rss',
+                source=f.source,
+                page_url=f.page_url,
+            )
+            for f, vt in zip(discovered, val_results) if vt[0]
+        ]
         if valid_feeds:
             return valid_feeds
 
