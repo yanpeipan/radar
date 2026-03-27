@@ -11,6 +11,7 @@ import asyncio
 import logging
 from typing import Optional
 
+from src.application.feed import FeedNotFoundError, fetch_one
 from src.models import Feed
 from src.providers import discover_or_default
 from src.storage import list_feeds as storage_list_feeds, store_article_async, add_article_embedding
@@ -228,3 +229,43 @@ async def fetch_all_async(concurrency: int = 10):
             "new_articles": result.get("new_articles", 0),
             "error": result.get("error") if result.get("new_articles", 0) == 0 else None,
         }
+
+
+async def fetch_ids_async(ids: list[str], concurrency: int = 10):
+    """Fetch new articles from specified feed IDs concurrently.
+
+    Uses asyncio.Semaphore to limit concurrent HTTP requests to `concurrency`
+    (default 10). SQLite writes are serialized via asyncio.Lock + asyncio.to_thread()
+    to prevent 'database is locked' errors.
+
+    Args:
+        ids: List of feed IDs to fetch.
+        concurrency: Maximum number of concurrent fetches. Default is 10.
+
+    Yields:
+        Dict with feed_id, new_articles, error (if any).
+        Skips "Feed not found" errors gracefully (does not yield them).
+    """
+    if not ids:
+        return
+
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def fetch_one_with_semaphore(id: str):
+        async with semaphore:
+            try:
+                result = await asyncio.to_thread(fetch_one, id)
+                return {"feed_id": id, **result}
+            except FeedNotFoundError:
+                # Skip "Feed not found" - feed doesn't exist in DB
+                return None
+            except Exception as e:
+                # Yield other errors but continue to next feed
+                return {"feed_id": id, "new_articles": 0, "error": str(e)}
+
+    tasks = [fetch_one_with_semaphore(id) for id in ids]
+
+    for coro in asyncio.as_completed(tasks):
+        result = await coro
+        if result is not None:
+            yield result
