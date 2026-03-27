@@ -19,7 +19,7 @@
 - 全量 feed 类型支持：RSS 0.90-2.0、Atom 0.3/1.0、CDF、RDF
 - 文档化：`docs/Automatic Discovery Feed.md`
 
-**Status:** ⏳ Started (2026-03-27)
+**Status:** ⏳ In Progress — Phase 35 complete, Phase 36-37 pending
 
 ---
 
@@ -81,6 +81,11 @@
 - ~10 个 Python 源文件，约 2,800 行代码
 
 ## Requirements
+
+### Validated (v1.9)
+
+- [x] DISC-05: `discover <url>` CLI command — Phase 35 complete
+- [x] DISC-01, DISC-02, DISC-03, DISC-04: Discovery Core Module — Phase 34 complete
 
 ### Validated (v1.7)
 
