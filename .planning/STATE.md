@@ -183,6 +183,7 @@ Stopped at: Completed 260328-4vr-PLAN.md
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 260328-xxx | refactor: print_articles uses Rich Table for adaptive display | 2026-03-28 | 276aaed | Verified | [260328-xxx-refactor-print-articles-rich-table](./quick/260328-xxx-refactor-print-articles-rich-table/) |
 | 260328-2v6 | format_articles() unified formatter for article_list, format_semantic_results, format_fts_results | 2026-03-28 | 1c558dd | Verified | [260328-2v6-article-semantic-search-search-articles-](./quick/260328-2v6-article-semantic-search-search-articles-/) |
 | 260328-2h9 | 统一返回结构：{id[:8]} | {title[:60]} | {source[:15]} | {date[:10]} | {score[:4]} | 2026-03-27 | f5fc86b | Verified | [260328-2h9-id-8-title-60-source-15-date-10-score-4-](./quick/260328-2h9-id-8-title-60-source-15-date-10-score-4-/) |
 | 260325-2am | src.cli fetch支持指定一个或多个链接 | 2026-03-24 | (pending) | Gaps | [260325-2am-src-cli-fetch](./quick/260325-2am-src-cli-fetch/) |
