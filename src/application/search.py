@@ -7,6 +7,7 @@ reusable by other callers without CLI dependencies.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -41,7 +42,7 @@ def _format_list_items(items: list[ArticleListItem], verbose: bool) -> list[dict
     for article in items:
         title = _truncate(article.title, 60) if article.title else "No title"
         source = _truncate(article.feed_name, 15) if article.feed_name else "Unknown"
-        date = _truncate(article.pub_date, 10) if article.pub_date else "-"
+        date = _format_date_for_display(article.pub_date)
         article_id = article.id
         if verbose:
             formatted.append({
@@ -68,11 +69,12 @@ def _format_fts_items(items: list[ArticleListItem], verbose: bool) -> list[dict[
     for article in items:
         title = _truncate(article.title, 60) if article.title else "No title"
         source = _truncate(article.feed_name, 15) if article.feed_name else "Unknown"
-        date = _truncate(article.pub_date, 10) if article.pub_date else "-"
+        date = _format_date_for_display(article.pub_date)
+        article_id = article.id
         if verbose:
             desc_preview = _truncate(article.description, 100) if article.description else ""
             formatted.append({
-                "id": "",
+                "id": article_id,
                 "title": title,
                 "source": source,
                 "date": date,
@@ -82,7 +84,7 @@ def _format_fts_items(items: list[ArticleListItem], verbose: bool) -> list[dict[
             })
         else:
             formatted.append({
-                "id": "",
+                "id": article_id[:8],
                 "title": title,
                 "source": source,
                 "date": date,
@@ -289,10 +291,10 @@ def format_fts_results(articles: list[ArticleListItem], verbose: bool = False) -
 
     Returns:
         List of dicts with unified formatted fields:
-        - id: "" (FTS has no article ID)
+        - id: article_id[:8] (non-verbose) or article_id (verbose)
         - title: article title (truncated to 60 chars)
         - source: feed_name (truncated to 15 chars)
-        - date: pub_date (truncated to 10 chars)
+        - date: pub_date (formatted as yyyy-mm-dd)
         - score: "FTS" (indicates FTS keyword search)
         - link: article link (verbose only)
         - description_preview: truncated description (verbose only)
@@ -305,3 +307,36 @@ def _truncate(text: str, max_length: int) -> str:
     if len(text) <= max_length:
         return text
     return text[:max_length] + "..."
+
+
+def _format_date_for_display(pub_date: str | None) -> str:
+    """Convert pub_date to yyyy-mm-dd format for display.
+
+    Handles RFC 2822 dates from RSS feeds (e.g., 'Thu, 26 Mar 2026 10:30:00 +0000')
+    and ISO format dates (e.g., '2026-03-26').
+
+    Args:
+        pub_date: Publication date string or None.
+
+    Returns:
+        Formatted date string (yyyy-mm-dd) or "-" if invalid/None.
+    """
+    if not pub_date:
+        return "-"
+
+    # Try parsing as RFC 2822 (RSS feed format)
+    try:
+        dt = parsedate_to_datetime(pub_date)
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        pass
+
+    # Try parsing as ISO format (already normalized)
+    try:
+        dt = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d")
+    except Exception:
+        pass
+
+    # Fallback: return as-is (should not reach here normally)
+    return pub_date[:10] if len(pub_date) >= 10 else pub_date
