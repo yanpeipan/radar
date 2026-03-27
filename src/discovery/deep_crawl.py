@@ -10,7 +10,7 @@ import httpx
 from bs4 import BeautifulSoup
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
-from src.discovery.common_paths import WELL_KNOWN_PATHS
+from src.discovery.common_paths import WELL_KNOWN_PATHS, _COMMON_FEED_SUBDIRS
 from src.discovery.fetcher import validate_feed
 from src.discovery.models import DiscoveredFeed
 from src.discovery.parser import parse_link_elements, resolve_url
@@ -62,6 +62,8 @@ async def _probe_well_known_paths(page_url: str) -> list[DiscoveredFeed]:
         base += f":{parsed.port}"
 
     results = []
+
+    # Root-level well-known paths
     for path in _FEED_PATH_PROBES:
         candidate = base + path
         is_valid, feed_type = await validate_feed(candidate)
@@ -73,6 +75,21 @@ async def _probe_well_known_paths(page_url: str) -> list[DiscoveredFeed]:
                 source='well_known_path',
                 page_url=page_url,
             ))
+
+    # Common sub-directory paths with feed suffixes
+    for subdir in _COMMON_FEED_SUBDIRS:
+        for suffix in ("/rss.xml", "/atom.xml", "/feed.xml"):
+            candidate = base + subdir + suffix
+            is_valid, feed_type = await validate_feed(candidate)
+            if is_valid:
+                results.append(DiscoveredFeed(
+                    url=candidate,
+                    title=None,
+                    feed_type=feed_type,
+                    source='well_known_path',
+                    page_url=page_url,
+                ))
+
     return results
 
 

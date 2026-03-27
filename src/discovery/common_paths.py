@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
+# Standard well-known feed paths (probed at domain root)
 WELL_KNOWN_PATHS: tuple[str, ...] = (
     "/feed",
     "/feed/",
@@ -11,10 +12,17 @@ WELL_KNOWN_PATHS: tuple[str, ...] = (
     "/atom.xml",
     "/feed.xml",
     "/index.xml",
-    # Site-specific paths for major sites that block HTML fetch (Cloudflare, etc.)
-    # These are NOT standard well-known paths — they are fallbacks for sites with
-    # autodiscovery links that we cannot fetch due to bot protection.
-    "/news/rss.xml",  # openai.com
+)
+
+# Common sub-directory paths that may contain feeds (probed with feed suffixes)
+# These are relative paths appended to the domain root (e.g., /news/rss.xml)
+_COMMON_FEED_SUBDIRS: tuple[str, ...] = (
+    "/news",
+    "/blog",
+    "/updates",
+    "/posts",
+    "/articles",
+    "/feed",
 )
 
 # MIME types for feed Content-Type validation (DISC-04)

@@ -7,7 +7,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from src.discovery.common_paths import WELL_KNOWN_PATHS
+from src.discovery.common_paths import WELL_KNOWN_PATHS, _COMMON_FEED_SUBDIRS
 from src.discovery.deep_crawl import deep_crawl
 from src.discovery.fetcher import is_bozo_feed, validate_feed
 from src.discovery.models import DiscoveredFeed
@@ -50,8 +50,16 @@ def probe_well_known_paths(page_url: str) -> list[str]:
         base += f":{parsed.port}"
 
     candidates = []
+
+    # Root-level well-known paths (e.g., /feed, /rss.xml)
     for path in WELL_KNOWN_PATHS:
         candidates.append(base + path)
+
+    # Common sub-directory paths with feed suffixes (e.g., /news/rss.xml, /blog/atom.xml)
+    for subdir in _COMMON_FEED_SUBDIRS:
+        for suffix in ("/rss.xml", "/atom.xml", "/feed.xml"):
+            candidates.append(base + subdir + suffix)
+
     return candidates
 
 
