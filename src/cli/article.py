@@ -52,7 +52,7 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], verbose
             return
         ranked = rank_list_results(articles)
         formatted = format_articles(ranked, verbose=verbose)
-        print_articles(formatted, 'list', verbose=verbose)
+        print_articles(formatted, verbose=verbose)
     except Exception as e:
         click.secho(f"Error: Failed to list articles: {e}", err=True, fg="red")
         logger.exception("Failed to list articles"); sys.exit(1)
@@ -122,13 +122,13 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
             # Apply multi-factor ranking
             results = rank_semantic_results(results, top_k=limit)
             formatted = format_semantic_results(results, verbose=verbose)
-            print_articles(formatted, 'semantic', verbose=verbose)
+            print_articles(formatted, verbose=verbose)
         else:
             articles = search_articles(query=query, limit=limit, feed_id=feed_id)
             if not articles: click.secho("No articles found matching your search."); return
             ranked = rank_fts_results(articles)
             formatted = format_articles(ranked, verbose=verbose)
-            print_articles(formatted, 'fts', verbose=verbose)
+            print_articles(formatted, verbose=verbose)
     except Exception as e:
         click.secho(f"Search unavailable: {e}.", err=True, fg="yellow")
         logger.exception("Failed to search articles"); sys.exit(1)

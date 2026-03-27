@@ -334,54 +334,37 @@ def _format_date_for_display(pub_date: str | None) -> str:
     return pub_date[:10] if len(pub_date) >= 10 else pub_date
 
 
-def print_articles(items: list[dict[str, Any]], mode: str, verbose: bool = False) -> None:
+def print_articles(items: list[dict[str, Any]], verbose: bool = False) -> None:
     """Print formatted articles to console.
 
     Args:
         items: List of formatted article dicts from format_articles()
-        mode: One of 'list', 'semantic', 'fts' - determines header format
         verbose: If True, show detailed output with full fields
     """
     import click
 
     if not items:
-        if mode == 'semantic':
-            click.secho("No articles found matching your semantic search.")
-        elif mode == 'fts':
-            click.secho("No articles found matching your search.")
-        else:
-            click.secho("No articles found. Add some feeds and fetch them first.")
+        click.secho("No articles found.")
         return
 
-    # Print header based on mode
-    headers = {
-        'list': "ID | Title | Source | Date | Score\n" + "-" * 80,
-        'semantic': "ID | Title | Source | Date | Ranked\n" + "-" * 80,
-        'fts': "ID | Title | Source | Date | Score\n" + "-" * 80,
-    }
-    click.secho(headers.get(mode, headers['list']))
+    # Unified header
+    click.secho("ID | Title | Source | Date | Score\n" + "-" * 80)
 
     for item in items:
         if verbose:
-            _print_article_verbose(item, mode)
+            _print_article_verbose(item)
         else:
             click.secho(f"{item['id'][:8]} | {item['title'][:60]} | {item['source'][:15]} | {item['date'][:10]} | {item['score'][:4]}")
 
 
-def _print_article_verbose(item: dict[str, Any], mode: str) -> None:
+def _print_article_verbose(item: dict[str, Any]) -> None:
     """Print a single article in verbose mode."""
     import click
     click.secho(f"\nTitle: {item['title']}")
     if item.get('id'): click.secho(f"ID: {item['id']}")
-    if mode == 'fts':
-        if item.get('source'): click.secho(f"Source: {item['source']}")
-        if item.get('date'): click.secho(f"Date: {item['date']}")
-        if item.get('link'): click.secho(f"Link: {item['link']}")
-        if item.get('description_preview'): click.secho(f"Description: {item['description_preview']}")
-    elif mode == 'semantic':
-        if item.get('url'): click.secho(f"URL: {item['url']}")
-        click.secho(f"Ranked: {item['score']}")
-        if item.get('document_preview'): click.secho(f"Content preview: {item['document_preview']}")
-    else:
-        if item.get('source'): click.secho(f"Source: {item['source']}")
-        if item.get('date'): click.secho(f"Date: {item['date']}")
+    if item.get('source'): click.secho(f"Source: {item['source']}")
+    if item.get('date'): click.secho(f"Date: {item['date']}")
+    if item.get('link'): click.secho(f"Link: {item['link']}")
+    if item.get('url'): click.secho(f"URL: {item['url']}")
+    if item.get('description_preview'): click.secho(f"Description: {item['description_preview']}")
+    if item.get('document_preview'): click.secho(f"Content preview: {item['document_preview']}")
