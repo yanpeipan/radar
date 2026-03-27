@@ -14,7 +14,7 @@
 
 - [x] **v1.10 uvloop Best Practices Review** — Phase 39 (shipped 2026-03-28)
 
-- [ ] **v1.11 Comprehensive uvloop Audit** — Phase 40
+- [x] **v1.11 Comprehensive uvloop Audit** — Phase 40 (shipped 2026-03-28)
 
 ## Phases
 
@@ -135,6 +135,8 @@ Plans:
   4. All async providers use true async (not sync-in-async patterns)
   5. Any uvloop anti-patterns found are fixed or noted as deferred
 **Plans**: 1 plan
+**Status**: ✅ Complete
+
 Plans:
 - [x] 40-01-PLAN.md — Comprehensive uvloop Audit (grep verification + file-by-file audit + VERIFICATION.md)
 
@@ -303,6 +305,7 @@ Plans:
 | 37. Deep Crawling | 2/2 | Complete    | 2026-03-27 |
 | 38. Search Result Ranking | 1/1 | Complete   | 2026-03-27 |
 | 39. uvloop Best Practices Review | 1/1 | ✅ Complete | 2026-03-28 |
+| 40. Comprehensive uvloop Audit | 1/1 | ✅ Complete | 2026-03-28 |
 
 ---
 _For completed milestone details, see `.planning/milestones/`_

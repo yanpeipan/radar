@@ -285,6 +285,20 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
         List of DiscoveredFeed objects found across all crawled pages.
     """
     if max_depth <= 1:
+        # First, check if the starting URL is already a direct feed URL
+        # This handles the case where user passes a feed URL directly (e.g., /rss/)
+        is_valid_feed, feed_type = await _quick_validate_feed(start_url)
+        if is_valid_feed:
+            # Extract title from the direct feed URL
+            title = await _extract_feed_title(start_url)
+            return [DiscoveredFeed(
+                url=start_url,
+                title=title,
+                feed_type=feed_type or 'rss',
+                source='direct_url',
+                page_url=start_url,
+            )]
+
         # Single-page discovery: fetch and discover
         html = None
         page_url = start_url
