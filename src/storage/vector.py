@@ -189,13 +189,13 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[ArticleLi
     metadatas = results.get("metadatas", [[]])[0]
     distances = results.get("distances", [[]])[0]
 
-    # Batch lookup full article data by guid - single query instead of N queries
+    # Batch lookup full article data by SQLite nanoid - single query instead of N queries
     valid_ids = [aid for aid in ids if aid]
-    guid_to_article = {}
+    id_to_article = {}
     if valid_ids:
-        from src.storage.sqlite import get_articles_by_urls
-        articles_data = get_articles_by_urls(valid_ids)
-        guid_to_article = {a["guid"]: a for a in articles_data}
+        from src.storage.sqlite import get_articles_by_ids
+        articles_data = get_articles_by_ids(valid_ids)
+        id_to_article = {a["id"]: a for a in articles_data}
 
     # Build ranked results with multi-factor scoring
     ranked_results = []
@@ -203,7 +203,7 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[ArticleLi
         if not article_id:
             continue
 
-        article_info = guid_to_article.get(article_id, {})
+        article_info = id_to_article.get(article_id, {})
         distance = distances[i] if i < len(distances) else None
         sqlite_id = article_info.get("id")
 
@@ -284,12 +284,8 @@ def get_related_articles(article_id: str, limit: int = 5) -> list[dict]:
     import logging
     logger = logging.getLogger(__name__)
 
-    # Look up the article's guid (which is the ChromaDB ID)
-    from src.storage.sqlite import get_article
-    article = get_article(article_id)
-    if not article:
-        raise ValueError(f"Article {article_id} not found in database")
-    chroma_id = article.guid if article.guid else article_id
+    # article_id is the SQLite nanoid, which is also the ChromaDB ID
+    chroma_id = article_id
 
     with _chroma_lock:
         collection = get_chroma_collection()

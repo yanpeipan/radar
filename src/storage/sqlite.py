@@ -503,27 +503,27 @@ def get_article_id_by_url(url: str) -> Optional[str]:
         return row["id"] if row else None
 
 
-def get_articles_by_urls(urls: list[str]) -> list:
-    """Get articles by URLs in batch.
+def get_articles_by_ids(ids: list[str]) -> list:
+    """Get articles by SQLite nanoid in batch.
 
     Args:
-        urls: List of article URLs
+        ids: List of article SQLite nanoids (id)
 
     Returns:
         List of article dicts with all fields. Missing entries are omitted.
     """
-    if not urls:
+    if not ids:
         return []
     with get_db() as conn:
         cursor = conn.cursor()
-        placeholders = ",".join("?" * len(urls))
+        placeholders = ",".join("?" * len(ids))
         cursor.execute(
             f"""SELECT a.id, a.feed_id, f.name AS feed_name, a.title, a.link, a.guid,
                        a.pub_date, a.description
                 FROM articles a
                 JOIN feeds f ON a.feed_id = f.id
-                WHERE a.link IN ({placeholders})""",
-            urls,
+                WHERE a.id IN ({placeholders})""",
+            ids,
         )
         return [dict(row) for row in cursor.fetchall()]
 
