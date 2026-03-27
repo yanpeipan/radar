@@ -166,8 +166,8 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
                 include=["documents", "metadatas", "distances"],
             )
         except Exception as e:
-            logger.error("ChromaDB query failed: %s", e)
-            raise
+            logger.warning("ChromaDB error in search_articles_semantic: %s", e)
+            return []
 
     # Flatten and map results
     articles = []
