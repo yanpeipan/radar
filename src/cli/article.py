@@ -7,7 +7,6 @@ import logging
 from typing import Optional
 import click
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 from src.application.articles import get_article_detail, list_articles, search_articles, ArticleListItem
 # Lazy import: from src.application.related import get_related_articles_display
@@ -16,16 +15,14 @@ from src.application.articles import get_article_detail, list_articles, search_a
 logger = logging.getLogger(__name__)
 
 
-def print_articles(items: list[ArticleListItem], verbose: bool = False) -> None:
+def print_articles(items: list[ArticleListItem]) -> None:
     """Print formatted articles to console using Rich Table.
 
     Args:
         items: List of ArticleListItem objects.
-        verbose: If True, show detailed output with rich panel for each article
     """
     from rich.console import Console
     from rich.table import Table
-    from rich.panel import Panel
 
     console = Console()
 
@@ -33,32 +30,6 @@ def print_articles(items: list[ArticleListItem], verbose: bool = False) -> None:
         click.secho("No articles found.")
         return
 
-    if verbose:
-        for item in items:
-            fields = []
-            if item.title:
-                fields.append(f"[bold]Title:[/bold] {item.title}")
-            if item.id:
-                fields.append(f"[bold]ID:[/bold] {item.id}")
-            if item.feed_name:
-                fields.append(f"[bold]Source:[/bold] {item.feed_name}")
-            if item.pub_date:
-                fields.append(f"[bold]Date:[/bold] {item.pub_date}")
-            if item.score:
-                fields.append(f"[bold]Score:[/bold] {item.score}")
-            if item.link:
-                fields.append(f"[bold]Link:[/bold] {item.link}")
-            if item.description:
-                preview = item.description[:200] + "..." if len(item.description) > 200 else item.description
-                fields.append(f"[bold]Description:[/bold] {preview}")
-
-            if fields:
-                console.print(Panel("\n".join(fields), title=item.title or "Article"))
-            else:
-                console.print(Panel("[dim]No details available[/dim]", title=item.title or "Article"))
-        return
-
-    # Normal table view
     table = Table(show_header=True, header_style="bold magenta", expand=False, row_styles=["", "dim"])
     table.add_column("ID", style="dim", width=8, no_wrap=True, overflow="ellipsis")
     table.add_column("Title", style="cyan", min_width=20, max_width=50, overflow="ellipsis")
@@ -107,7 +78,7 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], verbose
     verbose = verbose or (ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False)
     try:
         articles = list_articles(limit=limit, feed_id=feed_id)
-        print_articles(articles, verbose=verbose)
+        print_articles(articles)
     except Exception as e:
         click.secho(f"Error: Failed to list articles: {e}", err=True, fg="red")
         logger.exception("Failed to list articles"); sys.exit(1)
@@ -175,7 +146,7 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
             articles = search_articles_semantic(query_text=query, limit=limit)
         else:
             articles = search_articles(query=query, limit=limit, feed_id=feed_id)
-        print_articles(articles, verbose=verbose)
+        print_articles(articles)
     except Exception as e:
         click.secho(f"Search unavailable: {e}.", err=True, fg="yellow")
         logger.exception("Failed to search articles"); sys.exit(1)
@@ -190,7 +161,7 @@ def article_related(ctx: click.Context, article_id: str, limit: int) -> None:
         # Lazy import to avoid torch dependency when not using related articles
         from src.application.related import get_related_articles
         articles = get_related_articles(article_id=article_id, limit=limit)
-        print_articles(articles, verbose=verbose)
+        print_articles(articles)
     except Exception as e:
         click.secho(f"Error: Failed to find related articles: {e}", err=True, fg="red")
         logger.exception("Failed to find related articles"); sys.exit(1)
