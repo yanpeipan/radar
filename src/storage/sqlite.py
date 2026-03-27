@@ -518,7 +518,7 @@ def get_articles_by_urls(urls: list[str]) -> list:
         cursor = conn.cursor()
         placeholders = ",".join("?" * len(urls))
         cursor.execute(
-            f"""SELECT a.id, a.feed_id, f.title AS feed_name, a.title, a.link, a.guid,
+            f"""SELECT a.id, a.feed_id, f.name AS feed_name, a.title, a.link, a.guid,
                        a.pub_date, a.description
                 FROM articles a
                 JOIN feeds f ON a.feed_id = f.id
