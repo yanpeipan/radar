@@ -42,17 +42,26 @@ class ArticleListItem:
     score: float = 1.0
 
 
-def list_articles(limit: int = 20, feed_id: Optional[str] = None) -> list[ArticleListItem]:
+def list_articles(
+    limit: int = 20,
+    feed_id: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    on: Optional[list[str]] = None,
+) -> list[ArticleListItem]:
     """List articles ordered by publication date.
 
     Args:
         limit: Maximum number of articles to return (default 20).
         feed_id: Optional feed ID to filter articles by a specific feed.
+        since: Optional start date (inclusive), format YYYY-MM-DD.
+        until: Optional end date (inclusive), format YYYY-MM-DD.
+        on: Optional list of specific dates to match.
 
     Returns:
         List of ArticleListItem objects.
     """
-    return storage_list_articles(limit=limit, feed_id=feed_id)
+    return storage_list_articles(limit=limit, feed_id=feed_id, since=since, until=until, on=on)
 
 
 def get_article(article_id: str) -> Optional[ArticleListItem]:
@@ -83,7 +92,10 @@ def get_article_detail(article_id: str) -> Optional[dict]:
 def search_articles(
     query: str,
     limit: int = 20,
-    feed_id: Optional[str] = None
+    feed_id: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    on: Optional[list[str]] = None,
 ) -> list[ArticleListItem]:
     """Search articles using FTS5 full-text search.
 
@@ -91,8 +103,11 @@ def search_articles(
         query: FTS5 query string (space-separated = AND, use quotes for phrases)
         limit: Maximum number of results (default 20)
         feed_id: Optional feed ID to filter by specific feed
+        since: Optional start date (inclusive), format YYYY-MM-DD.
+        until: Optional end date (inclusive), format YYYY-MM-DD.
+        on: Optional list of specific dates to match.
 
     Returns:
         List of ArticleListItem objects.
     """
-    return storage_search_articles(query=query, limit=limit, feed_id=feed_id)
+    return storage_search_articles(query=query, limit=limit, feed_id=feed_id, since=since, until=until, on=on)
