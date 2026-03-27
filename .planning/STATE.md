@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Automatic Discovery Feed
-status: verifying
-stopped_at: Completed Phase 37-01 plan - Deep Crawling (37-01-SUMMARY.md)
-last_updated: "2026-03-27T22:34:00.000Z"
-last_activity: 2026-03-27 - Completed quick task 260327-vbz: Refactor Scrapling attrib API (bracket notation)
+status: executing
+stopped_at: Completed Quick Task 260327-sp3 - regex-based feed path matching
+last_updated: "2026-03-27T15:13:38.656Z"
+last_activity: 2026-03-27 -- Phase 37 execution started
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 6
+  completed_phases: 3
+  total_plans: 7
   completed_plans: 6
 ---
 
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (v1.9 milestone started)
 
 ## Current Position
 
-Phase: 37
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-03-27
+Phase: 37 (deep-crawling) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 37
+Last activity: 2026-03-27 -- Phase 37 execution started
 
 ## v1.9 Phase Structure
 

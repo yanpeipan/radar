@@ -21,12 +21,12 @@ Requirements for Automatic Discovery Feed milestone.
 
 ### Deep Crawling
 
-- [ ] **DISC-07**: Depth > 1 BFS 爬取 — visited-set 防重复、depth limit 限制深度、rate limiting（2s/host）、cycle 检测；depth=1 只看当前页，depth>1 遍历站内链接
-- [ ] **DISC-08**: robots.txt 遵守 — 深度爬取时使用 robotexclusionrulesparser（已安装）检查 robots.txt，lazy 模式同现有 crawl 行为
+- [x] **DISC-07**: Depth > 1 BFS 爬取 — visited-set 防重复、depth limit 限制深度、rate limiting（2s/host）、cycle 检测；depth=1 只看当前页，depth>1 遍历站内链接
+- [x] **DISC-08**: robots.txt 遵守 — 深度爬取时使用 robotexclusionrulesparser（已安装）检查 robots.txt，lazy 模式同现有 crawl 行为
 
 ### Documentation
 
-- [ ] **DISC-09**: `docs/Automatic Discovery Feed.md` — 自动发现逻辑文档化（discovery 算法、URL 解析规则、feed 类型支持列表）
+- [x] **DISC-09**: `docs/Automatic Discovery Feed.md` — 自动发现逻辑文档化（discovery 算法、URL 解析规则、feed 类型支持列表）
 
 ## Future (Deferred)
 
@@ -55,9 +55,9 @@ Requirements for Automatic Discovery Feed milestone.
 | DISC-04 | Phase 34 | Pending |
 | DISC-05 | Phase 35 | Complete |
 | DISC-06 | Phase 36 | Pending |
-| DISC-07 | Phase 37 | Pending |
-| DISC-08 | Phase 37 | Pending |
-| DISC-09 | Phase 37 | Pending |
+| DISC-07 | Phase 37 | Complete |
+| DISC-08 | Phase 37 | Complete |
+| DISC-09 | Phase 37 | Complete |
 
 **Coverage:**
 - v1.9 requirements: 9 total

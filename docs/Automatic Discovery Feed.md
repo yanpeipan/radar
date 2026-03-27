@@ -2,8 +2,8 @@
 
 ## CLI Commands
 
-- `discover <url> --discover-deep [n]` - Discover feeds from a website URL without subscribing
-- `feed add <url> --discover [on/off] --automatic [on/off] --discover-deep [n]` - Add a feed with optional auto-discovery
+- `discover <url> --discover-depth [n]` - Discover feeds from a website URL without subscribing
+- `feed add <url> --discover [on/off] --automatic [on/off] --discover-depth [n]` - Add a feed with optional auto-discovery
 
 ## Discovery Algorithm
 
