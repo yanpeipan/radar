@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: ChromaDB 语义搜索
 status: completed
-stopped_at: Completed quick task 260327-eqg
-last_updated: "2026-03-27T02:41:22.017Z"
-last_activity: "2026-03-27 — Completed quick task 260327-eqg: move asyncio_utils.py to src/utils"
+stopped_at: Completed quick task 260327-f1q
+last_updated: "2026-03-27T03:08:00.000Z"
+last_activity: "2026-03-27 — Completed quick task 260327-f1q: refactor fetch command URL case to use async loop with storage/embedding/tags"
 progress:
   total_phases: 4
   completed_phases: 3
@@ -216,3 +216,4 @@ Stopped at: Completed quick task 260327-eqg
 | 260327-e6m | Fix preload_embedding_model SSL errors crash CLI | 2026-03-27 | bcc4ff0 | Verified | [260327-e6m-fix-preload-embedding-model-ssl-errors-c](./quick/260327-e6m-fix-preload-embedding-model-ssl-errors-c/) |
 | 260327-ef6 | Extract search logic from src/cli/article.py | 2026-03-27 | 6dd928a | Verified | [260327-ef6-extract-search-logic-from-src-cli-articl](./quick/260327-ef6-extract-search-logic-from-src-cli-articl/) |
 | 260327-eqg | Move src/application/asyncio_utils.py to src/utils | 2026-03-27 | b6256bb | Verified | [260327-eqg-move-src-application-asyncio-utils-py-to](./quick/260327-eqg-move-src-application-asyncio-utils-py-to/) |
+| 260327-f1q | Refactor fetch command URL case to use async loop with storage/embedding/tags | 2026-03-27 | 25dc28b | Verified | [260327-f1q-src-cli-feed-py-fetch-urls-should-also-c](./quick/260327-f1q-src-cli-feed-py-fetch-urls-should-also-c/) |
