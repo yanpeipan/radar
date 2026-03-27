@@ -16,8 +16,7 @@ from urllib.parse import urlparse
 from github import Github, RateLimitExceededException, GithubException
 
 from src.providers import PROVIDERS
-from src.providers.base import Article, ContentProvider, Raw, TagParser
-from src.tags import chain_tag_parsers
+from src.providers.base import Article, ContentProvider, Raw
 
 logger = logging.getLogger(__name__)
 
@@ -159,26 +158,6 @@ class GitHubReleaseProvider:
             description=description,
             content=content,
         )
-
-    def tag_parsers(self) -> List[TagParser]:
-        """Return tag parsers for this provider.
-
-        Returns:
-            List with ReleaseTagParser instance for release-specific tagging.
-        """
-        from src.tags.release_tag_parser import ReleaseTagParser
-        return [ReleaseTagParser()]
-
-    def parse_tags(self, article: Article) -> List[str]:
-        """Parse tags for an article using all loaded tag parsers.
-
-        Args:
-            article: Article dict with title, description, etc.
-
-        Returns:
-            List of tag names from all tag parsers (union, deduped).
-        """
-        return chain_tag_parsers(article)
 
     def feed_meta(self, url: str) -> "Feed":
         """Fetch repository metadata from GitHub.

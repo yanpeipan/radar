@@ -59,26 +59,3 @@ class Article:
     pub_date: Optional[str] = None
     description: Optional[str] = None
     content: Optional[str] = None
-
-
-
-@dataclass
-class Tag:
-    """Represents an article tag.
-
-    Attributes:
-        id: Unique identifier for the tag.
-        name: Display name of the tag (unique).
-        created_at: ISO timestamp when tag was created.
-    """
-    id: str
-    name: str
-    created_at: str
-
-
-@dataclass
-class ArticleTagLink:
-    """Represents a link between an article and a tag."""
-    article_id: str
-    tag_id: str
-    created_at: str

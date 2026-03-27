@@ -4,8 +4,6 @@ import sys
 import platform
 import subprocess
 import logging
-import importlib.machinery
-import pathlib
 from typing import Optional
 
 import click
@@ -18,14 +16,6 @@ from src.application.search import format_semantic_results, format_fts_results
 from src.storage import search_articles_semantic, get_related_articles
 
 logger = logging.getLogger(__name__)
-
-# Import run_auto_tagging from src/tags/ai_tagging.py module
-_ai_tagging_module_path = pathlib.Path(__file__).parent.parent / "tags" / "ai_tagging.py"
-_loader = importlib.machinery.SourceFileLoader("src_ai_tagging_module", str(_ai_tagging_module_path))
-_spec = importlib.util.spec_from_loader("src_ai_tagging_module", _loader)
-_ai_tagging_module = importlib.util.module_from_spec(_spec)
-_loader.exec_module(_ai_tagging_module)
-run_auto_tagging = _ai_tagging_module.run_auto_tagging
 
 
 def open_in_browser(url: str) -> None:
@@ -62,34 +52,24 @@ def article(ctx: click.Context) -> None:
 @article.command("list")
 @click.option("--limit", default=20, help="Maximum number of articles to show")
 @click.option("--feed-id", default=None, help="Filter by feed ID")
-@click.option("--tag", default=None, help="Filter by tag name")
-@click.option("--tags", default=None, help="Filter by multiple tags (comma-separated, OR logic)")
 @click.option("--verbose", is_flag=True, help="Show full article IDs (32 chars)")
 @click.pass_context
-def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Optional[str], tags: Optional[str], verbose: bool) -> None:
+def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], verbose: bool) -> None:
     """List recent articles from all feeds or a specific feed.
 
-    Use --tag to filter by a single tag.
-    Use --tags a,b for multiple tags (OR logic - shows articles with ANY of the tags).
     Use --verbose to show full 32-char article IDs instead of truncated 8-char IDs.
     """
     verbose = verbose or (ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False)
     try:
-        from src.application.articles import list_articles_with_tags, get_articles_with_tags
-        articles = list_articles_with_tags(limit=limit, feed_id=feed_id, tag=tag, tags=tags)
+        articles = list_articles(limit=limit, feed_id=feed_id)
         if not articles:
             click.secho("No articles found. Add some feeds and fetch them first.")
             return
-
-        # Batch fetch tags for all articles
-        article_ids = [a.id for a in articles]
-        tags_map = get_articles_with_tags(article_ids)
 
         # Create rich table
         console = Console()
         table = Table(show_header=True, header_style="bold magenta")
         table.add_column("ID", style="dim", width=8 if not verbose else 36)
-        table.add_column("Tags", max_width=12, overflow="ellipsis")
         table.add_column("Title")
         table.add_column("Source", max_width=20)
         table.add_column("Date", max_width=10)
@@ -100,14 +80,10 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], tag: Op
 
             source = article.feed_name or "Unknown"
 
-            # Get tags from batch-fetched map
-            article_tags = tags_map.get(article.id, [])
-            tags_str = ",".join(article_tags) if article_tags else "-"
-
             # Use full ID if verbose, otherwise truncate to 8 chars
             id_display = article.id if verbose else article.id[:8]
 
-            table.add_row(id_display, tags_str, title[:50], source[:20], pub_date[:10])
+            table.add_row(id_display, title[:50], source[:20], pub_date[:10])
 
         console.print(table)
     except Exception as e:
@@ -143,10 +119,6 @@ def article_view(ctx: click.Context, article_id: str, verbose: bool) -> None:
         meta_table.add_row("Source:", article["feed_name"] or "Unknown")
         meta_table.add_row("Type:", source_type.capitalize())
         meta_table.add_row("Date:", article["pub_date"] or "No date")
-
-        # Tags
-        tags_str = ", ".join(article["tags"]) if article["tags"] else "-"
-        meta_table.add_row("Tags:", tags_str)
 
         # Link
         link = article["link"] or "No link"
@@ -202,85 +174,6 @@ def article_open(ctx: click.Context, article_id: str) -> None:
     except Exception as e:
         click.secho(f"Error: Failed to open article: {e}", err=True, fg="red")
         logger.exception("Failed to open article")
-        sys.exit(1)
-
-
-@article.command("tag")
-@click.argument("article_id", required=False)
-@click.argument("tag_name", required=False)
-@click.option("--auto", "auto_tag", is_flag=True, help="Run AI clustering to auto-tag articles")
-@click.option("--rules", "apply_rules", is_flag=True, help="Apply keyword/regex rules to untagged articles")
-@click.option("--eps", default=0.3, help="DBSCAN eps parameter for clustering")
-@click.option("--min-samples", default=3, help="DBSCAN min_samples parameter")
-@click.pass_context
-def article_tag(ctx: click.Context, article_id: Optional[str], tag_name: Optional[str], auto_tag: bool, apply_rules: bool, eps: float, min_samples: int) -> None:
-    """Tag an article manually or run auto-tagging.
-
-    Manual: article tag <article-id> <tag-name>
-    Auto: article tag --auto [--eps 0.3 --min-samples 3]
-    Rules: article tag --rules
-    """
-    verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
-
-    if auto_tag:
-        # Run AI clustering
-        try:
-            click.secho("Running AI clustering for auto-tagging...", fg="cyan")
-            tag_map = run_auto_tagging(eps=eps, min_samples=min_samples)
-            if tag_map:
-                click.secho(f"Created {len(tag_map)} tag(s) from clustering:", fg="green")
-                for tag_name, article_ids in tag_map.items():
-                    click.secho(f"  [{tag_name}] - {len(article_ids)} articles")
-            else:
-                click.secho("No clusters found. Try with more articles.", fg="yellow")
-        except Exception as e:
-            click.secho(f"Error in clustering: {e}", err=True, fg="red")
-            logger.exception("Auto-tagging failed")
-            sys.exit(1)
-
-    elif apply_rules:
-        # Apply keyword/regex rules to all untagged articles
-        try:
-            from src.storage import get_untagged_articles
-            untagged = get_untagged_articles()
-
-            if not untagged:
-                click.secho("No untagged articles found.", fg="yellow")
-                return
-
-            click.secho(f"Applying rules to {len(untagged)} untagged articles...", fg="cyan")
-            applied_count = 0
-            from src.tags.tag_rules import apply_rules_to_article
-            for row in untagged:
-                matched = apply_rules_to_article(row["id"], row["title"], row["description"])
-                if matched:
-                    applied_count += 1
-                    if verbose:
-                        click.secho(f"  {row['title'][:40]} -> {', '.join(matched)}")
-
-            click.secho(f"Applied rules to {applied_count} article(s)", fg="green")
-        except Exception as e:
-            click.secho(f"Error applying rules: {e}", err=True, fg="red")
-            sys.exit(1)
-
-    elif article_id and tag_name:
-        # Manual tagging
-        try:
-            from src.storage.sqlite import tag_article
-            tagged = tag_article(article_id, tag_name)
-            if tagged:
-                click.secho(f"Tagged article {article_id} with '{tag_name}'", fg="green")
-            else:
-                click.secho(f"Failed to tag article", fg="red")
-                sys.exit(1)
-        except Exception as e:
-            click.secho(f"Error: {e}", err=True, fg="red")
-            sys.exit(1)
-
-    else:
-        click.secho("Usage: article tag <article-id> <tag-name>", fg="yellow")
-        click.secho("   or: article tag --auto [--eps 0.3 --min-samples 3]")
-        click.secho("   or: article tag --rules")
         sys.exit(1)
 
 

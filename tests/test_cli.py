@@ -3,7 +3,7 @@ import pytest
 from click.testing import CliRunner
 from unittest.mock import patch, MagicMock
 from src.cli import cli
-from src.storage.sqlite import init_db, add_feed, store_article, tag_article, add_tag, list_tags, remove_tag
+from src.storage.sqlite import init_db, add_feed, store_article
 from src.models import Feed
 
 
@@ -241,77 +241,3 @@ class TestArticleCommands:
         assert result.exit_code == 0
         assert 'No articles found' in result.output
 
-    def test_article_tag_manual(self, cli_runner, initialized_db):
-        """article tag <article-id> <tag-name> tags article and outputs 'Tagged article'."""
-        # Add feed and article via storage
-        feed = Feed(
-            id="article-tag-feed",
-            name="Article Tag Feed",
-            url="https://example.com/article-tag.xml",
-            etag=None,
-            last_modified=None,
-            last_fetched=None,
-            created_at="2024-01-01T00:00:00+00:00",
-        )
-        add_feed(feed)
-        article_id = store_article(
-            guid="article-tag-guid",
-            title="Article Tag Test",
-            content="<p>Content</p>",
-            link="https://example.com/article-tag",
-            feed_id="article-tag-feed",
-            pub_date="2024-01-15T10:00:00+00:00",
-        )
-
-        result = cli_runner.invoke(cli, ['article', 'tag', article_id[:8], 'python'])
-        assert result.exit_code == 0
-        assert 'Tagged article' in result.output
-
-
-class TestTagCommands:
-    """Tests for tag CLI commands: tag add, tag list, tag remove."""
-
-    def test_tag_add_success(self, cli_runner, initialized_db):
-        """tag add <name> creates tag and outputs 'Created tag'."""
-        result = cli_runner.invoke(cli, ['tag', 'add', 'python'])
-        assert result.exit_code == 0
-        assert 'Created tag' in result.output
-
-    def test_tag_add_duplicate_returns_error(self, cli_runner, initialized_db):
-        """tag add with duplicate name returns exit code 1."""
-        # Add tag first
-        cli_runner.invoke(cli, ['tag', 'add', 'duplicate-tag'])
-        # Try to add same tag again
-        result = cli_runner.invoke(cli, ['tag', 'add', 'duplicate-tag'])
-        assert result.exit_code == 1
-
-    def test_tag_list_empty(self, cli_runner, initialized_db):
-        """tag list with no tags outputs 'No tags created'."""
-        result = cli_runner.invoke(cli, ['tag', 'list'])
-        assert result.exit_code == 0
-        assert 'No tags created' in result.output
-
-    def test_tag_list_with_tags(self, cli_runner, initialized_db):
-        """tag list shows tag names when tags exist."""
-        # Add tags via storage
-        add_tag('tag-one')
-        add_tag('tag-two')
-
-        result = cli_runner.invoke(cli, ['tag', 'list'])
-        assert result.exit_code == 0
-        assert 'tag-one' in result.output
-        assert 'tag-two' in result.output
-
-    def test_tag_remove_success(self, cli_runner, initialized_db):
-        """tag remove <name> removes tag and outputs 'Removed tag'."""
-        # Add tag first
-        add_tag('to-remove')
-        result = cli_runner.invoke(cli, ['tag', 'remove', 'to-remove'])
-        assert result.exit_code == 0
-        assert 'Removed tag' in result.output
-
-    def test_tag_remove_not_found(self, cli_runner, initialized_db):
-        """tag remove with non-existent tag returns exit code 1 and 'not found'."""
-        result = cli_runner.invoke(cli, ['tag', 'remove', 'non-existent-tag'])
-        assert result.exit_code == 1
-        assert 'not found' in result.output.lower()

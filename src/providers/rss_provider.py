@@ -13,8 +13,7 @@ import feedparser
 import httpx
 
 from src.providers import PROVIDERS
-from src.providers.base import Article, ContentProvider, Raw, TagParser
-from src.tags import chain_tag_parsers
+from src.providers.base import Article, ContentProvider, Raw
 
 logger = logging.getLogger(__name__)
 
@@ -394,14 +393,6 @@ class RSSProvider:
             content=content,
         )
 
-    def tag_parsers(self) -> List[TagParser]:
-        """Return tag parsers for this provider.
-
-        Returns:
-            Empty list - tag parsers are loaded separately in Plan 02.
-        """
-        return []
-
     def feed_meta(self, url: str) -> "Feed":
         """Fetch feed metadata via lightweight GET request.
 
@@ -449,17 +440,6 @@ class RSSProvider:
             )
         except Exception as e:
             raise ValueError(f"Failed to fetch feed metadata: {e}")
-
-    def parse_tags(self, article: Article) -> List[str]:
-        """Parse tags for an article using all loaded tag parsers.
-
-        Args:
-            article: Article dict with title, description, etc.
-
-        Returns:
-            List of tag names from all tag parsers (union, deduped).
-        """
-        return chain_tag_parsers(article)
 
 
 # Register this provider - it will be sorted by priority() after all modules load

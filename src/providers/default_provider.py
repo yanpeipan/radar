@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import List
 
 from src.providers import PROVIDERS
-from src.providers.base import Article, ContentProvider, Raw, TagParser
+from src.providers.base import Article, ContentProvider, Raw
 
 
 class DefaultProvider:
@@ -68,25 +68,6 @@ class DefaultProvider:
         raise NotImplementedError(
             "DefaultProvider is fallback only and should not be called"
         )
-
-    def tag_parsers(self) -> List[TagParser]:
-        """Return empty list - no tag parsing for fallback.
-
-        Returns:
-            Empty list.
-        """
-        return []
-
-    def parse_tags(self, article: Article) -> List[str]:
-        """Return empty list - no tag parsing for fallback.
-
-        Args:
-            article: Article dict (ignored).
-
-        Returns:
-            Empty list.
-        """
-        return []
 
     async def crawl_async(self, url: str) -> List[Raw]:
         """Not implemented - should not be called.

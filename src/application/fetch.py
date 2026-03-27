@@ -52,7 +52,6 @@ async def fetch_one_async(feed: Feed) -> dict:
 
     # Parse and store each item (store_article_async serializes DB writes)
     new_count = 0
-    articles_needing_tags = []
 
     for raw in raw_items:
         article = provider.parse(raw)
@@ -82,23 +81,9 @@ async def fetch_one_async(feed: Feed) -> dict:
             except Exception as e:
                 logger.warning("Failed to add embedding for article %s: %s", article_guid, e)
                 # Don't re-raise - embedding failure should not fail the fetch
-
-            articles_needing_tags.append(
-                (article_guid, article.get("title"), article.get("description"))
-            )
         except Exception as e:
             logger.warning("Failed to store article %s: %s", article_guid, e)
             continue
-
-    # Apply tag rules AFTER store to avoid nested connection writes
-    from src.tags.tag_rules import apply_rules_to_article
-    for article_id, title, description in articles_needing_tags:
-        try:
-            matched_tags = apply_rules_to_article(article_id, title, description)
-            if matched_tags:
-                logger.info(f"Auto-tagged article {article_id} with: {matched_tags}")
-        except Exception as e:
-            logger.warning(f"Failed to apply tag rules to article {article_id}: {e}")
 
     return {"new_articles": new_count}
 
@@ -107,7 +92,7 @@ async def fetch_url_async(url: str) -> dict:
     """Fetch articles from a raw URL using discovered provider.
 
     Uses provider's crawl_async to fetch and parse articles, then stores
-    them with embeddings and tag rules applied (same as feed fetch).
+    them with embeddings applied (same as feed fetch).
 
     Args:
         url: URL to crawl.
@@ -138,7 +123,6 @@ async def fetch_url_async(url: str) -> dict:
 
     # Parse and store each item (store_article_async serializes DB writes)
     new_count = 0
-    articles_needing_tags = []
 
     for raw in raw_items:
         article = provider.parse(raw)
@@ -168,23 +152,9 @@ async def fetch_url_async(url: str) -> dict:
             except Exception as e:
                 logger.warning("Failed to add embedding for article %s: %s", article_guid, e)
                 # Don't re-raise - embedding failure should not fail the fetch
-
-            articles_needing_tags.append(
-                (article_guid, article.get("title"), article.get("description"))
-            )
         except Exception as e:
             logger.warning("Failed to store article %s: %s", article_guid, e)
             continue
-
-    # Apply tag rules AFTER store to avoid nested connection writes
-    from src.tags.tag_rules import apply_rules_to_article
-    for article_id, title, description in articles_needing_tags:
-        try:
-            matched_tags = apply_rules_to_article(article_id, title, description)
-            if matched_tags:
-                logger.info(f"Auto-tagged article {article_id} with: {matched_tags}")
-        except Exception as e:
-            logger.warning(f"Failed to apply tag rules to article {article_id}: {e}")
 
     return {"new_articles": new_count, "url": url}
 

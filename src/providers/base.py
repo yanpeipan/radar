@@ -1,6 +1,6 @@
 """Provider base protocols for the plugin architecture.
 
-Defines the ContentProvider and TagParser protocols that all providers must implement.
+Defines the ContentProvider protocol that all providers must implement.
 """
 from __future__ import annotations
 
@@ -14,22 +14,6 @@ if TYPE_CHECKING:
 # Raw will be defined by concrete providers based on their crawl() return type
 Article = dict  # Using dict for flexibility; concrete providers define structure
 Raw = dict      # Raw crawl result
-
-
-@runtime_checkable
-class TagParser(Protocol):
-    """Protocol for tag parsing plugins that can chain together."""
-
-    def parse_tags(self, article: Article) -> List[str]:
-        """Return tags for an article.
-
-        Args:
-            article: Article dict with at least title, link, description fields.
-
-        Returns:
-            List of tag name strings.
-        """
-        ...
 
 
 @runtime_checkable
@@ -101,25 +85,6 @@ class ContentProvider(Protocol):
             Article dict with fields: title, link, guid, pub_date, description, content.
         """
         ...
-
-    def tag_parsers(self) -> List[TagParser]:
-        """Return tag parsers for articles from this provider.
-
-        Returns:
-            List of TagParser instances. Default returns empty list.
-        """
-        return []
-
-    def parse_tags(self, article: Article) -> List[str]:
-        """Parse tags for an article using all tag parsers.
-
-        Args:
-            article: Article dict.
-
-        Returns:
-            List of unique tag names from all tag parsers.
-        """
-        return []
 
     def feed_meta(self, url: str) -> "Feed":
         """Fetch feed metadata from URL without storing.

@@ -30,8 +30,6 @@ logger = logging.getLogger(__name__)
 
 import platformdirs
 
-from src.models import Tag
-
 
 # Cross-platform database path using platformdirs
 _DB_DIR = platformdirs.user_data_dir(appname="rss-reader", appauthor=False)
@@ -148,143 +146,7 @@ def init_db() -> None:
             )
         """)
 
-        # Tags table for article categorization
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tags (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL UNIQUE,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-
-        # Article tags table (many-to-many)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS article_tags (
-                article_id TEXT NOT NULL,
-                tag_id TEXT NOT NULL,
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (article_id, tag_id),
-                FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE,
-                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-            )
-        """)
-
-        # Index for tag lookups
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_article_tags_tag_id ON article_tags(tag_id)")
-
         conn.commit()
-
-
-def add_tag(name: str) -> Tag:
-    """Create a new tag. Returns Tag object."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        tag_id = generate()
-        cursor.execute(
-            "INSERT INTO tags (id, name) VALUES (?, ?)",
-            (tag_id, name)
-        )
-        conn.commit()
-        cursor.execute("SELECT created_at FROM tags WHERE id = ?", (tag_id,))
-        created_at = cursor.fetchone()["created_at"]
-        return Tag(id=tag_id, name=name, created_at=created_at)
-
-
-def list_tags() -> list[Tag]:
-    """List all tags ordered by name."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, name, created_at FROM tags ORDER BY name")
-        return [Tag(id=row["id"], name=row["name"], created_at=row["created_at"]) for row in cursor.fetchall()]
-
-
-def remove_tag(tag_name: str) -> bool:
-    """Remove a tag by name. Unlinks from all articles via CASCADE. Returns True if removed."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        # First get tag_id
-        cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
-        row = cursor.fetchone()
-        if not row:
-            return False
-        tag_id = row["id"]
-        # Delete tag (article_tags cascade handled by FK)
-        cursor.execute("DELETE FROM tags WHERE id = ?", (tag_id,))
-        conn.commit()
-        return cursor.rowcount > 0
-
-
-def get_tag_article_counts() -> dict[str, int]:
-    """Returns {tag_name: item_count} for all tags.
-
-    Counts articles that have each tag.
-    """
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT t.name, COUNT(at.article_id) as count
-            FROM tags t
-            LEFT JOIN article_tags at ON t.id = at.tag_id
-            GROUP BY t.id, t.name
-            ORDER BY t.name
-        """)
-        return {row["name"]: row["count"] for row in cursor.fetchall()}
-
-
-def tag_article(article_id: str, tag_name: str) -> bool:
-    """Link an article to a tag. Creates tag if it doesn't exist. Returns True if linked."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        # Get or create tag
-        cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
-        row = cursor.fetchone()
-        if row:
-            tag_id = row["id"]
-        else:
-            tag_id = generate()
-            cursor.execute("INSERT INTO tags (id, name) VALUES (?, ?)", (tag_id, tag_name))
-            conn.commit()
-        # Link article to tag
-        try:
-            cursor.execute(
-                "INSERT INTO article_tags (article_id, tag_id) VALUES (?, ?)",
-                (article_id, tag_id)
-            )
-            conn.commit()
-        except sqlite3.IntegrityError:
-            # Already linked, not an error
-            pass
-        return True
-
-
-def untag_article(article_id: str, tag_name: str) -> bool:
-    """Remove link between article and tag. Returns True if unlinked."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
-        row = cursor.fetchone()
-        if not row:
-            return False
-        tag_id = row["id"]
-        cursor.execute(
-            "DELETE FROM article_tags WHERE article_id = ? AND tag_id = ?",
-            (article_id, tag_id)
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-
-
-def get_article_tags(article_id: str) -> list[str]:
-    """Returns list of tag names for an article."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT t.name FROM tags t
-            JOIN article_tags at ON t.id = at.tag_id
-            WHERE at.article_id = ?
-            ORDER BY t.name
-        """, (article_id,))
-        return [row["name"] for row in cursor.fetchall()]
 
 
 def store_article(
@@ -640,7 +502,7 @@ def get_article_id_by_url(url: str) -> Optional[str]:
 
 
 def get_article_detail(article_id: str) -> Optional[dict]:
-    """Get full article details including content and tags."""
+    """Get full article details including content."""
     with get_db() as conn:
         cursor = conn.cursor()
         # First try exact match
@@ -671,8 +533,6 @@ def get_article_detail(article_id: str) -> Optional[dict]:
             row = cursor.fetchone()
         if not row:
             return None
-        # Fetch tags using existing storage function
-        tags = get_article_tags(row["id"])
         return {
             "id": row["id"],
             "feed_id": row["feed_id"],
@@ -684,7 +544,6 @@ def get_article_detail(article_id: str) -> Optional[dict]:
             "description": row["description"],
             "content": row["content"],
             "source_type": row["source_type"],
-            "tags": tags,
         }
 
 
@@ -739,94 +598,6 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None) 
         ]
 
 
-def list_articles_with_tags(limit: int = 20, feed_id: Optional[str] = None, tag: Optional[str] = None, tags: Optional[str] = None) -> list:
-    """List articles with optional tag filtering."""
-    from src.application.articles import ArticleListItem
-    # Parse multiple tags
-    tag_list: Optional[list[str]] = None
-    if tags:
-        tag_list = [t.strip() for t in tags.split(",") if t.strip()]
-    elif tag:
-        tag_list = [tag]
-    if not tag_list:
-        return list_articles(limit=limit, feed_id=feed_id)
-    with get_db() as conn:
-        cursor = conn.cursor()
-        placeholders = ",".join("?" * len(tag_list))
-        if feed_id:
-            cursor.execute(
-                f"""
-                SELECT DISTINCT a.id, a.feed_id,
-                       f.name as feed_name,
-                       a.title, a.link, a.guid, a.pub_date, a.description
-                FROM articles a
-                JOIN feeds f ON a.feed_id = f.id
-                WHERE a.feed_id = ?
-                  AND a.id IN (
-                      SELECT DISTINCT at.article_id
-                      FROM article_tags at
-                      JOIN tags t ON at.tag_id = t.id
-                      WHERE t.name IN ({placeholders})
-                  )
-                ORDER BY a.pub_date DESC, a.created_at DESC
-                LIMIT ?
-                """,
-                [feed_id] + list(tag_list) + [limit],
-            )
-        else:
-            cursor.execute(
-                f"""
-                SELECT DISTINCT a.id, a.feed_id,
-                       f.name as feed_name,
-                       a.title, a.link, a.guid, a.pub_date, a.description
-                FROM articles a
-                JOIN feeds f ON a.feed_id = f.id
-                WHERE a.id IN (
-                    SELECT DISTINCT at.article_id
-                    FROM article_tags at
-                    JOIN tags t ON at.tag_id = t.id
-                    WHERE t.name IN ({placeholders})
-                )
-                ORDER BY a.pub_date DESC, a.created_at DESC
-                LIMIT ?
-                """,
-                list(tag_list) + [limit],
-            )
-        return [
-            ArticleListItem(
-                id=row["id"],
-                feed_id=row["feed_id"],
-                feed_name=row["feed_name"],
-                title=row["title"],
-                link=row["link"],
-                guid=row["guid"],
-                pub_date=row["pub_date"],
-                description=row["description"],
-            )
-            for row in cursor.fetchall()
-        ]
-
-
-def get_articles_with_tags(article_ids: list[str]) -> dict[str, list[str]]:
-    """Batch fetch tags for multiple articles."""
-    result: dict[str, list[str]] = {aid: [] for aid in article_ids}
-    if not article_ids:
-        return result
-    with get_db() as conn:
-        cursor = conn.cursor()
-        placeholders = ",".join("?" * len(article_ids))
-        cursor.execute(f"""
-            SELECT at.article_id, t.name
-            FROM article_tags at
-            JOIN tags t ON at.tag_id = t.id
-            WHERE at.article_id IN ({placeholders})
-            ORDER BY at.article_id, t.name
-        """, article_ids)
-        for row in cursor.fetchall():
-            result[row["article_id"]].append(row["name"])
-        return result
-
-
 def ensure_crawled_feed() -> None:
     """Create 'crawled' system feed if it doesn't exist."""
     from src.application.config import get_timezone
@@ -842,15 +613,3 @@ def ensure_crawled_feed() -> None:
                 (now,)
             )
             conn.commit()
-
-
-def get_untagged_articles() -> list[dict]:
-    """Get all articles without tags. Returns list of dicts with id, title, description."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT a.id, a.title, a.description FROM articles a
-            LEFT JOIN article_tags at ON a.id = at.article_id
-            WHERE at.article_id IS NULL
-        """)
-        return [dict(row) for row in cursor.fetchall()]

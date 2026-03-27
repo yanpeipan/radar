@@ -157,7 +157,6 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
 
     # Parse and store each item
     new_count = 0
-    articles_needing_tags = []
 
     from src.storage import store_article
     for raw in raw_items:
@@ -172,20 +171,6 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
             pub_date=article.get("pub_date"),
         )
         new_count += 1
-        # Collect for tagging after commit
-        articles_needing_tags.append(
-            (article_guid, article.get("title"), article.get("description"))
-        )
-
-    # Apply tag rules AFTER store to avoid nested connection writes
-    from src.tags.tag_rules import apply_rules_to_article
-    for article_id, title, description in articles_needing_tags:
-        try:
-            matched_tags = apply_rules_to_article(article_id, title, description)
-            if matched_tags:
-                logger.info(f"Auto-tagged article {article_id} with: {matched_tags}")
-        except Exception as e:
-            logger.warning(f"Failed to apply tag rules to article {article_id}: {e}")
 
     return {"new_articles": new_count}
 
