@@ -9,7 +9,7 @@ import httpx
 
 from src.discovery.common_paths import FEED_CONTENT_TYPES, generate_feed_candidates
 from src.discovery.deep_crawl import deep_crawl
-from src.discovery.fetcher import is_bozo_feed, validate_feed
+from src.discovery.fetcher import validate_feed
 from src.discovery.models import DiscoveredFeed
 from src.discovery.parser import parse_link_elements
 from src.providers.rss_provider import BROWSER_HEADERS

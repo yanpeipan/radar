@@ -1,10 +1,9 @@
-"""Feed URL validation via HTTP HEAD request and bozo detection (DISC-04)."""
+"""Feed URL validation via HTTP HEAD request (DISC-04)."""
 from __future__ import annotations
 
 import logging
 from typing import Optional
 
-import feedparser
 import httpx
 
 from src.discovery.common_paths import FEED_CONTENT_TYPES
@@ -68,28 +67,3 @@ async def validate_feed(url: str) -> tuple[bool, str | None]:
         return False, None
 
 
-def is_bozo_feed(url: str) -> tuple[bool, str | None]:
-    """Check if a feed is malformed (bozo).
-
-    Args:
-        url: The feed URL to check.
-
-    Returns:
-        Tuple of (is_bozo, error_message). is_bozo is True if the feed
-        is malformed. error_message describes the issue.
-    """
-    try:
-        # Need full GET to get content for feedparser
-        response = httpx.get(url, timeout=15.0, follow_redirects=True)
-        content = response.content
-
-        feed = feedparser.parse(content)
-
-        if feed.get('bozo', 0) == 1:
-            error_msg = str(feed.get('bozo_exception', 'malformed feed'))
-            return True, error_msg
-
-        return False, None
-
-    except Exception as e:
-        return True, str(e)
