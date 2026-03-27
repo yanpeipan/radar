@@ -16,6 +16,8 @@ from src.application.feed import (
 )
 from src.application.fetch import fetch_all_async, fetch_ids_async, fetch_one_async_by_id
 import uvloop
+from src.discovery import discover_feeds, DiscoveredFeed
+from src.cli.discover import _display_feeds
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,55 @@ def _get_provider_type(url: str) -> str:
     return "GitHub" if "github.com" in url.lower() else "RSS"
 
 
+def _prompt_selection(feeds: list[DiscoveredFeed]) -> list[int]:
+    """Prompt user to select feeds. Returns list of selected indices."""
+    from rich.console import Console
+    console = Console()
+
+    click.secho("")
+    click.secho("Select feeds to add:")
+    click.secho("  a - Add all feeds")
+    click.secho("  s - Select individually")
+    click.secho("  c - Cancel")
+    click.secho("")
+
+    choice = console.input("Enter choice (a/s/c): ").strip().lower()
+
+    if choice == "a":
+        # Add all
+        return list(range(len(feeds)))
+    elif choice == "s":
+        # Individual selection
+        click.secho("Enter feed numbers (e.g., 1,3,5-7) or 'c' to cancel: ", fg="cyan")
+        selection = console.input().strip()
+        if selection.lower() == "c":
+            return []
+        return _parse_selection(selection, len(feeds))
+    else:
+        return []
+
+
+def _parse_selection(selection: str, max_idx: int) -> list[int]:
+    """Parse comma-separated numbers and ranges like '1,3,5-7' into indices."""
+    indices = set()
+    try:
+        for part in selection.split(","):
+            part = part.strip()
+            if "-" in part:
+                start, end = part.split("-", 1)
+                start, end = int(start.strip()), int(end.strip())
+                for i in range(start, end + 1):
+                    if 1 <= i <= max_idx:
+                        indices.add(i - 1)  # Convert to 0-based
+            else:
+                i = int(part)
+                if 1 <= i <= max_idx:
+                    indices.add(i - 1)
+        return sorted(list(indices))
+    except ValueError:
+        return []
+
+
 from src.cli import cli
 
 
@@ -80,10 +131,84 @@ def feed(ctx: click.Context) -> None:
 
 @feed.command("add")
 @click.argument("url")
+@click.option(
+    "--discover",
+    default="on",
+    type=click.Choice(["on", "off"]),
+    help="Enable feed discovery before adding (default: on)",
+)
+@click.option(
+    "--automatic",
+    default="off",
+    type=click.Choice(["on", "off"]),
+    help="Automatically add all discovered feeds (default: off)",
+)
+@click.option(
+    "--discover-deep",
+    default=1,
+    type=click.IntRange(1, 10),
+    help="Discovery crawl depth (default: 1)",
+)
 @click.pass_context
-def feed_add(ctx: click.Context, url: str) -> None:
-    """Add a new feed by URL (auto-detects provider type)."""
+def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discover_depth: int) -> None:
+    """Add a new feed by URL (auto-detects provider type).
+
+    Examples:
+
+      rss-reader feed add example.com --discover on --automatic off
+      rss-reader feed add example.com --automatic on
+    """
     verbose = ctx.parent and ctx.parent.obj.get("verbose")
+
+    if discover == "on":
+        # Run discovery first
+        try:
+            feeds = uvloop.run(discover_feeds(url, discover_depth))
+        except Exception as e:
+            click.secho(f"Error during discovery: {e}", err=True, fg="red")
+            sys.exit(1)
+
+        if not feeds:
+            click.secho(
+                f"No feeds found at {url}. Try providing a website URL instead of a feed URL.",
+                err=True,
+                fg="yellow",
+            )
+            sys.exit(1)
+
+        if automatic == "on":
+            # Auto-add all discovered feeds
+            added_count = 0
+            for feed in feeds:
+                try:
+                    add_feed(feed.url)
+                    added_count += 1
+                except ValueError as e:
+                    # Feed already exists or failed
+                    click.secho(f"  Skipped {feed.url}: {e}", fg="yellow")
+            click.secho(f"Added {added_count} feed(s) automatically.", fg="green")
+            return
+
+        # Show numbered list and prompt for selection
+        _display_feeds(feeds, numbered=True)
+        selected = _prompt_selection(feeds)
+        if not selected:
+            click.secho("No feeds selected. Feed not added.", fg="yellow")
+            return
+
+        # Add selected feeds
+        added_count = 0
+        for idx in selected:
+            feed = feeds[idx]
+            try:
+                add_feed(feed.url)
+                added_count += 1
+            except ValueError as e:
+                click.secho(f"  Skipped {feed.url}: {e}", fg="yellow")
+        click.secho(f"Added {added_count} feed(s).", fg="green")
+        return
+
+    # Original behavior when --discover off
     try:
         feed_obj = add_feed(url)
 
