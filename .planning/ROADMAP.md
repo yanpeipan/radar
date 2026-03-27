@@ -91,6 +91,21 @@
 - [x] **Phase 36: Feed Add Integration** — `--discover` and `--automatic` flags (completed 2026-03-27)
 - [x] **Phase 37: Deep Crawling** — BFS crawler, robots.txt, CSS selector-based link discovery (completed 2026-03-27)
 
+### Phase 38: Search Result Ranking
+**Goal**: Implement multi-factor ranking algorithm for semantic search results combining normalized cosine similarity (50%), normalized freshness (30%), and configurable source weights (20%)
+**Depends on**: Phase 30, Phase 31, Phase 32
+**Requirements**: RANK-01
+**Success Criteria** (what must be TRUE):
+  1. `rank_semantic_results()` function exists in `src/application/search.py`
+  2. Ranking formula: `final_score = 0.5 * norm_similarity + 0.3 * norm_freshness + 0.2 * source_weight`
+  3. Source weights: `{'openai.com': 1.0, 'arxiv.org': 0.9, 'medium.com': 0.5, 'default': 0.3}`
+  4. Articles without SQLite IDs (pre-v1.8) are excluded from ranked results
+  5. `search --semantic` CLI command applies ranking before displaying results
+  6. CLI output labeled "ranked" not "by similarity"
+**Plans**: 1 plan
+Plans:
+- [ ] 38-01-PLAN.md — Multi-factor ranking algorithm (rank_semantic_results, CLI wiring, tests)
+
 ### Phase 34: Discovery Core Module
 **Goal**: Users can programmatically discover RSS/Atom/RDF feeds from a website URL via the discovery service module
 **Depends on**: Nothing (first phase of v1.9)
@@ -252,6 +267,7 @@ Plans:
 | 35. Discovery CLI Command | 1/1 | ✅ Complete | 2026-03-27 |
 | 36. Feed Add Integration | 1/1 | ✅ Complete | 2026-03-27 |
 | 37. Deep Crawling | 2/2 | Complete    | 2026-03-27 |
+| 38. Search Result Ranking | — | Pending | — |
 
 ---
 _For completed milestone details, see `.planning/milestones/`_
