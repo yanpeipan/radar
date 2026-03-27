@@ -73,19 +73,20 @@ async def _extract_feed_title(url: str) -> str | None:
         return None
 
 
-async def _probe_well_known_paths(page_url: str) -> list[DiscoveredFeed]:
+async def _probe_well_known_paths(page_url: str, html: str | None = None) -> list[DiscoveredFeed]:
     """Probe well-known feed paths on a page URL.
 
     Args:
         page_url: Base page URL to probe.
+        html: Optional HTML content for dynamic subdirectory discovery.
 
     Returns:
         List of DiscoveredFeed found via well-known path probing.
     """
     results = []
 
-    # Generate candidates using pattern-based approach
-    candidates = generate_feed_candidates(page_url)
+    # Generate candidates using pattern-based approach (now with dynamic subdirs if html provided)
+    candidates = generate_feed_candidates(page_url, html)
 
     for candidate in candidates:
         is_valid, feed_type = await validate_feed(candidate)
@@ -132,8 +133,8 @@ async def _discover_feeds_on_page(html: str, page_url: str) -> list[DiscoveredFe
         if valid_feeds:
             return valid_feeds
 
-    # Fallback to well-known path probing
-    return await _probe_well_known_paths(page_url)
+    # Fallback to well-known path probing (pass html for dynamic subdir discovery)
+    return await _probe_well_known_paths(page_url, html)
 
 
 async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]:
@@ -284,7 +285,7 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
             base_host: Host to restrict links to (same-domain).
 
         Returns:
-            List of absolute URLs found on the page.
+            List of absolute URLs found on the page that may be feed URLs.
         """
         links = []
         page = Selector(content=html)
@@ -297,40 +298,50 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
             if base_tag:
                 base_override = base_tag.attrib['href']
 
-        # Find all <a href=""> tags
-        for anchor in page.css('a[href]'):
-            href = anchor.attrib['href']
+        # Use CSS selectors to find feed-like links directly
+        # Look for hrefs containing: rss, feed, atom in the path
+        feed_selectors = [
+            'a[href*="rss"]',
+            'a[href*="feed"]',
+            'a[href*="atom"]',
+            'a[href$=".xml"]',
+        ]
 
-            # Skip non-HTTP URLs
-            if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
-                continue
+        for selector in feed_selectors:
+            for anchor in page.css(selector):
+                href = anchor.attrib['href']
 
-            # Resolve relative URLs
-            if base_override:
-                absolute = urljoin(base_override, href)
-            else:
-                absolute = urljoin(page_url, href)
+                # Skip non-HTTP URLs
+                if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
+                    continue
 
-            parsed = urlparse(absolute)
+                # Resolve relative URLs
+                if base_override:
+                    absolute = urljoin(base_override, href)
+                else:
+                    absolute = urljoin(page_url, href)
 
-            # Skip non-HTTP(S)
-            if parsed.scheme not in ('http', 'https'):
-                continue
+                parsed = urlparse(absolute)
 
-            # Skip different hosts
-            if parsed.netloc.lower() != base_host:
-                continue
+                # Skip non-HTTP(S)
+                if parsed.scheme not in ('http', 'https'):
+                    continue
 
-            # Skip non-HTML resources (simple heuristic)
-            path = parsed.path.lower()
-            if any(path.endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg', '.woff', '.pdf', '.zip', '.mp3', '.mp4')):
-                continue
+                # Skip different hosts
+                if parsed.netloc.lower() != base_host:
+                    continue
 
-            # Only follow links that match feed path patterns (BFS focused on feed discovery)
-            if not matches_feed_path_pattern(path):
-                continue
+                # Skip non-HTML resources (simple heuristic)
+                path = parsed.path.lower()
+                if any(path.endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg', '.woff', '.pdf', '.zip', '.mp3', '.mp4')):
+                    continue
 
-            links.append(absolute)
+                # Validate path ends with feed-like pattern using matches_feed_path_pattern (fallback validation)
+                if not matches_feed_path_pattern(path):
+                    continue
+
+                if absolute not in links:
+                    links.append(absolute)
 
         return links
 
