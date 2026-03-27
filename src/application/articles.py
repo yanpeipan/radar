@@ -13,8 +13,6 @@ from src.storage import (
     get_article as storage_get_article,
     get_article_detail as storage_get_article_detail,
     search_articles as storage_search_articles,
-    list_articles_with_tags as storage_list_articles_with_tags,
-    get_articles_with_tags as storage_get_articles_with_tags,
 )
 
 
@@ -69,13 +67,13 @@ def get_article(article_id: str) -> Optional[ArticleListItem]:
 
 
 def get_article_detail(article_id: str) -> Optional[dict]:
-    """Get full article details including content and tags.
+    """Get full article details including content.
 
     Args:
         article_id: The ID of the article (can be truncated 8-char or full 32-char).
 
     Returns:
-        Dict with all article fields plus 'tags' key containing list of tag names.
+        Dict with all article fields.
         Returns None if article not found.
     """
     return storage_get_article_detail(article_id)
@@ -97,33 +95,3 @@ def search_articles(
         List of ArticleListItem objects ordered by relevance
     """
     return storage_search_articles(query=query, limit=limit, feed_id=feed_id)
-
-
-def list_articles_with_tags(
-    limit: int = 20,
-    feed_id: Optional[str] = None,
-    tag: Optional[str] = None,
-    tags: Optional[str] = None
-) -> list[ArticleListItem]:
-    """List articles with optional tag filtering.
-
-    Args:
-        limit: Maximum number of articles.
-        feed_id: Filter by feed ID.
-        tag: Single tag name filter (must have).
-        tags: Comma-separated tag names (OR logic - has a OR has b).
-              If both tag and tags provided, tag takes precedence.
-    """
-    return storage_list_articles_with_tags(limit=limit, feed_id=feed_id, tag=tag, tags=tags)
-
-
-def get_articles_with_tags(article_ids: list[str]) -> dict[str, list[str]]:
-    """Batch fetch tags for multiple articles.
-
-    Args:
-        article_ids: List of article IDs to fetch tags for.
-
-    Returns:
-        Dict mapping article_id -> list of tag names.
-    """
-    return storage_get_articles_with_tags(article_ids)
