@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 import click
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 from src.application.articles import get_article_detail, list_articles, search_articles, ArticleListItem
 
