@@ -1,91 +1,68 @@
 # Requirements: 个人资讯系统 (RSS Reader CLI)
 
-**Defined:** 2026-03-25
+**Defined:** 2026-03-27
 **Core Value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
 
-## v1.8 Requirements
+## v1.9 Requirements
 
-Requirements for ChromaDB semantic search milestone.
+Requirements for Automatic Discovery Feed milestone.
 
-### Semantic Search
+### Core Discovery
 
-- [x] **SEM-01**: ChromaDB integration — PersistentClient for local vector storage alongside SQLite
-- [x] **SEM-02**: Embedding service — sentence-transformers `all-MiniLM-L6-v2` generating 384-dim vectors for article content
-- [x] **SEM-03**: Model pre-download — Embedding model downloaded at startup (not on first query)
-- [ ] **SEM-04**: `search --semantic "query"` — Semantic search CLI using ChromaDB query
-- [ ] **SEM-05**: `article related <id>` — Find semantically similar articles using ChromaDB similarity search
-- [x] **SEM-06**: Incremental embedding — New articles automatically generate embedding during fetch
-- [ ] **SEM-07**: Error handling — Graceful handling when article has no embedding
+- [ ] **DISC-01**: HTML `<link>` tag 解析 — 解析 `<head>` 中的 `rel="alternate"` 标签（type 包含 rss/atom/rdf），发现 feed URL；大小写不敏感
+- [ ] **DISC-02**: 常见路径探测 fallback — 对没有 autodiscovery 标签的站点，探测 `/feed`、`/feed/`、`/rss`、`/rss.xml`、`/atom.xml`、`/feed.xml`、`/index.xml`
+- [ ] **DISC-03**: 相对 URL 解析 — 使用 `urllib.parse.urljoin` 正确解析 `<link href="/feed.xml">`，处理 `<base href>` 覆盖
+- [ ] **DISC-04**: Feed 验证 — 发现后对 feed URL 发送 HEAD 请求，验证 HTTP 200 + Content-Type 包含 rss/atom/rdf；bozo feed 需被识别并过滤
 
-### Future (Deferred)
+### CLI Commands
 
-- [ ] Backfill command — Batch reindex existing articles to ChromaDB
-- [ ] Feed-filtered semantic search — `search --semantic "query" --feed-id X`
-- [ ] Hybrid search — Combine FTS5 keyword + semantic similarity ranking
+- [ ] **DISC-05**: `discover <url> --discover-deep [n]` — 仅发现 feed，列出所有发现的 feeds（RSS/Atom/RDF），不订阅；默认 depth=1
+- [ ] **DISC-06**: `feed add <url> --discover [on/off] --automatic [on/off] --discover-deep [n]` — 发现并订阅；--discover 默认 on，--automatic 默认 off
 
-## v1.6 Requirements
+### Deep Crawling
 
-Requirements for nanoid ID generation milestone.
+- [ ] **DISC-07**: Depth > 1 BFS 爬取 — visited-set 防重复、depth limit 限制深度、rate limiting（2s/host）、cycle 检测；depth=1 只看当前页，depth>1 遍历站内链接
+- [ ] **DISC-08**: robots.txt 遵守 — 深度爬取时使用 robotexclusionrulesparser（已安装）检查 robots.txt，lazy 模式同现有 crawl 行为
 
-### nanoid ID生成
+### Documentation
 
-- [x] **NANO-01**: store_article()使用nanoid.generate()替代uuid.uuid4()生成article id
-- [ ] **NANO-02**: 生成迁移脚本，修复~2479条URL-like ID的历史数据
-- [x] **NANO-03**: 验证所有article相关操作（CRUD、tagging、search）正常
+- [ ] **DISC-09**: `docs/Automatic Discovery Feed.md` — 自动发现逻辑文档化（discovery 算法、URL 解析规则、feed 类型支持列表）
 
-## v1.5 Requirements
+## Future (Deferred)
 
-Requirements for uvloop async concurrency milestone.
-
-### uvloop并发支持
-
-- [x] **UVLP-01**: uvloop.install() 在应用启动时调用，Linux/macOS自动使用uvloop，Windows降级到asyncio
-- [x] **UVLP-02**: ContentProvider 协议添加 crawl_async() 方法，默认实现使用 run_in_executor 包装同步 crawl()
-- [x] **UVLP-03**: RSSProvider 实现 crawl_async()，使用 httpx.AsyncClient 进行异步HTTP请求
-- [x] **UVLP-04**: fetch_all_async() 函数使用 asyncio.Semaphore 控制并发数，默认10
-- [x] **UVLP-05**: SQLite写入通过 asyncio.to_thread() 串行化，避免数据库锁冲突
-- [x] **UVLP-06**: fetch --all 命令通过 uvloop.run() 调用异步fetch逻辑
-- [x] **UVLP-07**: CLI增加 --concurrency 参数，可配置并发数（默认10）
+- OPML 导入/导出
+- 标记已读/未读状态
+- 文章书签功能
+- 定时自动抓取（cron 集成）
+- 多输出格式（JSON、CSV）
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| aiohttp替代httpx | httpx.AsyncClient已足够 |
-| 异步生成器流式返回 | 当前架构不需要，复杂度高 |
-| 连接池复用 | 每次fetch独立请求，无需keep-alive |
-| 动态并发自动调节 | 简单配置足够，复杂度高 |
+| Playwright/Selenium | basic HTML parsing sufficient for `<link>` tags |
+| Scrapy | overkill for feed discovery |
+| feedfinder2 | abandoned (0.0.4, unmaintained) |
+| 动态 JS 渲染 | autodiscovery via `<link>` tags 不需要 JS |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEM-01 | Phase 30 | Complete |
-| SEM-02 | Phase 30 | Complete |
-| SEM-03 | Phase 30 | Complete |
-| SEM-04 | Phase 32 | Pending |
-| SEM-05 | Phase 32 | Pending |
-| SEM-06 | Phase 31 | Complete |
-| SEM-07 | Phase 33 | Pending |
-| NANO-01 | Phase 23 | Complete |
-| NANO-02 | Phase 24 | Deferred |
-| NANO-03 | Phase 25 | Complete |
-| UVLP-01 | Phase 19 | Complete |
-| UVLP-02 | Phase 19 | Complete |
-| UVLP-03 | Phase 20 | Complete |
-| UVLP-04 | Phase 21 | Complete |
-| UVLP-05 | Phase 21 | Complete |
-| UVLP-06 | Phase 22 | Complete |
-| UVLP-07 | Phase 22 | Complete |
+| DISC-01 | — | Pending |
+| DISC-02 | — | Pending |
+| DISC-03 | — | Pending |
+| DISC-04 | — | Pending |
+| DISC-05 | — | Pending |
+| DISC-06 | — | Pending |
+| DISC-07 | — | Pending |
+| DISC-08 | — | Pending |
+| DISC-09 | — | Pending |
 
 **Coverage:**
-- v1.8 requirements: 7 total
-- Mapped to phases: 7 ✓
-- v1.6 requirements: 3 total
-- Mapped to phases: 3 ✓
-- v1.5 requirements: 7 total
-- Mapped to phases: 7 ✓
+- v1.9 requirements: 9 total
+- Mapped to phases: 0 (roadmap pending)
 
 ---
-*Requirements defined: 2026-03-26*
-*Last updated: 2026-03-26 after v1.8 roadmap defined*
+*Requirements defined: 2026-03-27*
+*Last updated: 2026-03-27*
