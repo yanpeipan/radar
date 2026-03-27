@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Automatic Discovery Feed
 status: active
-stopped_at: Milestone v1.9 started
+stopped_at: Milestone v1.9 roadmap defined
 last_updated: "2026-03-27T00:00:00.000Z"
-last_activity: "2026-03-27 — Milestone v1.9 started"
+last_activity: "2026-03-27 — Milestone v1.9 roadmap created"
 progress: {}
 ---
 
@@ -20,16 +20,19 @@ See: .planning/PROJECT.md (v1.9 milestone started)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 34 (ready to plan)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-27 — Milestone v1.9 started
+Status: Roadmap defined
+Last activity: 2026-03-27 — Milestone v1.9 roadmap created
 
 ## v1.9 Phase Structure
 
 | Phase | Goal | Requirements |
 |-------|------|--------------|
-| TBD | — | — |
+| 34. Discovery Core Module | Core discovery engine (HTML parsing, path probing, URL resolution, feed validation) | DISC-01, DISC-02, DISC-03, DISC-04 |
+| 35. Discovery CLI Command | `discover <url>` command | DISC-05 |
+| 36. Feed Add Integration | `--discover` and `--automatic` flags for `feed add` | DISC-06 |
+| 37. Deep Crawling | BFS crawler, robots.txt, documentation | DISC-07, DISC-08, DISC-09 |
 
 ## Performance Metrics
 
@@ -67,6 +70,10 @@ Last activity: 2026-03-27 — Milestone v1.9 started
 - Phase 31: Incremental embedding on fetch
 - Phase 32: search --semantic + article related CLI commands
 - Phase 33: Graceful error handling for ChromaDB edge cases
+
+**v1.9 velocity:**
+
+- 4 phases, 9 requirements (roadmap defined)
 
 ## Accumulated Context
 
@@ -114,6 +121,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 30]: D-04: Model pre-download triggered during CLI startup alongside init_db()
 - [Phase 30]: D-05: get_embedding_function() as public API with module-level caching
 - [Phase ?]: [260327-ef6]: Extracted search result formatting logic to src/application/search.py - format_semantic_results converts L2 distance to cosine similarity, format_fts_results truncates fields for display
+- [v1.9]: Discovery is a separate service module (src/discovery/), NOT a Provider plugin
+- [v1.9]: Phase order: Core module → CLI → Integration → Deep crawl
 
 ### Technical Notes
 
@@ -148,6 +157,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Semantic search via ChromaDB query() with cosine similarity
 - Related articles via query_by_ids() for similarity search
 
+**v1.9 Discovery Architecture (planned):**
+
+- Discovery service module: `src/discovery/`
+- No new dependencies (uses existing httpx, BeautifulSoup)
+- Discovery flow: HTML parse → link tags + path probing → URL resolution → feed validation
+- Deep crawl: BFS with visited-set, rate limiting (2s/host), robots.txt via robotexclusionrulesparser
+
 ### Blockers/Concerns
 
 - uvloop cannot run in non-main thread (certain Click invocations, IDE integrations)
@@ -177,13 +193,13 @@ Stopped at: Completed quick task 260327-jju
 | Phase 14 P03 | 2 | 1 tasks | 1 files |
 | Phase 14-cli-integration P02 | 1774288413 | 2 tasks | 1 files |
 | Phase 15-pygithub-refactor P01 | 3 | 4 tasks | 4 files |
-| 2026-03-24 | fast | Added OpenAI RSS feed | ✅ |
+| 2026-03-24 | fast | Added OpenAI RSS feed | — |
 | Phase 16-github-release-provider P01 | 180 | 3 tasks | 2 files |
 | 2026-03-25 | 260324-x3k | articles.py, config.py, crawl.py | Moved to application module, imports updated across codebase |
 | 2026-03-25 | 260324-x78 | 删除无用的文件 | Deleted 9 orphaned .pyc files from deleted modules |
 | 2026-03-25 | 260324-x78 | 删除无用的文件 | Deleted 9 orphaned .pyc files from deleted modules |
-| 2026-03-25 | milestone-v1.4 | MILESTONE_SUMMARY-v1.4.md | Generated milestone summary to .planning/reports/ |
-| 260325-5mi | 增加Rich Progress bar到async fetch | 2026-03-24 | 33ea0e4 | ✅ | [260325-5mi-rich-progress-bar-async-fetch](./quick/260325-5mi-rich-progress-bar-async-fetch/) |
+| 2026-03-25 | 260324-x78 | milestone-v1.4 | MILESTONE_SUMMARY-v1.4.md | Generated milestone summary to .planning/reports/ |
+| 260325-5mi | 增加Rich Progress bar到async fetch | 2026-03-24 | 33ea0e4 | — | [260325-5mi-rich-progress-bar-async-fetch](./quick/260325-5mi-rich-progress-bar-async-fetch/) |
 | Phase 19 P19-01 | 53 | 3 tasks | 3 files |
 | Phase 19 P19-02 | 1 | 2 tasks | 2 files |
 | Phase 20 P01 | 72 | 3 tasks | 1 files |

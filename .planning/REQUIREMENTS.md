@@ -49,19 +49,23 @@ Requirements for Automatic Discovery Feed milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISC-01 | — | Pending |
-| DISC-02 | — | Pending |
-| DISC-03 | — | Pending |
-| DISC-04 | — | Pending |
-| DISC-05 | — | Pending |
-| DISC-06 | — | Pending |
-| DISC-07 | — | Pending |
-| DISC-08 | — | Pending |
-| DISC-09 | — | Pending |
+| DISC-01 | Phase 34 | Pending |
+| DISC-02 | Phase 34 | Pending |
+| DISC-03 | Phase 34 | Pending |
+| DISC-04 | Phase 34 | Pending |
+| DISC-05 | Phase 35 | Pending |
+| DISC-06 | Phase 36 | Pending |
+| DISC-07 | Phase 37 | Pending |
+| DISC-08 | Phase 37 | Pending |
+| DISC-09 | Phase 37 | Pending |
 
 **Coverage:**
 - v1.9 requirements: 9 total
-- Mapped to phases: 0 (roadmap pending)
+- Mapped to phases: 9/9 (100%)
+- Phase 34: 4 requirements (DISC-01, DISC-02, DISC-03, DISC-04)
+- Phase 35: 1 requirement (DISC-05)
+- Phase 36: 1 requirement (DISC-06)
+- Phase 37: 3 requirements (DISC-07, DISC-08, DISC-09)
 
 ---
 *Requirements defined: 2026-03-27*
