@@ -26,5 +26,5 @@ from src.storage.sqlite import (
     get_all_embeddings,
     get_articles_without_embeddings,
     get_article_id_by_url,
-    get_article_ids_by_urls,
+    get_articles_by_urls,
 )

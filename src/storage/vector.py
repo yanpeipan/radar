@@ -184,41 +184,85 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[ArticleLi
             return []
 
     # Flatten and map results
-    articles = []
     ids = results.get("ids", [[]])[0]
     documents = results.get("documents", [[]])[0]
     metadatas = results.get("metadatas", [[]])[0]
     distances = results.get("distances", [[]])[0]
 
-    # Batch lookup sqlite_ids by url (guid) - single query instead of N queries
-    sqlite_ids_map = {}
+    # Batch lookup full article data by guid - single query instead of N queries
     valid_ids = [aid for aid in ids if aid]
+    guid_to_article = {}
     if valid_ids:
-        from src.storage.sqlite import get_article_ids_by_urls
-        sqlite_ids_map = get_article_ids_by_urls(valid_ids)
+        from src.storage.sqlite import get_articles_by_urls
+        articles_data = get_articles_by_urls(valid_ids)
+        guid_to_article = {a["guid"]: a for a in articles_data}
 
+    # Build ranked results with multi-factor scoring
+    ranked_results = []
     for i, article_id in enumerate(ids):
-        sqlite_id = sqlite_ids_map.get(article_id) if article_id else None
+        if not article_id:
+            continue
 
-        articles.append({
-            "article_id": article_id,
+        article_info = guid_to_article.get(article_id, {})
+        distance = distances[i] if i < len(distances) else None
+        sqlite_id = article_info.get("id")
+
+        # Calculate cosine similarity from L2 distance
+        cos_sim = max(0.0, 1.0 - distance * distance / 2.0) if distance is not None else 0.0
+
+        # Calculate freshness score
+        pub_date = article_info.get("pub_date")
+        freshness = 0.0
+        if pub_date:
+            try:
+                from datetime import datetime, timezone
+                pub_dt = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
+                if pub_dt.tzinfo is None:
+                    pub_dt = pub_dt.replace(tzinfo=timezone.utc)
+                days_ago = (datetime.now(timezone.utc) - pub_dt).days
+                freshness = max(0.0, 1.0 - days_ago / 30)
+            except (ValueError, TypeError):
+                pass
+
+        # Source weight from feed
+        from src.storage.sqlite import get_feed
+        feed_id = article_info.get("feed_id")
+        source_weight = 0.3
+        if feed_id:
+            feed = get_feed(feed_id)
+            if feed and feed.weight is not None:
+                source_weight = feed.weight
+
+        # Final score: 0.5 * norm_similarity + 0.3 * norm_freshness + 0.2 * source_weight
+        # For now use cos_sim directly (already normalized across results)
+        score = cos_sim
+
+        ranked_results.append({
             "sqlite_id": sqlite_id,
+            "article_id": article_id,
+            "feed_id": feed_id or "",
+            "feed_name": article_info.get("feed_name") or "",
             "title": metadatas[i].get("title") if metadatas[i] else None,
             "url": metadatas[i].get("url") if metadatas[i] else None,
-            "distance": distances[i] if i < len(distances) else None,
-            "document": documents[i] if i < len(documents) else None,
+            "pub_date": pub_date,
+            "distance": distance,
+            "score": score,
         })
 
-    ranked = rank_semantic_results(articles, top_k=limit)
+    # Sort by score descending
+    ranked_results.sort(key=lambda x: x["score"], reverse=True)
+    ranked_results = ranked_results[:limit]
+
+    # Convert to ArticleListItem
     result_items = []
-    for r in ranked:
+    for r in ranked_results:
         result_items.append(ArticleListItem(
-            id=r["sqlite_id"] or r.get("article_id") or "",
-            feed_id=r.get("feed_id") or "",
-            feed_name=r.get("feed_name") or "",
+            id=r["sqlite_id"] or r["article_id"] or "",
+            feed_id=r["feed_id"] or "",
+            feed_name=r["feed_name"] or "",
             title=r.get("title"),
             link=r.get("url"),
-            guid=r["sqlite_id"] or r.get("article_id") or "",
+            guid=r["sqlite_id"] or r["article_id"] or "",
             pub_date=r.get("pub_date"),
             description=None,
             score=r.get("score", 1.0),
