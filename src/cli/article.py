@@ -9,13 +9,50 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from src.application.articles import get_article_detail, list_articles, search_articles
-from src.application.search import print_articles
+from src.application.articles import get_article_detail, list_articles, search_articles, ArticleListItem
 # Lazy import: from src.application.related import get_related_articles_display
 # Lazy import: from src.storage.vector import search_articles_semantic
 
 logger = logging.getLogger(__name__)
 
+
+def print_articles(items: list[ArticleListItem], verbose: bool = False) -> None:
+    """Print formatted articles to console.
+
+    Args:
+        items: List of ArticleListItem objects.
+        verbose: If True, show detailed output with full fields
+    """
+    if not items:
+        click.secho("No articles found.")
+        return
+
+    click.secho("ID | Title | Source | Date | Score\n" + "-" * 80)
+
+    for item in items:
+        article_id = item.id
+        title = item.title
+        source = item.feed_name
+        date = item.pub_date
+        score = item.score
+        link = item.link
+        description = item.description
+
+        if verbose:
+            click.secho(f"\nTitle: {title}")
+            if article_id:
+                click.secho(f"ID: {article_id}")
+            if source:
+                click.secho(f"Source: {source}")
+            if date:
+                click.secho(f"Date: {date}")
+            if link:
+                click.secho(f"Link: {link}")
+            if description:
+                preview = description[:100] + "..." if len(description) > 100 else description
+                click.secho(f"Description: {preview}")
+        else:
+            click.secho(f"{article_id[:8]} | {title[:60] if title else '-'} | {source[:15] if source else '-'} | {date[:10] if date else '-'} | {str(score)[:4]}")
 
 
 def open_in_browser(url: str) -> None:
@@ -47,9 +84,6 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], verbose
     verbose = verbose or (ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False)
     try:
         articles = list_articles(limit=limit, feed_id=feed_id)
-        if not articles:
-            click.secho("No articles found. Add some feeds and fetch them first.")
-            return
         print_articles(articles, verbose=verbose)
     except Exception as e:
         click.secho(f"Error: Failed to list articles: {e}", err=True, fg="red")
@@ -116,12 +150,9 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
             # Lazy import to avoid torch dependency for non-semantic search
             from src.storage.vector import search_articles_semantic
             articles = search_articles_semantic(query_text=query, limit=limit)
-            if not articles: click.secho("No articles found matching your semantic search."); return
-            print_articles(articles, verbose=verbose)
         else:
             articles = search_articles(query=query, limit=limit, feed_id=feed_id)
-            if not articles: click.secho("No articles found matching your search."); return
-            print_articles(articles, verbose=verbose)
+        print_articles(articles, verbose=verbose)
     except Exception as e:
         click.secho(f"Search unavailable: {e}.", err=True, fg="yellow")
         logger.exception("Failed to search articles"); sys.exit(1)
@@ -134,17 +165,9 @@ def article_related(ctx: click.Context, article_id: str, limit: int) -> None:
     verbose = ctx.parent and ctx.parent.obj.get("verbose") if ctx.parent else False
     try:
         # Lazy import to avoid torch dependency when not using related articles
-        from src.application.related import get_related_articles_display
-        results = get_related_articles_display(article_id=article_id, limit=limit, verbose=verbose)
-        if not results: click.secho("No related articles found."); return
-        if results and results[0].get("no_embedding"):
-            click.secho("Article was fetched before v1.8 and has no semantic embedding. Fetch the article again to enable similarity search.", fg="yellow"); return
-        click.secho(f"Articles related to {article_id}:\n" + "-" * 80)
-        for item in results:
-            if verbose:
-                click.secho(f"\nTitle: {item['title']}\nURL: {item['url']}\nSimilarity: {item['similarity']}")
-                if item.get('document_preview'): click.secho(f"Content preview: {item['document_preview']}")
-            else: click.secho(f"{item['title'][:50]} | Similarity: {item['similarity']}")
+        from src.application.related import get_related_articles
+        articles = get_related_articles(article_id=article_id, limit=limit)
+        print_articles(articles, verbose=verbose)
     except Exception as e:
         click.secho(f"Error: Failed to find related articles: {e}", err=True, fg="red")
         logger.exception("Failed to find related articles"); sys.exit(1)

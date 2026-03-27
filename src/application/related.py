@@ -2,51 +2,51 @@
 
 from __future__ import annotations
 
+from src.application.articles import ArticleListItem
 from src.storage.vector import get_related_articles as storage_get_related_articles
 
 
-def get_related_articles_display(article_id: str, limit: int = 5, verbose: bool = False) -> list[dict[str, str]]:
-    """Get formatted related articles for display.
+def get_related_articles(article_id: str, limit: int = 5) -> list[ArticleListItem]:
+    """Get related articles as ArticleListItem objects.
 
     Args:
         article_id: The article ID to find related articles for.
         limit: Maximum number of related articles to return (default 5).
-        verbose: If True, include document preview in results.
 
     Returns:
-        List of dicts with keys: title, url, similarity, document_preview (if verbose).
-        If article exists but has no embedding, returns list with a single dict
-        containing {"no_embedding": True}.
+        List of ArticleListItem objects sorted by semantic similarity.
+        Returns empty list if no related articles found or article has no embedding.
     """
     results = storage_get_related_articles(article_id=article_id, limit=limit)
 
     if not results:
-        # Check if article exists but has no embedding
-        from src.storage.sqlite import get_article
-        article = get_article(article_id)
-        if article:
-            return [{"no_embedding": True}]
         return []
 
-    formatted = []
+    articles = []
     for result in results:
-        title = result.get("title") or "No title"
-        url = result.get("url") or ""
+        sqlite_id = result.get("sqlite_id")
+        if not sqlite_id:
+            continue
+
+        # Look up full article data from SQLite
+        from src.storage.sqlite import get_article
+        article = get_article(sqlite_id)
+        if not article:
+            continue
+
         distance = result.get("distance")
-        similarity = f"{max(0, round((1 - distance) * 100, 1))}%" if distance is not None else "N/A"
+        score = max(0.0, 1.0 - distance * distance / 2.0) if distance is not None else 1.0
 
-        item: dict[str, str] = {
-            "title": title,
-            "url": url,
-            "similarity": similarity,
-        }
+        articles.append(ArticleListItem(
+            id=sqlite_id,
+            feed_id=article.feed_id,
+            feed_name=article.feed_name,
+            title=result.get("title") or article.title,
+            link=result.get("url") or article.link,
+            guid=article.guid or sqlite_id,
+            pub_date=article.pub_date,
+            description=None,
+            score=score,
+        ))
 
-        if verbose:
-            doc = result.get("document") or ""
-            if doc:
-                preview = doc[:150] + "..." if len(doc) > 150 else doc
-                item["document_preview"] = preview
-
-        formatted.append(item)
-
-    return formatted
+    return articles
