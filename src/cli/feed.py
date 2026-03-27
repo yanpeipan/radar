@@ -4,7 +4,7 @@ import sys
 import logging
 
 import click
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+from src.cli.ui import FetchProgress, print_summary
 
 from src.application.feed import (
     FeedNotFoundError,
@@ -22,35 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 async def _fetch_with_progress(async_gen, total, description):
-    """Run async fetch with Rich progress bar. Returns (total_new, success_count, error_count, errors)."""
-    total_new = 0
-    success_count = 0
-    error_count = 0
-    errors = []
-
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        TimeRemainingColumn(),
-    ) as progress:
-        task = progress.add_task(description, total=total)
-
+    """Run async fetch with Rich progress bar. Returns (total_new, success_count, error_count, errors, elapsed_time)."""
+    with FetchProgress(total, description) as fp:
         async for result in async_gen:
-            if result["new_articles"] > 0:
-                total_new += result["new_articles"]
-                success_count += 1
-                progress.update(task, advance=1, description=f"[green]{result.get('feed_name', result.get('feed_id'))}: +{result['new_articles']}")
-            elif result.get("error"):
-                error_count += 1
-                errors.append(f"{result.get('feed_name', result.get('feed_id'))}: {result['error']}")
-                progress.update(task, advance=1, description=f"[red]{result.get('feed_name', result.get('feed_id'))}: error")
-            else:
-                success_count += 1
-                progress.update(task, advance=1, description=f"[blue]{result.get('feed_name', result.get('feed_id'))}: up to date")
-
-    return total_new, success_count, error_count, errors
+            fp.update(result)
+    return fp.total_new, fp.success_count, fp.error_count, fp.errors, fp.elapsed_time
 
 
 def _print_fetch_summary(total_new, success_count, error_count, errors, prefix=""):
@@ -340,10 +316,10 @@ def fetch(ctx: click.Context, do_fetch_all: bool, concurrency: int, ids: tuple) 
                 click.secho(f"Fetched {total_new} articles from {feed.name}", fg="green")
             else:
                 # Multiple IDs: use semaphore concurrency
-                total_new, success_count, error_count, errors = uvloop.run(
+                total_new, success_count, error_count, errors, elapsed = uvloop.run(
                     _fetch_with_progress(fetch_ids_async(ids, concurrency), len(ids), f"[cyan]Fetching {len(ids)} feeds by ID...")
                 )
-                _print_fetch_summary(total_new, success_count, error_count, errors)
+                print_summary(total_new, success_count, error_count, errors, elapsed)
         except Exception as e:
             click.secho(f"Error: Failed to fetch feeds: {e}", err=True, fg="red")
             logger.exception("Failed to fetch feeds")
@@ -357,10 +333,10 @@ def fetch(ctx: click.Context, do_fetch_all: bool, concurrency: int, ids: tuple) 
             if not feeds:
                 click.secho("No feeds subscribed. Use 'feed add <url>' to add one.", fg="yellow")
                 return
-            total_new, success_count, error_count, errors = uvloop.run(
+            total_new, success_count, error_count, errors, elapsed = uvloop.run(
                 _fetch_with_progress(fetch_all_async(concurrency=concurrency), len(feeds), f"[cyan]Fetching {len(feeds)} feeds...")
             )
-            _print_fetch_summary(total_new, success_count, error_count, errors, prefix="✓ ")
+            print_summary(total_new, success_count, error_count, errors, elapsed, prefix="✓ ")
         except Exception as e:
             click.secho(f"Error: Failed to fetch feeds: {e}", err=True, fg="red")
             logger.exception("Failed to fetch feeds")

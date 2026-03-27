@@ -2,6 +2,7 @@
 
 import sys
 import logging
+import time
 
 import click
 import uvloop
@@ -9,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from src.cli.ui import DiscoverProgress
 from src.discovery import discover_feeds, DiscoveredFeed
 
 logger = logging.getLogger(__name__)
@@ -87,8 +89,15 @@ def discover(ctx: click.Context, url: str, discover_depth: int) -> None:
       rss-reader discover example.com --discover-depth 1
     """
     try:
-        feeds = uvloop.run(_discover_async(url, discover_depth))
+        start_time = time.time()
+        with DiscoverProgress(f"[cyan]Discovering feeds from {url}...") as dp:
+            feeds = uvloop.run(_discover_async(url, discover_depth))
+            for feed in feeds:
+                dp.update(feed)
+        elapsed = time.time() - start_time
         _display_feeds(feeds)
+        if feeds:
+            click.secho(f"Discovered {len(feeds)} feed(s) in {elapsed:.1f}s", fg="green")
     except Exception as e:
         click.secho(f"Error: {e}", err=True, fg="red")
         sys.exit(1)

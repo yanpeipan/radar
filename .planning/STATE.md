@@ -243,6 +243,7 @@ Stopped at: Completed Quick Task 260327-sp3 - regex-based feed path matching
 | Phase 36 P36-01 | ~5 | 3 tasks | 2 files |
 | Phase 37 P37-01 | <5 | 4 tasks | 5 files |
 | Phase 37 P37-02 | ~3 | 3 tasks | 2 files |
+| 260328-173 | Unified Rich progress bar and elapsed time UI for src.cli commands | 2026-03-28 | — | Verified | [260328-173-src-cli-ui](./quick/260328-173-src-cli-ui/) |
 | 260327-sp3 | Implement regex-based feed path matching with generate_feed_candidates() | 2026-03-27 | e5e38d9 | Verified | [260327-sp3-implement-regex-based-feed-path-matching](./quick/260327-sp3-implement-regex-based-feed-path-matching/) |
 | 260327-t7d | Refactor src/discovery HTML parsing from BeautifulSoup to Scrapling | 2026-03-27 | b12cf01 | Verified | [260327-t7d-scrapling-src-discovery](./quick/260327-t7d-scrapling-src-discovery/) |
 | 260327-tpu | Replace httpx with Scrapling Fetcher in deep_crawl | 2026-03-27 | bbe0da8 | Verified | [260327-tpu-replace-beautifulsoup-with-scrapling-in-](./quick/260327-tpu-replace-beautifulsoup-with-scrapling-in-/) |
