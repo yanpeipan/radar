@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 260328-59g: Revert xxx_articles to return ArticleListItem
-last_updated: "2026-03-28T11:00:00.000Z"
+stopped_at: Completed 260328-5gl: search_articles_semantic returns list[ArticleListItem]
+last_updated: "2026-03-28T12:00:00.000Z"
 progress:
   total_phases: 40
   completed_phases: 39
@@ -255,3 +255,4 @@ Stopped at: Completed 260328-4vr-PLAN.md
 | Phase 38 P38-01 | ~3min | 3 tasks | 3 files |
 | Phase quick-260328-522 P01 | 300 | 4 tasks | 4 files |
 | 260328-59g | Revert: xxx_articles() returns list[ArticleListItem], print_articles accepts both | 2026-03-28 | 80860b2 | Verified | [260328-59g-cli-application-articles-xxx-articles-li](./quick/260328-59g-cli-application-articles-xxx-articles-li/) |
+| 260328-5gl | search_articles_semantic returns list[ArticleListItem] | 2026-03-28 | cb73cba | Verified | [260328-5gl-search-articles-semantic-list-articlelis](./quick/260328-5gl-search-articles-semantic-list-articlelis/) |

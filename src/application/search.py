@@ -197,6 +197,8 @@ def rank_semantic_results(results: list[dict[str, Any]], top_k: int = 10) -> lis
 
         # Build ranked result with all original keys plus computed scores
         ranked_result = {**result}
+        ranked_result["feed_id"] = article.feed_id if article else None
+        ranked_result["feed_name"] = article.feed_name if article else None
         ranked_result["cos_sim"] = cos_sim
         ranked_result["freshness"] = freshness
         ranked_result["source_weight"] = source_weight

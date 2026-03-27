@@ -147,7 +147,7 @@ def add_article_embedding(article_id: str, title: str, content: str, url: str) -
             raise
 
 
-def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
+def search_articles_semantic(query_text: str, limit: int = 10) -> list[ArticleListItem]:
     """Search articles by semantic similarity using ChromaDB.
 
     Args:
@@ -155,9 +155,10 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
         limit: Maximum number of results to return
 
     Returns:
-        List of dicts with keys: id, title, source, date, score
+        List of ArticleListItem with keys: id, feed_id, feed_name, title, link, guid, pub_date, score
     """
-    from src.application.search import rank_semantic_results, format_semantic_results
+    from src.application.search import rank_semantic_results
+    from src.application.articles import ArticleListItem
 
     import logging
     logger = logging.getLogger(__name__)
@@ -204,7 +205,20 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
         })
 
     ranked = rank_semantic_results(articles, top_k=limit)
-    return format_semantic_results(ranked)
+    result_items = []
+    for r in ranked:
+        result_items.append(ArticleListItem(
+            id=r["sqlite_id"] or r.get("article_id") or "",
+            feed_id=r.get("feed_id") or "",
+            feed_name=r.get("feed_name") or "",
+            title=r.get("title"),
+            link=r.get("url"),
+            guid=r["sqlite_id"] or r.get("article_id") or "",
+            pub_date=r.get("pub_date"),
+            description=None,
+            score=r.get("score", 1.0),
+        ))
+    return result_items
 
 
 def get_related_articles(article_id: str, limit: int = 5) -> list[dict]:
