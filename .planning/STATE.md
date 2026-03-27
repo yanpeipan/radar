@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: ChromaDB 语义搜索
 status: completed
-stopped_at: Completed quick task 260327-feu
-last_updated: "2026-03-27T03:17:00.000Z"
-last_activity: "2026-03-27 — Completed quick task 260327-feu: remove preload_embedding_model from CLI init"
+stopped_at: Completed quick task 260327-fsm
+last_updated: "2026-03-27T03:25:00.000Z"
+last_activity: "2026-03-27 — Completed quick task 260327-fsm: src/cli/feed.py 参数urls改为ids"
 progress:
   total_phases: 4
   completed_phases: 3
@@ -218,3 +218,4 @@ Stopped at: Completed quick task 260327-eqg
 | 260327-eqg | Move src/application/asyncio_utils.py to src/utils | 2026-03-27 | b6256bb | Verified | [260327-eqg-move-src-application-asyncio-utils-py-to](./quick/260327-eqg-move-src-application-asyncio-utils-py-to/) |
 | 260327-f1q | Refactor fetch command URL case to use async loop with storage/embedding/tags | 2026-03-27 | 25dc28b | Verified | [260327-f1q-src-cli-feed-py-fetch-urls-should-also-c](./quick/260327-f1q-src-cli-feed-py-fetch-urls-should-also-c/) |
 | 260327-feu | Remove preload_embedding_model from CLI init | 2026-03-27 | e091ed5 | Verified | [260327-feu-remove-preload-embedding-model-from-cli-](./quick/260327-feu-remove-preload-embedding-model-from-cli-/) |
+| 260327-fsm | src/cli/feed.py 参数urls改为ids | 2026-03-27 | 00b3c16 | Verified | [260327-fsm-src-cli-feed-py-urls-ids](./quick/260327-fsm-src-cli-feed-py-urls-ids/) |
