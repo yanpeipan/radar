@@ -6,6 +6,12 @@ for article embeddings using SentenceTransformer.
 
 from __future__ import annotations
 
+# Prevent sentence-transformers from making network calls to huggingface.co
+# Model is cached locally - no need to verify with remote server
+import os
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
 import chromadb
 from chromadb import PersistentClient
 from chromadb.config import Settings
