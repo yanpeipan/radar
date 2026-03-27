@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse
 
 import feedparser
 
-from scrapling import Fetcher, Selector
+from scrapling import Fetcher, Selector, DynamicFetcher
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
 from src.discovery.common_paths import matches_feed_path_pattern, generate_feed_candidates
@@ -143,19 +143,35 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
     """
     if max_depth <= 1:
         # Single-page discovery: fetch and discover
+        html = None
+        page_url = start_url
         try:
             response = await asyncio.to_thread(
                 Fetcher.get, start_url, headers=BROWSER_HEADERS
             )
-            if response.status == 200:
+            if response.status == 200 and response.text and len(response.text) > 100:
                 html = response.text
                 page_url = response.url
-                return await _discover_feeds_on_page(html, page_url)
-                # Non-200: fall through to well-known path probing
         except Exception:
             pass
 
-        # Fall back to well-known path probing (handles sites that return 403, etc.)
+        # Adaptive: if static fetcher got empty content, try DynamicFetcher (Playwright)
+        if html is None:
+            try:
+                dynamic = DynamicFetcher()
+                dyn_response = await asyncio.to_thread(
+                    dynamic.fetch, start_url, timeout=20000, wait=3000
+                )
+                if dyn_response.body and len(dyn_response.body) > 100:
+                    html = dyn_response.body.decode('utf-8')
+                    page_url = dyn_response.url
+            except Exception:
+                pass
+
+        if html:
+            return await _discover_feeds_on_page(html, page_url)
+
+        # Fall back to well-known path probing (handles JS-rendered pages, 403, etc.)
         return await _probe_well_known_paths(start_url)
 
     # Deep crawl (max_depth > 1)
