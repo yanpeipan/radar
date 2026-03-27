@@ -8,6 +8,7 @@ from urllib.parse import urljoin
 import httpx
 
 from src.discovery.common_paths import WELL_KNOWN_PATHS
+from src.discovery.deep_crawl import deep_crawl
 from src.discovery.fetcher import is_bozo_feed, validate_feed
 from src.discovery.models import DiscoveredFeed
 from src.discovery.parser import parse_link_elements
@@ -79,16 +80,21 @@ async def validate_and_wrap(
     )
 
 
-async def discover_feeds(url: str) -> list[DiscoveredFeed]:
+async def discover_feeds(url: str, max_depth: int = 1) -> list[DiscoveredFeed]:
     """Discover RSS/Atom/RDF feeds from a website URL.
 
     Args:
         url: Website URL to discover feeds from.
+        max_depth: Maximum crawl depth (1 = current page only, 2+ = BFS crawl).
 
     Returns:
         List of DiscoveredFeed objects found on the page.
         Empty list if no feeds found or page cannot be fetched.
     """
+    # Deep crawl for max_depth > 1
+    if max_depth > 1:
+        return await deep_crawl(url, max_depth)
+
     try:
         normalized = normalize_url(url)
     except ValueError:
@@ -150,4 +156,4 @@ async def discover_feeds(url: str) -> list[DiscoveredFeed]:
 
 
 # Public exports
-__all__ = ["discover_feeds", "DiscoveredFeed", "WELL_KNOWN_PATHS"]
+__all__ = ["discover_feeds", "DiscoveredFeed", "WELL_KNOWN_PATHS", "deep_crawl"]
