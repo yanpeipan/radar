@@ -14,6 +14,7 @@ from src.storage import (
     get_article_detail as storage_get_article_detail,
     search_articles as storage_search_articles,
 )
+from src.application.search import rank_list_results, rank_fts_results, format_articles
 
 
 @dataclass
@@ -41,7 +42,7 @@ class ArticleListItem:
     description: Optional[str]
 
 
-def list_articles(limit: int = 20, feed_id: Optional[str] = None) -> list[ArticleListItem]:
+def list_articles(limit: int = 20, feed_id: Optional[str] = None) -> list[dict]:
     """List articles ordered by publication date.
 
     Args:
@@ -49,9 +50,11 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None) -> list[Articl
         feed_id: Optional feed ID to filter articles by a specific feed.
 
     Returns:
-        List of ArticleListItem objects ordered by pub_date DESC, limited to specified count.
+        List of dicts with keys: id, title, source, date, score
     """
-    return storage_list_articles(limit=limit, feed_id=feed_id)
+    items = storage_list_articles(limit=limit, feed_id=feed_id)
+    ranked = rank_list_results(items)
+    return format_articles(ranked)
 
 
 def get_article(article_id: str) -> Optional[ArticleListItem]:
@@ -83,7 +86,7 @@ def search_articles(
     query: str,
     limit: int = 20,
     feed_id: Optional[str] = None
-) -> list[ArticleListItem]:
+) -> list[dict]:
     """Search articles using FTS5 full-text search.
 
     Args:
@@ -92,6 +95,8 @@ def search_articles(
         feed_id: Optional feed ID to filter by specific feed
 
     Returns:
-        List of ArticleListItem objects ordered by relevance
+        List of dicts with keys: id, title, source, date, score
     """
-    return storage_search_articles(query=query, limit=limit, feed_id=feed_id)
+    items = storage_search_articles(query=query, limit=limit, feed_id=feed_id)
+    ranked = rank_fts_results(items)
+    return format_articles(ranked)

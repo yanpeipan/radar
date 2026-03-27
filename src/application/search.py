@@ -11,7 +11,6 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urlparse
 
-from src.application.articles import ArticleListItem
 from src.storage.sqlite import get_article, get_feed
 
 
@@ -231,7 +230,7 @@ def rank_semantic_results(results: list[dict[str, Any]], top_k: int = 10) -> lis
     return ranked[:top_k]
 
 
-def rank_fts_results(articles: list[ArticleListItem]) -> list[dict[str, Any]]:
+def rank_fts_results(articles: list[Any]) -> list[dict[str, Any]]:
     """Rank FTS search results with fixed score.
 
     FTS keyword search has no similarity metric, so all results get score=1.0.
@@ -248,7 +247,7 @@ def rank_fts_results(articles: list[ArticleListItem]) -> list[dict[str, Any]]:
     return [{**vars(article), "score": 1.0} for article in articles]
 
 
-def rank_list_results(items: list[ArticleListItem]) -> list[dict[str, Any]]:
+def rank_list_results(items: list[Any]) -> list[dict[str, Any]]:
     """Rank list results with fixed score.
 
     List results have no similarity metric, so all results get score=1.0.
@@ -265,7 +264,7 @@ def rank_list_results(items: list[ArticleListItem]) -> list[dict[str, Any]]:
     return [{**vars(item), "score": 1.0} for item in items]
 
 
-def format_fts_results(articles: list[ArticleListItem], verbose: bool = False) -> list[dict[str, Any]]:
+def format_fts_results(articles: list[Any], verbose: bool = False) -> list[dict[str, Any]]:
     """Format FTS5 keyword search results for display.
 
     Takes output from search_articles (list of ArticleListItem) and

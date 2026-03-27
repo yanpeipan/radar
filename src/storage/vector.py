@@ -155,8 +155,10 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
         limit: Maximum number of results to return
 
     Returns:
-        List of dicts with keys: article_id, sqlite_id, title, url, distance, document
+        List of dicts with keys: id, title, source, date, score
     """
+    from src.application.search import rank_semantic_results, format_semantic_results
+
     import logging
     logger = logging.getLogger(__name__)
 
@@ -200,7 +202,9 @@ def search_articles_semantic(query_text: str, limit: int = 10) -> list[dict]:
             "distance": distances[i] if i < len(distances) else None,
             "document": documents[i] if i < len(documents) else None,
         })
-    return articles
+
+    ranked = rank_semantic_results(articles, top_k=limit)
+    return format_semantic_results(ranked)
 
 
 def get_related_articles(article_id: str, limit: int = 5) -> list[dict]:

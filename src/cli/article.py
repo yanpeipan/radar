@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from src.application.articles import get_article_detail, list_articles, search_articles
-from src.application.search import format_semantic_results, format_fts_results, rank_semantic_results, rank_list_results, rank_fts_results, format_articles, print_articles
+from src.application.search import print_articles
 # Lazy import: from src.application.related import get_related_articles_display
 # Lazy import: from src.storage.vector import search_articles_semantic
 
@@ -50,9 +50,7 @@ def article_list(ctx: click.Context, limit: int, feed_id: Optional[str], verbose
         if not articles:
             click.secho("No articles found. Add some feeds and fetch them first.")
             return
-        ranked = rank_list_results(articles)
-        formatted = format_articles(ranked, verbose=verbose)
-        print_articles(formatted, verbose=verbose)
+        print_articles(articles, verbose=verbose)
     except Exception as e:
         click.secho(f"Error: Failed to list articles: {e}", err=True, fg="red")
         logger.exception("Failed to list articles"); sys.exit(1)
@@ -117,18 +115,13 @@ def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional
         if semantic:
             # Lazy import to avoid torch dependency for non-semantic search
             from src.storage.vector import search_articles_semantic
-            results = search_articles_semantic(query_text=query, limit=limit)
-            if not results: click.secho("No articles found matching your semantic search."); return
-            # Apply multi-factor ranking
-            results = rank_semantic_results(results, top_k=limit)
-            formatted = format_semantic_results(results, verbose=verbose)
-            print_articles(formatted, verbose=verbose)
+            articles = search_articles_semantic(query_text=query, limit=limit)
+            if not articles: click.secho("No articles found matching your semantic search."); return
+            print_articles(articles, verbose=verbose)
         else:
             articles = search_articles(query=query, limit=limit, feed_id=feed_id)
             if not articles: click.secho("No articles found matching your search."); return
-            ranked = rank_fts_results(articles)
-            formatted = format_articles(ranked, verbose=verbose)
-            print_articles(formatted, verbose=verbose)
+            print_articles(articles, verbose=verbose)
     except Exception as e:
         click.secho(f"Search unavailable: {e}.", err=True, fg="yellow")
         logger.exception("Failed to search articles"); sys.exit(1)
