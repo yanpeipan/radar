@@ -290,11 +290,11 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
         if head:
             base_tag = head.find('base[href]')
             if base_tag:
-                base_override = base_tag.attrib.get('href')
+                base_override = base_tag.attrib['href']
 
         # Find all <a href=""> tags
         for anchor in page.css('a[href]'):
-            href = anchor.attrib.get('href')
+            href = anchor.attrib['href']
 
             # Skip non-HTTP URLs
             if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
