@@ -2,6 +2,7 @@
 
 import sys
 import logging
+import time
 
 import click
 from src.cli.ui import FetchProgress, print_summary
@@ -138,10 +139,18 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
     if discover == "on":
         # Run discovery first
         try:
-            feeds = uvloop.run(discover_feeds(url, discover_depth))
+            from rich.console import Console
+            import time as time_module
+            console = Console()
+            start = time_module.time()
+            with console.status(f"[cyan]Discovering feeds from {url}...") as _status:
+                feeds = uvloop.run(discover_feeds(url, discover_depth))
+            elapsed = time.time() - start
         except Exception as e:
             click.secho(f"Error during discovery: {e}", err=True, fg="red")
             sys.exit(1)
+
+        click.secho(f"Discovered {len(feeds)} feed(s) in {elapsed:.1f}s", fg="cyan")
 
         if not feeds:
             click.secho(
