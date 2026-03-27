@@ -188,7 +188,17 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
             click.secho(f"Added {added_count} feed(s) automatically.", fg="green")
             return
 
-        # Show numbered list and prompt for selection
+        # Single feed: auto-add without prompting
+        if len(feeds) == 1:
+            feed = feeds[0]
+            try:
+                add_feed(feed.url)
+                click.secho(f"Added feed: {feed.url}", fg="green")
+            except ValueError as e:
+                click.secho(f"  Skipped {feed.url}: {e}", fg="yellow")
+            return
+
+        # Multiple feeds: show numbered list and prompt for selection
         _display_feeds(feeds, numbered=True)
         selected = _prompt_selection(feeds)
         if not selected:
