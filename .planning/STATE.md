@@ -2,10 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: ChromaDB 语义搜索
-status: Phase 33 complete - milestone v1.8 done
-stopped_at: Phase 33 complete - SEM-07 achieved
-last_updated: "2026-03-27T02:15:00.000Z"
-last_activity: 2026-03-27 — Phase 33 complete (SEM-07)
+status: completed
+stopped_at: Phase 33-01 complete - SEM-07 achieved
+last_updated: "2026-03-27T02:32:16.198Z"
+last_activity: "2026-03-27 — Completed quick task 260327-e6m: preload_embedding_model SSL errors no longer crash CLI"
+progress:
+  total_phases: 4
+  completed_phases: 3
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State
@@ -22,7 +27,7 @@ See: .planning/PROJECT.md (v1.8 milestone started)
 Phase: All 4 phases complete
 Plan: —
 Status: Milestone v1.8 complete
-Last activity: 2026-03-27 — Completed quick task 260327-e6m: preload_embedding_model SSL errors no longer crash CLI
+Last activity: 2026-03-27 — Completed quick task 260327-ef6: extract search logic from src/cli/article.py
 
 ## v1.8 Phase Structure
 
@@ -122,6 +127,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 30]: D-03: ChromaDB uses sentence_transformers.SentenceTransformer(all-MiniLM-L6-v2)
 - [Phase 30]: D-04: Model pre-download triggered during CLI startup alongside init_db()
 - [Phase 30]: D-05: get_embedding_function() as public API with module-level caching
+- [Phase ?]: [260327-ef6]: Extracted search result formatting logic to src/application/search.py - format_semantic_results converts L2 distance to cosine similarity, format_fts_results truncates fields for display
 
 ### Technical Notes
 
@@ -208,3 +214,4 @@ Stopped at: Phase 33-01 complete - SEM-07 achieved
 | Phase 33 P33-01 | 1 | 2 tasks | 2 files |
 | 260327-dzr | search --semantic results include SQLite article ID | 2026-03-27 | a170354 | Verified | [260327-dzr-search-semantic-results-include-sqlite-a](./quick/260327-dzr-search-semantic-results-include-sqlite-a/) |
 | 260327-e6m | Fix preload_embedding_model SSL errors crash CLI | 2026-03-27 | bcc4ff0 | Verified | [260327-e6m-fix-preload-embedding-model-ssl-errors-c](./quick/260327-e6m-fix-preload-embedding-model-ssl-errors-c/) |
+| 260327-ef6 | Extract search logic from src/cli/article.py | 2026-03-27 | 6dd928a | Verified | [260327-ef6-extract-search-logic-from-src-cli-articl](./quick/260327-ef6-extract-search-logic-from-src-cli-articl/) |
