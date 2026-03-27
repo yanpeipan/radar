@@ -1,5 +1,6 @@
 """Feed management commands for RSS reader CLI."""
 
+import asyncio
 import sys
 import logging
 from typing import Optional
@@ -15,7 +16,7 @@ from src.application.feed import (
     fetch_one,
     fetch_all,
 )
-from src.application.fetch import fetch_all_async
+from src.application.fetch import fetch_all_async, fetch_url_async
 import uvloop
 
 logger = logging.getLogger(__name__)
@@ -182,30 +183,81 @@ def fetch(ctx: click.Context, do_fetch_all: bool, concurrency: int, urls: tuple)
 
     # Case 1: URL arguments provided
     if urls:
-        from src.application.crawl import crawl_url
-        from src.storage.sqlite import store_article
+        try:
+            async def run_fetch_urls_with_progress():
+                """Run async URL fetch with Rich progress bar."""
+                total_new = 0
+                success_count = 0
+                error_count = 0
+                errors = []
 
-        success_count = 0
-        fail_count = 0
-        for url in urls:
-            try:
-                result = crawl_url(url)
-                if result:
-                    title = result.get("title", "Untitled")
-                    click.secho(f"Fetched: {title} ({url})", fg="green")
-                    success_count += 1
-                else:
-                    click.secho(f"Failed to fetch {url}: No content", fg="red")
-                    fail_count += 1
-            except Exception as e:
-                click.secho(f"Failed to fetch {url}: {e}", fg="red")
-                fail_count += 1
+                with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TaskProgressColumn(),
+                    TimeRemainingColumn(),
+                ) as progress:
+                    task = progress.add_task(f"[cyan]Fetching {len(urls)} URLs...", total=len(urls))
 
-        if fail_count > 0:
-            click.secho(f"Completed: {success_count} succeeded, {fail_count} failed", fg="yellow")
+                    # Create async generator for URL fetching
+                    semaphore = asyncio.Semaphore(concurrency)
+
+                    async def fetch_one_with_semaphore(url: str):
+                        async with semaphore:
+                            return await fetch_url_async(url)
+
+                    tasks = [fetch_one_with_semaphore(url) for url in urls]
+
+                    for coro in asyncio.as_completed(tasks):
+                        result = await coro
+                        if result["new_articles"] > 0:
+                            total_new += result["new_articles"]
+                            success_count += 1
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[green]{result['url']}: +{result['new_articles']}",
+                            )
+                        elif result.get("error"):
+                            error_count += 1
+                            errors.append(f"{result['url']}: {result['error']}")
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[red]{result['url']}: error",
+                            )
+                        else:
+                            success_count += 1
+                            progress.update(
+                                task,
+                                advance=1,
+                                description=f"[blue]{result['url']}: up to date",
+                            )
+
+                return total_new, success_count, error_count, errors
+
+            total_new, success_count, error_count, errors = uvloop.run(run_fetch_urls_with_progress())
+
+            # Summary
+            click.secho("")
+            if error_count == 0:
+                click.secho(
+                    f"Fetched {total_new} articles from {success_count} URL(s)",
+                    fg="green",
+                )
+            else:
+                click.secho(
+                    f"Fetched {total_new} articles from {success_count} URL(s), {error_count} errors",
+                    fg="yellow",
+                )
+                for err in errors:
+                    click.secho(f"  - {err}", fg="red")
+
+        except Exception as e:
+            click.secho(f"Error: Failed to fetch URLs: {e}", err=True, fg="red")
+            logger.exception("Failed to fetch URLs")
             sys.exit(1)
-        else:
-            click.secho(f"Completed: {success_count} URL(s) fetched", fg="green")
         return
 
     # Case 2: --all flag

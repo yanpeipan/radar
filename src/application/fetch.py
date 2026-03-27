@@ -102,6 +102,92 @@ async def fetch_one_async(feed: Feed) -> dict:
     return {"new_articles": new_count}
 
 
+async def fetch_url_async(url: str) -> dict:
+    """Fetch articles from a raw URL using discovered provider.
+
+    Uses provider's crawl_async to fetch and parse articles, then stores
+    them with embeddings and tag rules applied (same as feed fetch).
+
+    Args:
+        url: URL to crawl.
+
+    Returns:
+        Dict with new_articles count, url, and optional error.
+    """
+    # Ensure system feed exists for crawled articles
+    from src.storage import ensure_crawled_feed
+    ensure_crawled_feed()
+
+    # Use discover_or_default to find provider for this URL
+    providers = discover_or_default(url)
+    if not providers:
+        return {"new_articles": 0, "url": url, "error": f"No provider for {url}"}
+
+    provider = providers[0]  # highest priority match
+
+    # Crawl using the discovered provider's async method
+    try:
+        raw_items = await provider.crawl_async(url)
+    except Exception as e:
+        logger.error("Failed to crawl_async %s: %s", url, e)
+        return {"new_articles": 0, "url": url, "error": str(e)}
+
+    if not raw_items:
+        return {"new_articles": 0, "url": url}
+
+    # Parse and store each item (store_article_async serializes DB writes)
+    new_count = 0
+    articles_needing_tags = []
+
+    for raw in raw_items:
+        article = provider.parse(raw)
+        article_guid = article.get("guid") or generate_article_id(article)
+
+        # Use async store that serializes writes via asyncio.Lock + to_thread
+        try:
+            await store_article_async(
+                guid=article_guid,
+                title=article.get("title") or "",
+                content=article.get("content") or article.get("description") or "",
+                link=article.get("link") or "",
+                feed_id="crawled",  # System feed for crawled pages
+                pub_date=article.get("pub_date"),
+            )
+            new_count += 1
+
+            # Generate embedding for semantic search
+            try:
+                await asyncio.to_thread(
+                    add_article_embedding,
+                    article_id=article_guid,
+                    title=article.get("title") or "",
+                    content=article.get("content") or article.get("description") or "",
+                    url=article.get("link") or "",
+                )
+            except Exception as e:
+                logger.warning("Failed to add embedding for article %s: %s", article_guid, e)
+                # Don't re-raise - embedding failure should not fail the fetch
+
+            articles_needing_tags.append(
+                (article_guid, article.get("title"), article.get("description"))
+            )
+        except Exception as e:
+            logger.warning("Failed to store article %s: %s", article_guid, e)
+            continue
+
+    # Apply tag rules AFTER store to avoid nested connection writes
+    from src.tags.tag_rules import apply_rules_to_article
+    for article_id, title, description in articles_needing_tags:
+        try:
+            matched_tags = apply_rules_to_article(article_id, title, description)
+            if matched_tags:
+                logger.info(f"Auto-tagged article {article_id} with: {matched_tags}")
+        except Exception as e:
+            logger.warning(f"Failed to apply tag rules to article {article_id}: {e}")
+
+    return {"new_articles": new_count, "url": url}
+
+
 async def fetch_all_async(concurrency: int = 10):
     """Fetch new articles from all subscribed feeds concurrently.
 
