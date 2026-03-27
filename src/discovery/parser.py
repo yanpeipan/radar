@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
+from scrapling import Selector
 
 from src.discovery.models import DiscoveredFeed
 
@@ -56,34 +56,24 @@ def parse_link_elements(html: str, page_url: str) -> list[DiscoveredFeed]:
     """
     feeds: list[DiscoveredFeed] = []
 
-    soup = BeautifulSoup(html, 'lxml')
+    page = Selector(content=html)
 
     # Find <head> element
-    head = soup.find('head')
+    head = page.find('head')
     if not head:
         return feeds
 
     # Check for <base href=""> override in <head>
-    base_tag = head.find('base', href=True)
-    base_href: str | None = base_tag.get('href') if base_tag else None
+    base_tag = head.find('base[href]')
+    base_href: str | None = base_tag.attrib.get('href') if base_tag else None
 
     # Find all <link> tags in <head> with rel="alternate"
-    for link in head.find_all('link'):
-        rel = link.get('rel', '')
-        # Handle rel as either string or list
-        if isinstance(rel, list):
-            rel_values = [r.lower() for r in rel]
-        else:
-            rel_values = [rel.lower()]
-
-        if 'alternate' not in rel_values:
-            continue
-
-        href = link.get('href')
+    for link in head.css('link[rel="alternate"]'):
+        href = link.attrib.get('href')
         if not href:
             continue
 
-        link_type = link.get('type', '')
+        link_type = link.attrib.get('type', '')
         feed_type = extract_feed_type(link_type)
         if not feed_type:
             continue
@@ -92,7 +82,7 @@ def parse_link_elements(html: str, page_url: str) -> list[DiscoveredFeed]:
         absolute_url = resolve_url(page_url, href, base_href)
 
         # Extract title if present
-        title: Optional[str] = link.get('title')
+        title: Optional[str] = link.attrib.get('title')
 
         feeds.append(DiscoveredFeed(
             url=absolute_url,

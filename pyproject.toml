@@ -20,6 +20,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "uvloop>=0.22.0",  # async event loop
     "nanoid>=2.0.0",  # URL-safe ID generation
+    "scrapling>=0.4.0",  # CSS-selector HTML parsing
 ]
 
 [project.optional-dependencies]

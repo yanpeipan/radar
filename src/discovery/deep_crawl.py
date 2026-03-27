@@ -7,7 +7,7 @@ from collections import deque
 from urllib.parse import urljoin, urlparse
 
 import httpx
-from bs4 import BeautifulSoup
+from scrapling import Selector
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
 from src.discovery.common_paths import matches_feed_path_pattern, generate_feed_candidates
@@ -246,19 +246,19 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
             List of absolute URLs found on the page.
         """
         links = []
-        soup = BeautifulSoup(html, 'lxml')
+        page = Selector(content=html)
 
         # Check for <base href> override
         base_override: str | None = None
-        head = soup.find('head')
+        head = page.find('head')
         if head:
-            base_tag = head.find('base', href=True)
+            base_tag = head.find('base[href]')
             if base_tag:
-                base_override = base_tag.get('href')
+                base_override = base_tag.attrib.get('href')
 
         # Find all <a href=""> tags
-        for anchor in soup.find_all('a', href=True):
-            href = anchor.get('href')
+        for anchor in page.css('a[href]'):
+            href = anchor.attrib.get('href')
 
             # Skip non-HTTP URLs
             if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
