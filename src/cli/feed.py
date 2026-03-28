@@ -276,7 +276,7 @@ def feed_list(ctx: click.Context, verbose: bool) -> None:
                 weight = f.weight if f.weight is not None else 0.3
 
                 table.add_row(
-                    str(i),
+                    f.id,
                     f.name,
                     provider_type,
                     str(articles_count),
