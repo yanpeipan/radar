@@ -6,9 +6,11 @@
 
 ---
 
-## 当前状态
+## 实现状态：v2.0 已完成 ✅
 
-### ArticleListItem（现状）
+所有目标功能已在 v2.0 milestone 中实现并发布。
+
+### ArticleListItem（已完成）
 
 ```python
 @dataclass
@@ -21,16 +23,23 @@ class ArticleListItem:
     guid: str
     pub_date: Optional[int]  # Unix timestamp INTEGER
     description: Optional[str]
-    score: float = 1.0  # 目前未统一使用
+    # 原始信号分数（由各查询方法填充）
+    vec_sim: float = 0.0      # ChromaDB cosine similarity (0-1)
+    bm25_score: float = 0.0   # FTS5 BM25 normalized score (0-1)
+    freshness: float = 0.0    # 时间衰减分数 (0-1, 牛顿冷却定律)
+    source_weight: float = 0.3 # 来源权重 (feed.weight)
+    ce_score: float = 0.0      # Cross-Encoder score (0-1, rerank 后填充)
+    final_score: float = 0.0  # combine_scores 最终分数
+    score: float = 1.0       # 兼容字段（已废弃）
 ```
 
-### 三种查询方法（现状）
+### 三种查询方法（已完成）
 
-| 方法 | 所在层 | score 含义 | 问题 |
+| 方法 | 所在层 | score 含义 | 状态 |
 |---|---|---|---|
-| `vector.search_articles_semantic` | storage.vector | 硬编码 `0.5×cos + 0.2×fresh + 0.3×weight` | 已是组合分，无法被 combine_scores 重新组合 |
-| `storage_impl.search_articles` (FTS5) | storage.sqlite | `1 / (1 + abs(bm25_score))` | BM25 负分用 abs() 反转语义有误 |
-| `storage_impl.list_articles` | storage.sqlite | 无 score，固定 1.0 | score 字段未被使用 |
+| `vector.search_articles_semantic` | storage.vector | 原始 `cos_sim` | ✅ 已修复，返回 raw vec_sim |
+| `storage_impl.search_articles` (FTS5) | storage.sqlite | Sigmoid `1 / (1 + exp(bm25 * factor))` | ✅ 已修复 |
+| `storage_impl.list_articles` | storage.sqlite | freshness 填充 | ✅ 已实现 |
 
 ---
 
@@ -162,6 +171,18 @@ def combine_scores(
 
 > **注意**：当 `ce_score = 0`（未做 rerank）时，`alpha * 0 = 0`，相当于纯信号组合。
 
+### 搜索类型与权重配置
+
+调用点根据搜索类型显式传入不同权重：
+
+| 搜索类型 | alpha | beta | gamma | delta | 说明 |
+|---|---|---|---|---|---|
+| 语义搜索 `--semantic` | 0.3 | 0.3 | 0.2 | **0.0** | 无 BM25 信号 |
+| 关键词搜索（默认） | 0.3 | 0.3 | 0.0 | 0.2 | 无 vec_sim 信号 |
+| 混合搜索（可选） | 0.3 | 0.3 | 0.1 | 0.1 | 两种信号都启用 |
+
+> **注意**：`delta=0` 时 `delta × bm25_score = 0`，语义搜索只使用 `gamma × vec_sim` 作为文本相关信号。
+
 ---
 
 ## 完整流程
@@ -216,12 +237,51 @@ def combine_scores(
 ### 5. 新增 `application/rerank.py`
 
 ```python
+# 全局缓存（函数外部）
+_model = None
+_tokenizer = None
+
+def _load_reranker():
+    """Lazy load Cross-Encoder model and tokenizer."""
+    global _model, _tokenizer
+    if _model is None:
+        import torch
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        model_name = "BAAI/bge-reranker-base"
+        _tokenizer = AutoTokenizer.from_pretrained(model_name)
+        _model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        _model.eval()
+    return _model, _tokenizer
+
 async def rerank(query: str, candidates: list[ArticleListItem], top_k: int = 20) -> list[ArticleListItem]:
-    """Cross-Encoder rerank using BAAI/bge-reranker-base"""
-    # model.encodeCrossEncoder(query, documents) → ce_scores
-    # 填充 ce_score 到 ArticleListItem
-    # 返回 top_k
+    """Cross-Encoder rerank using BAAI/bge-reranker-base (lazy loaded)."""
+    if not candidates:
+        return candidates
+
+    try:
+        model, tokenizer = _load_reranker()
+    except ImportError as e:
+        raise RuntimeError(
+            "Cross-Encoder rerank requires torch and transformers. "
+            "Install with: pip install torch transformers"
+        ) from e
+
+    # Build query-document pairs
+    texts = [(query, c.title or "") for c in candidates]
+    inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt", max_length=512)
+
+    with torch.no_grad():
+        scores = model(**inputs).logits.squeeze(-1).numpy()
+
+    # Fill ce_score and sort
+    for i, c in enumerate(candidates):
+        c.ce_score = float(scores[i])
+
+    candidates.sort(key=lambda x: x.ce_score, reverse=True)
+    return candidates[:top_k]
 ```
+
+> **关键点**：`torch` 和 `transformers` 的导入放在 `_load_reranker()` 函数内部，而非模块顶部；全局缓存 `_model`/`_tokenizer` 避免重复加载。
 
 ### 6. 新增 `application/combine.py`
 
@@ -232,16 +292,17 @@ def combine_scores(candidates: list[ArticleListItem], alpha=0.3, beta=0.3, gamma
 
 ### 7. CLI `article search` 命令调整
 
-- `--semantic` 时：vector_search → 可选 rerank → combine_scores
-- 默认 FTS5 时：search_articles → 可选 rerank → combine_scores
-- 参数透传 `alpha/beta/gamma/delta` 或使用合理默认值
+- `--semantic` 时：`vector_search` → 可选 `rerank` → `combine_scores(gamma=0.2, delta=0.0)`
+- 默认 FTS5 时：`search_articles` → 可选 `rerank` → `combine_scores(gamma=0.0, delta=0.2)`
+- `alpha/beta` 始终传入；`gamma/delta` 根据搜索类型显式传入
+- CLI 不直接暴露 `gamma/delta`，由搜索类型决定（保持接口简洁）
 
 ---
 
-## 待讨论问题
+## 已解决问题
 
-1. **BM25 归一化细节**：min/max score 在查询时如何估算（滑动窗口还是固定参数）？
-2. **Cross-Encoder 调用时机**：rerank 放在 combine_scores 之前，但 combine_scores 里的 `alpha * ce` 如何处理 ce_score=0 的情况？（已用 fallback = 0）
-3. **delta 参数**：当只用语义搜索（无 FTS5）时，delta 是否设为 0？
-4. **参数配置**：alpha/beta/gamma/delta 是否通过 CLI 参数暴露，还是写死默认值？
-5. **向量化模型**：`BAAI/bge-reranker-base` 依赖 torch，是否通过 lazy import 避免非必要加载？
+- ✅ BM25 归一化：Sigmoid + factor 可配置（默认 0.5）
+- ✅ Cross-Encoder 调用时机：rerank 在 combine_scores 之前，ce_score=0 时 alpha×0=0
+- ✅ delta 参数：显式传入 delta=0（语义搜索）或 delta=0.2（关键词搜索）
+- ✅ 参数配置：gamma/delta 由搜索类型决定
+- ✅ lazy import：Cross-Encoder torch/transformers 在 rerank() 函数内部加载，全局缓存 _model/_tokenizer

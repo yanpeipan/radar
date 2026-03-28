@@ -11,30 +11,16 @@ class ContentProvider(Protocol):
         """Higher = tried first. Default RSS returns 50."""
 
     def crawl(self, url: str) -> List[Raw]:
-        """Fetch raw content from URL. Return list of raw items (may be empty)."""
+        """Fetch raw content from URL."""
 
     def parse(self, raw: Raw) -> Article:
         """Convert raw item to Article dict."""
 
     def feed_meta(self, url: str) -> FeedMeta:
-        """Fetch feed metadata (title, etag) WITHOUT crawling full content. Raises if unavailable."""
+        """Fetch feed metadata (title, etag) WITHOUT crawling full content."""
 
     def tag_parsers(self) -> List[TagParser]:
         """Return tag parsers for articles from this provider."""
-```
-
-**Key improvement:** `feed_meta()` must NOT call `crawl()` - it should only fetch headers or a lightweight HEAD request to get metadata.
-
-**Article dict shape:**
-```python
-{
-    "title": str,
-    "link": str,
-    "guid": str,
-    "pub_date": str | None,   # ISO 8601
-    "description": str | None,
-    "content": str | None,
-}
 ```
 
 ## TagParser Interface
@@ -46,17 +32,32 @@ class TagParser(Protocol):
 ```
 
 Tag merging: union of all tags from all tag parsers, deduplicated.
-`['a', 'b'] + ['a', 'c'] = ['a', 'b', 'c']`
 
-## Provider Registration
+## Providers
 
-Providers register themselves by appending to `PROVIDERS` list in `src/providers/__init__.py`. Each provider class is instantiated once at module load time.
+### RSSProvider (priority 50)
 
-**Rule: Providers must not import each other** (avoid circular deps). Shared logic goes in `src/providers/base.py`.
-
-## Default RSS Provider
+Fallback provider for RSS 2.0, Atom 1.0, RDF feeds.
 
 - `match(url)` returns `False` (only matched as fallback)
-- When no provider matches: `discover_or_default` returns `[default_rss_provider]`
-- `priority()` returns `50` (lowest; providers with higher priority are tried first)
-- `feed_meta()` does lightweight HEAD request only, NOT full crawl()
+- `priority()` returns `50` (lowest)
+- `feed_meta()` does lightweight HEAD request only
+- Supports ETag/Last-Modified conditional fetching
+
+### GitHubReleaseProvider (priority 200)
+
+Handles GitHub repository release pages.
+
+- `match(url)` detects `github.com/*/releases`
+- Returns releases as articles with `tag` field set to version
+- No tag parsers needed (tags from release versions)
+
+### DefaultProvider
+
+Fallback when no provider matches. Handles arbitrary URLs via HTML scraping.
+
+## Registration
+
+Providers register in `src/providers/__init__.py`. Higher priority = tried first.
+
+**Rule**: Providers must not import each other (avoid circular deps). Shared logic goes in `src/providers/base.py`.
