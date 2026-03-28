@@ -13,6 +13,7 @@
 - [x] **v1.9 Automatic Discovery Feed** — Phases 34-37 (shipped 2026-03-27)
 - [x] **v1.10 uvloop Best Practices Review** — Phase 39 (shipped 2026-03-28)
 - [x] **v1.11 Comprehensive uvloop Audit** — Phase 40 (shipped 2026-03-28)
+- [ ] **v2.0 Search Ranking Architecture** — Phases 41-44 (planned)
 
 ## Phase Progress
 
@@ -59,6 +60,10 @@
 | 38. Search Result Ranking | 1/1 | ✅ | 2026-03-27 |
 | 39. uvloop Best Practices Review | 1/1 | ✅ | 2026-03-28 |
 | 40. Comprehensive uvloop Audit | 1/1 | ✅ | 2026-03-28 |
+| 41. ArticleListItem & Semantic Search Core | 0 | Not started | - |
+| 42. Storage Scoring Fixes | 0 | Not started | - |
+| 43. Scoring Infrastructure | 0 | Not started | - |
+| 44. CLI Integration | 0 | Not started | - |
 
 ---
 
@@ -173,6 +178,58 @@
 **Key findings:** Zero `asyncio.run()` in `src/`, 5 `uvloop.run()` at CLI boundaries, no blocking I/O outside `to_thread()`
 
 </details>
+
+---
+
+### v2.0 Search Ranking Architecture (Planned)
+
+**Milestone Goal:** 实现 Route A — 三种搜索方法返回原始信号，应用层 `combine_scores` 统一合并，可选 Cross-Encoder 重排
+
+#### Phase 41: ArticleListItem & Semantic Search Core
+**Goal**: ArticleListItem extended with scoring fields; search_articles_semantic returns raw cos_sim without crashing
+**Depends on**: Phase 40
+**Requirements**: SEARCH-00, SEARCH-01, SEARCH-02
+**Success Criteria** (what must be TRUE):
+1. ArticleListItem has vec_sim, bm25_score, freshness, source_weight, ce_score, final_score fields
+2. search_articles_semantic returns ArticleListItem with vec_sim set to raw cosine similarity from ChromaDB
+3. search_articles_semantic no longer crashes when pub_date is INTEGER unix timestamp
+4. search_articles_semantic score is NOT a weighted combination (returns raw cos_sim directly)
+**Plans**: TBD
+
+#### Phase 42: Storage Scoring Fixes
+**Goal**: list_articles and search_articles return properly normalized freshness and BM25 scores
+**Depends on**: Phase 41
+**Requirements**: SEARCH-03, SEARCH-04
+**Success Criteria** (what must be TRUE):
+1. list_articles populates freshness score (0-1, time decay from publication date)
+2. Articles without vec_sim/bm25_score/ce_score have those fields set to 0.0
+3. search_articles BM25 score uses sigmoid normalization: sigmoid_norm(bm25_raw, factor)
+4. BM25 sigmoid factor is configurable via config.py (default 0.5)
+**Plans**: TBD
+
+#### Phase 43: Scoring Infrastructure
+**Goal**: Cross-Encoder rerank module and combine_scores function exist and work correctly
+**Depends on**: Phase 42
+**Requirements**: SEARCH-05, SEARCH-06
+**Success Criteria** (what must be TRUE):
+1. rerank() function exists in application/rerank.py and performs Cross-Encoder reranking
+2. torch and transformers are lazy imported inside rerank() function (not at module level)
+3. _model and _tokenizer are globally cached to avoid repeated loading
+4. combine_scores(candidates, alpha, beta, gamma, delta) function exists in application/combine.py
+5. combine_scores uses Newton's cooling law for freshness calculation (half_life_days=7)
+6. combine_scores returns results sorted by final_score in descending order
+**Plans**: TBD
+
+#### Phase 44: CLI Integration
+**Goal**: CLI article search command wires all components with weight configuration
+**Depends on**: Phase 43
+**Requirements**: SEARCH-07
+**Success Criteria** (what must be TRUE):
+1. `article search --semantic` uses: vector_search -> optional rerank -> combine_scores(gamma=0.2, delta=0.0)
+2. `article search` (default FTS5) uses: search_articles -> optional rerank -> combine_scores(gamma=0.0, delta=0.2)
+3. alpha and beta weights are always passed to combine_scores (default alpha=0.3)
+4. --semantic and default search both produce ArticleListItem with final_score populated
+**Plans**: TBD
 
 ---
 

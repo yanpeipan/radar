@@ -42,11 +42,11 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| SEARCH-00 | — | — |
-| SEARCH-01 | — | — |
-| SEARCH-02 | — | — |
-| SEARCH-03 | — | — |
-| SEARCH-04 | — | — |
-| SEARCH-05 | — | — |
-| SEARCH-06 | — | — |
-| SEARCH-07 | — | — |
+| SEARCH-00 | Phase 41 | Pending |
+| SEARCH-01 | Phase 41 | Pending |
+| SEARCH-02 | Phase 41 | Pending |
+| SEARCH-03 | Phase 42 | Pending |
+| SEARCH-04 | Phase 42 | Pending |
+| SEARCH-05 | Phase 43 | Pending |
+| SEARCH-06 | Phase 43 | Pending |
+| SEARCH-07 | Phase 44 | Pending |
