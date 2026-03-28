@@ -373,7 +373,7 @@ def search_articles_semantic(query_text: str, limit: int = 10, since: str | None
         ranked_results.append({
             "sqlite_id": sqlite_id,
             "article_id": article_id,
-            "feed_id": feed_id or "",
+            "feed_id": article_info.get("feed_id") or "",
             "feed_name": article_info.get("feed_name") or "",
             "title": metadatas[i].get("title") if metadatas[i] else None,
             "url": metadatas[i].get("url") if metadatas[i] else None,
