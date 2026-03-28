@@ -280,10 +280,12 @@ def _load_feed_selectors(url: str) -> list[str]:
     import json
     try:
         from src.storage import get_feed as storage_get_feed
+        from src.models import FeedMetaData
         feed = storage_get_feed(url)
         if feed and feed.metadata:
-            meta = json.loads(feed.metadata)
-            return meta.get("selectors", [])
+            data = json.loads(feed.metadata)
+            meta = FeedMetaData(**data)
+            return meta.selectors or []
     except Exception:
         pass
     return []

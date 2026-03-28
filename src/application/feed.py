@@ -20,7 +20,7 @@ class FeedNotFoundError(Exception):
     """Raised when a feed is not found in the database."""
 
 
-def add_feed(url: str, weight: float | None = None, selectors: list[str] | None = None) -> tuple[Feed, bool]:
+def add_feed(url: str, weight: float | None = None, feed_meta_data: "FeedMetaData | None" = None) -> tuple[Feed, bool]:
     """Add a new feed by URL.
 
     Uses provider.feed_meta to fetch metadata and provider.crawl to validate.
@@ -28,7 +28,7 @@ def add_feed(url: str, weight: float | None = None, selectors: list[str] | None 
     Args:
         url: The URL of the feed to add.
         weight: Optional feed weight for semantic search ranking. Defaults to config value.
-        selectors: Optional list of path prefix filters for WebpageProvider.
+        feed_meta_data: Optional provider-specific metadata (e.g., path selectors for WebpageProvider).
 
     Returns:
         The created Feed object.
@@ -76,7 +76,7 @@ def add_feed(url: str, weight: float | None = None, selectors: list[str] | None 
         last_fetched=now,
         created_at=now,
         weight=weight if weight is not None else get_default_feed_weight(),
-        metadata=json.dumps({"selectors": selectors}) if selectors else None,
+        metadata=feed_meta_data.to_json() if feed_meta_data else None,
     )
     return upsert_feed(feed)
 

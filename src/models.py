@@ -36,6 +36,22 @@ class Feed:
 
 
 @dataclass
+class FeedMetaData:
+    """Provider-specific metadata for a feed.
+
+    Attributes:
+        selectors: Optional list of path prefix filters for WebpageProvider.
+    """
+    selectors: Optional[list[str]] = None
+
+    def to_json(self) -> str:
+        """Serialize to JSON string, excluding None values."""
+        import json
+        data = {k: v for k, v in self.__dict__.items() if v is not None}
+        return json.dumps(data) if data else None
+
+
+@dataclass
 class Article:
     """Represents an article or item from a feed.
 

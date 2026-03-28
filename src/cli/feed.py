@@ -20,6 +20,7 @@ from src.application.feed import (
     list_feeds,
     remove_feed,
 )
+from src.models import FeedMetaData
 
 if TYPE_CHECKING:
     from src.application.feed import Feed
@@ -210,7 +211,8 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
                 selectors = []
                 if provider_name == "Webpage":
                     selectors = _get_webpage_selectors(url)
-                feed_obj, is_new = add_feed(url, weight, selectors)
+                feed_meta_data = FeedMetaData(selectors=selectors) if selectors else None
+                feed_obj, is_new = add_feed(url, weight, feed_meta_data)
                 if is_new:
                     click.secho(f"Added feed: {feed_obj.name} ({provider_name})", fg="green")
                 else:
@@ -286,7 +288,8 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
     if provider_name == "Webpage":
         selectors = _get_webpage_selectors(url)
 
-    feed_obj, is_new = add_feed(url, weight, selectors)
+    feed_meta_data = FeedMetaData(selectors=selectors) if selectors else None
+    feed_obj, is_new = add_feed(url, weight, feed_meta_data)
 
     if is_new:
         click.secho(f"Added feed: {feed_obj.name} ({provider_name})", fg="green")
