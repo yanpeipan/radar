@@ -704,12 +704,13 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
             cursor.execute(
                 f"""
                 SELECT a.id, a.feed_id, f.name as feed_name,
-                       a.title, a.link, a.guid, a.pub_date, a.description
+                       a.title, a.link, a.guid, a.pub_date, a.description,
+                       bm25(articles_fts, 2.0, 1.0, 0.5) as bm25_score
                 FROM articles_fts
                 JOIN articles a ON articles_fts.rowid = a.rowid
                 JOIN feeds f ON a.feed_id = f.id
                 WHERE {where_sql}
-                ORDER BY bm25(articles_fts)
+                ORDER BY bm25(articles_fts, 2.0, 1.0, 0.5)
                 LIMIT ?
                 """,
                 [*params, limit],
@@ -719,12 +720,13 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
                 cursor.execute(
                     f"""
                     SELECT a.id, a.feed_id, f.name as feed_name,
-                           a.title, a.link, a.guid, a.pub_date, a.description
+                           a.title, a.link, a.guid, a.pub_date, a.description,
+                           bm25(articles_fts, 2.0, 1.0, 0.5) as bm25_score
                     FROM articles_fts
                     JOIN articles a ON articles_fts.rowid = a.rowid
                     JOIN feeds f ON a.feed_id = f.id
                     WHERE articles_fts MATCH ? AND {date_clause}
-                    ORDER BY bm25(articles_fts)
+                    ORDER BY bm25(articles_fts, 2.0, 1.0, 0.5)
                     LIMIT ?
                     """,
                     [query, *date_params, limit],
@@ -733,12 +735,13 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
                 cursor.execute(
                     """
                     SELECT a.id, a.feed_id, f.name as feed_name,
-                           a.title, a.link, a.guid, a.pub_date, a.description
+                           a.title, a.link, a.guid, a.pub_date, a.description,
+                           bm25(articles_fts, 2.0, 1.0, 0.5) as bm25_score
                     FROM articles_fts
                     JOIN articles a ON articles_fts.rowid = a.rowid
                     JOIN feeds f ON a.feed_id = f.id
                     WHERE articles_fts MATCH ?
-                    ORDER BY bm25(articles_fts)
+                    ORDER BY bm25(articles_fts, 2.0, 1.0, 0.5)
                     LIMIT ?
                     """,
                     (query, limit),
@@ -753,6 +756,7 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
                 guid=row["guid"],
                 pub_date=row["pub_date"],
                 description=row["description"],
+                score=1 / (1 + abs(row["bm25_score"])),
             )
             for row in cursor.fetchall()
         ]

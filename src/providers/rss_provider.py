@@ -13,7 +13,7 @@ import feedparser
 import httpx
 
 from src.providers import PROVIDERS
-from src.providers.base import Article, ContentProvider, Raw
+from src.providers.base import Article, ContentProvider, CrawlResult, Raw
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +247,7 @@ class RSSProvider:
             logger.error("RSSProvider.crawl(%s) failed: %s", url, e)
             return []
 
-    async def crawl_async(self, url: str) -> List[Raw]:
+    async def crawl_async(self, url: str, etag: Optional[str] = None, last_modified: Optional[str] = None) -> CrawlResult:
         """Fetch and parse RSS/Atom feed content asynchronously.
 
         Uses httpx.AsyncClient for true async HTTP, with feedparser.parse()
@@ -255,21 +255,27 @@ class RSSProvider:
 
         Args:
             url: URL of the feed to crawl.
+            etag: Optional ETag header for conditional fetching.
+            last_modified: Optional Last-Modified header for conditional fetching.
 
         Returns:
-            List of feedparser entry dicts, or empty list on error.
+            CrawlResult with entries and updated etag/last_modified.
         """
         import asyncio
 
         _feed_title_var.set(None)
         try:
-            async with httpx.AsyncClient() as client:
-                content, etag, last_modified, status_code = await fetch_feed_content_async(
-                    client, url
+            async with httpx.AsyncClient(
+                limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+                timeout=httpx.Timeout(30.0, connect=10.0),
+                trust_env=True,
+            ) as client:
+                content, new_etag, new_last_modified, status_code = await fetch_feed_content_async(
+                    client, url, etag=etag, last_modified=last_modified
                 )
                 if content is None:
-                    logger.warning("RSS feed %s returned 304 Not Modified", url)
-                    return []
+                    logger.info("RSS feed %s returned 304 Not Modified", url)
+                    return CrawlResult(entries=[], etag=etag, last_modified=last_modified)
 
                 # Parse in thread pool to avoid blocking event loop
                 loop = asyncio.get_running_loop()
@@ -285,25 +291,25 @@ class RSSProvider:
                     logger.warning("Malformed feed at %s: %s", url, bozo_exception)
 
                 logger.debug("RSSProvider.crawl_async(%s) returned %d entries", url, len(entries))
-                return entries
+                return CrawlResult(entries=entries, etag=new_etag, last_modified=new_last_modified)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 403:
                 logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
                 return await self._crawl_with_scrapling_async(url)
             logger.error("RSSProvider.crawl_async(%s) HTTP error: %s", url, e)
-            return []
+            return CrawlResult(entries=[])
         except Exception as e:
             logger.error("RSSProvider.crawl_async(%s) failed: %s", url, e)
-            return []
+            return CrawlResult(entries=[])
 
-    def _crawl_with_scrapling(self, url: str) -> List[Raw]:
+    def _crawl_with_scrapling(self, url: str) -> CrawlResult:
         """Fetch RSS feed using Scrapling to bypass Cloudflare protection.
 
         Args:
             url: URL of the feed to crawl.
 
         Returns:
-            List of feedparser entry dicts, or empty list on error.
+            CrawlResult with entries (no etag/last_modified from Scrapling).
         """
         try:
             from scrapling import Fetcher
@@ -314,7 +320,7 @@ class RSSProvider:
             content = response.body
             if not content:
                 logger.warning("Scrapling returned empty content for %s", url)
-                return []
+                return CrawlResult(entries=[])
 
             # Parse full feed to get feed-level metadata (title)
             parsed = feedparser.parse(content)
@@ -326,22 +332,22 @@ class RSSProvider:
                 logger.warning("Malformed feed at %s (Scrapling): %s", url, bozo_exception)
 
             logger.debug("RSSProvider._crawl_with_scrapling(%s) returned %d entries", url, len(entries))
-            return entries
+            return CrawlResult(entries=entries)
         except ImportError:
             logger.warning("Scrapling not installed, skipping Cloudflare fallback for %s", url)
-            return []
+            return CrawlResult(entries=[])
         except Exception as e:
             logger.error("RSSProvider._crawl_with_scrapling(%s) failed: %s", url, e)
-            return []
+            return CrawlResult(entries=[])
 
-    async def _crawl_with_scrapling_async(self, url: str) -> List[Raw]:
+    async def _crawl_with_scrapling_async(self, url: str) -> CrawlResult:
         """Async wrapper for Scrapling fallback using asyncio.to_thread().
 
         Args:
             url: URL of the feed to crawl.
 
         Returns:
-            List of feedparser entry dicts, or empty list on error.
+            CrawlResult with entries.
         """
         import asyncio
 

@@ -24,29 +24,7 @@ def _format_date(pub_date: int | str | None) -> str:
         tz = get_timezone()
         dt = datetime.fromtimestamp(pub_date, tz=tz)
         return dt.strftime("%Y-%m-%d")
-    # Handle Unix timestamp strings (e.g., "1774648800")
-    if isinstance(pub_date, str) and pub_date.isdigit():
-        from datetime import datetime
-        from src.application.config import get_timezone
-        tz = get_timezone()
-        dt = datetime.fromtimestamp(int(pub_date), tz=tz)
-        return dt.strftime("%Y-%m-%d")
-    # Legacy string parsing for old data
-    # RFC-2822 style: "Wed, 31 Oct 2024 12:00:00 GMT"
-    if "," in pub_date:
-        parts = pub_date.split(",", 1)
-        segs = parts[1].strip().split()
-        if len(segs) >= 3:
-            day, mon, year = segs[0], segs[1], segs[2]
-            month_map = {"Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04",
-                         "May": "05", "Jun": "06", "Jul": "07", "Aug": "08",
-                         "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"}
-            if mon in month_map and year.isdigit() and len(year) == 4:
-                return f"{year}-{month_map[mon]}-{day.zfill(2)}"
-    # ISO format: "2024-10-31T..." or "2024-10-31"
-    if len(pub_date) >= 10 and pub_date[4:5] == "-":
-        return pub_date[:10]
-    return pub_date[:10] if len(pub_date) >= 10 else pub_date
+    return "-"
 
 
 def print_articles(items: list[ArticleListItem]) -> None:

@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import List
+from typing import List, Optional
 from urllib.parse import urlparse
 
 from github import Github, RateLimitExceededException, GithubException
 
 from src.providers import PROVIDERS
-from src.providers.base import Article, ContentProvider, Raw
+from src.providers.base import Article, ContentProvider, CrawlResult, Raw
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ class GitHubReleaseProvider:
             logger.error("GitHubReleaseProvider.crawl(%s) failed: %s", url, e)
             return []
 
-    async def crawl_async(self, url: str) -> List[Raw]:
+    async def crawl_async(self, url: str, etag: Optional[str] = None, last_modified: Optional[str] = None) -> CrawlResult:
         """Asynchronous crawl using thread pool executor.
 
         Since GitHub API calls via PyGithub are synchronous, this method
@@ -116,12 +116,15 @@ class GitHubReleaseProvider:
 
         Args:
             url: GitHub repository URL.
+            etag: Ignored for GitHub API (conditional fetching not supported).
+            last_modified: Ignored for GitHub API.
 
         Returns:
-            List of release dicts from crawl().
+            CrawlResult with release entries.
         """
         import asyncio
-        return await asyncio.to_thread(self.crawl, url)
+        entries = await asyncio.to_thread(self.crawl, url)
+        return CrawlResult(entries=entries)
 
     def parse(self, raw: Raw) -> Article:
         """Convert GitHub release dict to Article dict.

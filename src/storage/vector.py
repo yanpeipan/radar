@@ -373,9 +373,8 @@ def search_articles_semantic(query_text: str, limit: int = 10, since: str | None
         feed = id_to_feed.get(feed_id) if feed_id else None
         source_weight = feed.weight if feed and feed.weight is not None else 0.3
 
-        # Final score: 0.5 * norm_similarity + 0.3 * norm_freshness + 0.2 * source_weight
-        # For now use cos_sim directly (already normalized across results)
-        score = cos_sim
+        # Final score: 0.5 * similarity + 0.2 * freshness + 0.3 * source_weight
+        score = 0.5 * cos_sim + 0.2 * freshness + 0.3 * source_weight
 
         ranked_results.append({
             "sqlite_id": sqlite_id,

@@ -148,26 +148,32 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
     if not raw_items:
         return {"new_articles": 0}
 
-    # Parse and store each item
-    new_count = 0
-
-    from src.storage import store_article
+    # Parse all items
+    parsed_articles = []
     for raw in raw_items:
         article = provider.parse(raw)
         article_guid = article.get("guid") or generate_article_id(article)
-        store_article(
-            guid=article_guid,
-            title=article.get("title") or "",
-            content=article.get("content") or article.get("description") or "",
-            link=article.get("link") or "",
-            feed_id=feed.id,
-            pub_date=article.get("pub_date"),
-        )
-        new_count += 1
+        parsed_articles.append({
+            "guid": article_guid,
+            "title": article.get("title") or "",
+            "content": article.get("content") or article.get("description") or "",
+            "link": article.get("link") or "",
+            "feed_id": feed.id,
+            "pub_date": article.get("pub_date"),
+        })
+
+    if not parsed_articles:
+        return {"new_articles": 0}
+
+    # Batch upsert all articles
+    from src.storage.sqlite.impl import upsert_articles
+    article_id_map = upsert_articles(parsed_articles)
+    new_count = len(article_id_map)
 
     # Update feed metadata after successful fetch
-    now = datetime.now(get_timezone()).isoformat()
-    storage_update_feed(feed.id, now)
+    if new_count > 0:
+        now = datetime.now(get_timezone()).isoformat()
+        storage_update_feed(feed.id, now)
 
     return {"new_articles": new_count}
 

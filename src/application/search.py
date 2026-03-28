@@ -7,7 +7,6 @@ reusable by other callers without CLI dependencies.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -172,38 +171,18 @@ def _truncate(text: str, max_length: int) -> str:
 def _format_date_for_display(pub_date: int | str | None) -> str:
     """Convert pub_date to yyyy-mm-dd format for display.
 
-    Handles Unix timestamp (int) and legacy string formats (RFC 2822, ISO).
-
     Args:
-        pub_date: Publication date as Unix timestamp (int) or string, or None.
+        pub_date: Publication date as Unix timestamp (int) or None.
 
     Returns:
         Formatted date string (yyyy-mm-dd) or "-" if invalid/None.
     """
     if pub_date is None:
         return "-"
-
     if isinstance(pub_date, int):
         from datetime import datetime
         from src.application.config import get_timezone
         tz = get_timezone()
         dt = datetime.fromtimestamp(pub_date, tz=tz)
         return dt.strftime("%Y-%m-%d")
-
-    # Legacy string parsing for old data
-    # Try parsing as RFC 2822 (RSS feed format)
-    try:
-        dt = parsedate_to_datetime(pub_date)
-        return dt.strftime("%Y-%m-%d")
-    except Exception:
-        pass
-
-    # Try parsing as ISO format (already normalized)
-    try:
-        dt = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
-        return dt.strftime("%Y-%m-%d")
-    except Exception:
-        pass
-
-    # Fallback: return as-is (should not reach here normally)
-    return pub_date[:10] if len(pub_date) >= 10 else pub_date
+    return "-"

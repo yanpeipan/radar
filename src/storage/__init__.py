@@ -10,6 +10,8 @@ from src.storage.sqlite.impl import (
     init_db,
     store_article,
     store_article_async,
+    upsert_articles,
+    upsert_articles_async,
     get_db_path,
     feed_exists,
     add_feed,

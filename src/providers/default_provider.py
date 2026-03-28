@@ -7,10 +7,10 @@ providers have failed.
 """
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from src.providers import PROVIDERS
-from src.providers.base import Article, ContentProvider, Raw
+from src.providers.base import Article, ContentProvider, CrawlResult, Raw
 
 
 class DefaultProvider:
@@ -69,7 +69,7 @@ class DefaultProvider:
             "DefaultProvider is fallback only and should not be called"
         )
 
-    async def crawl_async(self, url: str) -> List[Raw]:
+    async def crawl_async(self, url: str, etag: Optional[str] = None, last_modified: Optional[str] = None) -> CrawlResult:
         """Not implemented - should not be called.
 
         DefaultProvider is fallback only. crawl_async() raises the same
@@ -77,6 +77,8 @@ class DefaultProvider:
 
         Args:
             url: URL to crawl (ignored).
+            etag: Ignored.
+            last_modified: Ignored.
 
         Returns:
             Never returns - raises NotImplementedError.

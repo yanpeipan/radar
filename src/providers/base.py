@@ -4,16 +4,25 @@ Defines the ContentProvider protocol that all providers must implement.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Protocol, runtime_checkable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, List, Optional, Protocol, runtime_checkable
 
 # Import dataclasses for type hints only (avoid circular imports)
 if TYPE_CHECKING:
-    from dataclasses import dataclass
+    pass
 
 # Forward declarations for Article and Raw types
 # Raw will be defined by concrete providers based on their crawl() return type
 Article = dict  # Using dict for flexibility; concrete providers define structure
 Raw = dict      # Raw crawl result
+
+
+@dataclass
+class CrawlResult:
+    """Result of a crawl operation, including feed metadata for conditional fetching."""
+    entries: List[Raw]
+    etag: Optional[str] = None
+    last_modified: Optional[str] = None
 
 
 @runtime_checkable
@@ -57,7 +66,7 @@ class ContentProvider(Protocol):
         """
         ...
 
-    async def crawl_async(self, url: str) -> List[Raw]:
+    async def crawl_async(self, url: str, etag: Optional[str] = None, last_modified: Optional[str] = None) -> CrawlResult:
         """Asynchronous crawl - default uses run_in_executor.
 
         Override this method in providers that support true async HTTP
@@ -68,10 +77,12 @@ class ContentProvider(Protocol):
 
         Args:
             url: URL to crawl.
+            etag: Optional ETag header for conditional fetching.
+            last_modified: Optional Last-Modified header for conditional fetching.
 
         Returns:
-            List of raw content dicts from crawl_async() or crawl().
-            Returns empty list if crawl fails.
+            CrawlResult with entries and updated etag/last_modified for future
+            conditional requests. Entries may be empty on crawl failure.
         """
         ...
 

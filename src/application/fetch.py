@@ -15,7 +15,7 @@ from src.application.feed import FeedNotFoundError, fetch_one, get_feed
 from src.application.config import get_timezone
 from src.models import Feed
 from src.providers import discover_or_default
-from src.storage import list_feeds as storage_list_feeds, store_article_async, update_feed as storage_update_feed
+from src.storage import list_feeds as storage_list_feeds, update_feed as storage_update_feed
 from src.utils import generate_article_id
 
 logger = logging.getLogger(__name__)
@@ -39,57 +39,67 @@ async def fetch_one_async(feed: Feed) -> dict:
 
     # Crawl using the discovered provider's async method
     try:
-        raw_items = await provider.crawl_async(feed.url)
+        crawl_result = await provider.crawl_async(feed.url, etag=feed.etag, last_modified=feed.last_modified)
     except Exception as e:
         logger.error("Failed to crawl_async %s: %s", feed.url, e)
         return {"new_articles": 0, "error": str(e)}
 
+    raw_items = crawl_result.entries
+
+    # Always update feed metadata after successful crawl (persists etag/last_modified even on 304)
+    from datetime import datetime
+    now = datetime.now(get_timezone()).isoformat()
+    storage_update_feed(feed.id, now, etag=crawl_result.etag, last_modified=crawl_result.last_modified)
+
     if not raw_items:
         return {"new_articles": 0}
 
-    # Parse and store each item (store_article_async serializes DB writes)
-    new_count = 0
-
+    # Parse all items first
+    parsed_articles = []
     for raw in raw_items:
         article = provider.parse(raw)
         article_guid = article.get("guid") or generate_article_id(article)
+        parsed_articles.append({
+            "guid": article_guid,
+            "title": article.get("title") or "",
+            "content": article.get("content") or article.get("description") or "",
+            "link": article.get("link") or "",
+            "feed_id": feed.id,
+            "pub_date": article.get("pub_date"),
+        })
 
-        # Use async store that serializes writes via asyncio.Lock + to_thread
-        try:
-            await store_article_async(
-                guid=article_guid,
-                title=article.get("title") or "",
-                content=article.get("content") or article.get("description") or "",
-                link=article.get("link") or "",
-                feed_id=feed.id,
-                pub_date=article.get("pub_date"),
-            )
-            new_count += 1
+    if not parsed_articles:
+        return {"new_articles": 0}
 
-            # Generate embedding for semantic search (D-09)
-            try:
-                # Lazy import to avoid torch dependency when embeddings are not needed
-                from src.storage.vector import add_article_embedding
-                await asyncio.to_thread(
-                    add_article_embedding,
-                    article_id=article_guid,
-                    title=article.get("title") or "",
-                    content=article.get("content") or article.get("description") or "",
-                    url=article.get("link") or "",
-                    pub_date=article.get("pub_date"),
-                )
-            except Exception as e:
-                logger.warning("Failed to add embedding for article %s: %s", article_guid, e)
-                # Don't re-raise - embedding failure should not fail the fetch
-        except Exception as e:
-            logger.warning("Failed to store article %s: %s", article_guid, e)
-            continue
+    # Batch upsert all articles in one transaction
+    try:
+        from src.storage.sqlite.impl import upsert_articles_async
+        article_id_map = await upsert_articles_async(parsed_articles)  # list of (article_id, guid)
+        new_count = len(article_id_map)
+    except Exception as e:
+        logger.warning("Failed to store articles for feed %s: %s", feed.id, e)
+        return {"new_articles": 0, "error": str(e)}
 
-    # Update feed metadata after successful fetch
+    # Batch add embeddings
     if new_count > 0:
-        from datetime import datetime
-        now = datetime.now(get_timezone()).isoformat()
-        storage_update_feed(feed.id, now)
+        try:
+            from src.storage.vector import add_article_embeddings
+            # Build article dicts for batch embedding
+            guid_to_article = {a["guid"]: a for a in parsed_articles}
+            embedding_articles = []
+            for article_id, guid in article_id_map:
+                a = guid_to_article[guid]
+                embedding_articles.append({
+                    "article_id": article_id,
+                    "title": a["title"],
+                    "content": a["content"],
+                    "url": a["link"],
+                    "pub_date": a["pub_date"],
+                })
+            await asyncio.to_thread(add_article_embeddings, embedding_articles)
+        except Exception as e:
+            logger.warning("Failed to add embeddings for feed %s: %s", feed.id, e)
+            # Don't fail the fetch - embeddings are non-critical
 
     return {"new_articles": new_count}
 

@@ -225,8 +225,8 @@ class TestRSSProvider:
                 provider = RSSProvider()
                 result = await provider.crawl_async("https://example.com/feed.xml")
 
-                assert len(result) == 1
-                assert result[0].get("title") == "Async Article"
+                assert len(result.entries) == 1
+                assert result.entries[0].get("title") == "Async Article"
 
     def test_rss_provider_parse(self):
         """Create mock raw entry and verify parse() returns Article with correct fields."""
@@ -396,7 +396,7 @@ class TestGitHubReleaseProvider:
             call_args = mock_to_thread.call_args
             assert call_args[0][0] == provider.crawl
             assert call_args[0][1] == "https://github.com/owner/repo"
-            assert result == mock_release_data
+            assert result.entries == mock_release_data
 
     def test_github_release_provider_parse(self):
         """Create mock raw dict and verify parse() returns Article with correct fields."""
