@@ -94,6 +94,8 @@ def _get_webpage_selectors(url: str) -> list[str]:
     """
     from src.providers.webpage_provider import _analyze_link_paths
     from rich.console import Console
+    import readchar
+
     console = Console()
 
     try:
@@ -110,39 +112,43 @@ def _get_webpage_selectors(url: str) -> list[str]:
     if not path_counts:
         return []
 
-    # Display path patterns
-    click.secho("\nSelect path patterns to filter (articles only):")
     paths = list(path_counts.items())
-    for i, (path, count) in enumerate(paths, 1):
-        click.secho(f"  {i}. {path} ({count} links)")
+    selected = set()
+    cursor = 0
 
-    click.secho("  c. Cancel")
-    click.secho("")
+    while True:
+        console.clear()
+        click.secho("\n  Select path patterns to filter (articles only):\n", fg="cyan")
 
-    choice = console.input("Enter numbers (e.g. 1,3-5) or 'c' to skip filtering: ").strip()
-
-    if choice.lower() == 'c' or not choice:
-        return []
-
-    # Parse selection
-    indices = set()
-    try:
-        for part in choice.split(","):
-            part = part.strip()
-            if "-" in part:
-                start, end = part.split("-", 1)
-                start, end = int(start.strip()), int(end.strip())
-                for i in range(start, end + 1):
-                    if 1 <= i <= len(paths):
-                        indices.add(i - 1)
+        for i, (path, count) in enumerate(paths):
+            prefix = "  "
+            if i == cursor:
+                prefix = " [>]" if i in selected else "[<] "
             else:
-                i = int(part)
-                if 1 <= i <= len(paths):
-                    indices.add(i - 1)
-    except ValueError:
-        return []
+                prefix = "    " if i in selected else "    "
+            marker = "[x]" if i in selected else "[ ]"
+            click.secho(f"{prefix}{marker} {path} ({count} links)", fg="green" if i == cursor else "white")
 
-    return [paths[i][0] for i in sorted(indices)]
+        click.secho("\n  [↑/↓] move  [space] toggle  [enter] confirm  [c] cancel", fg="dim")
+
+        key = readchar.readkey()
+        if key == readchar.key.UP:
+            cursor = max(0, cursor - 1)
+        elif key == readchar.key.DOWN:
+            cursor = min(len(paths) - 1, cursor + 1)
+        elif key == " ":
+            if cursor in selected:
+                selected.remove(cursor)
+            else:
+                selected.add(cursor)
+        elif key == readchar.key.ENTER:
+            break
+        elif key.lower() == "c":
+            return []
+        elif key == readchar.key.ESCAPE:
+            return []
+
+    return [paths[i][0] for i in sorted(selected)]
 
 
 from src.cli import cli
