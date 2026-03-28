@@ -62,7 +62,7 @@
 | 40. Comprehensive uvloop Audit | 1/1 | ✅ | 2026-03-28 |
 | 41. ArticleListItem & Semantic Search Core | 1/1 | Complete   | 2026-03-28 |
 | 42. Storage Scoring Fixes | 1/1 | Complete    | 2026-03-28 |
-| 43. Scoring Infrastructure | 0 | Not started | - |
+| 43. Scoring Infrastructure | 1/1 | Planned | - |
 | 44. CLI Integration | 0 | Not started | - |
 
 ---
@@ -220,7 +220,8 @@
 4. combine_scores(candidates, alpha, beta, gamma, delta) function exists in application/combine.py
 5. combine_scores uses Newton's cooling law for freshness calculation (half_life_days=7)
 6. combine_scores returns results sorted by final_score in descending order
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 43-01-PLAN.md — Cross-Encoder rerank + combine_scores
 
 #### Phase 44: CLI Integration
 **Goal**: CLI article search command wires all components with weight configuration
