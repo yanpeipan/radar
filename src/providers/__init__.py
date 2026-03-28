@@ -1,8 +1,7 @@
 """Provider registry and dynamic loading for the plugin architecture.
 
 Discovers and loads all *_provider.py modules from src/providers/ directory,
-sorted by priority. Provides discover() and discover_or_default() functions
-for provider lookup.
+sorted by priority. Provides discover() function for provider lookup.
 """
 from __future__ import annotations
 
@@ -63,30 +62,6 @@ def discover(url: str) -> List[ContentProvider]:
         Empty list if no providers match.
     """
     matched = [p for p in PROVIDERS if p.match(url)]
-    return matched
-
-
-def discover_or_default(url: str) -> List[ContentProvider]:
-    """Find providers matching a URL, or return RSS provider as fallback.
-
-    This implements the fallback mechanism: if no provider matches,
-    the RSS provider is returned as fallback since it can handle generic
-    feed URLs (RSS/Atom) even if content-type validation failed.
-
-    Args:
-        url: URL to match against providers.
-
-    Returns:
-        List with matching providers sorted by priority (descending),
-        or single RSSProvider if no matches found.
-    """
-    matched = discover(url)
-    if not matched:
-        # Fall back to RSSProvider which can attempt to fetch any URL as feed
-        for p in PROVIDERS:
-            if p.__class__.__name__ == "RSSProvider":
-                matched = [p]
-                break
     return matched
 
 

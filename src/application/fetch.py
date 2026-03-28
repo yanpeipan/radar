@@ -14,7 +14,7 @@ from typing import Optional
 from src.application.feed import FeedNotFoundError, fetch_one, get_feed
 from src.application.config import get_timezone
 from src.models import Feed
-from src.providers import discover_or_default
+from src.providers import discover
 from src.storage import list_feeds as storage_list_feeds, update_feed as storage_update_feed
 from src.utils import generate_article_id
 
@@ -30,8 +30,8 @@ async def fetch_one_async(feed: Feed) -> dict:
     Returns:
         Dict with new_articles count and optional error.
     """
-    # Use discover_or_default to find provider for this feed URL
-    providers = discover_or_default(feed.url)
+    # Use discover to find provider for this feed URL
+    providers = discover(feed.url)
     if not providers:
         return {"new_articles": 0, "error": f"No provider for {feed.url}"}
 

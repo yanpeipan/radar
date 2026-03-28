@@ -8,7 +8,7 @@ from typing import Optional
 
 from src.application.config import get_timezone, get_default_feed_weight
 from src.models import Feed
-from src.providers import discover_or_default
+from src.providers import discover
 from src.storage import list_feeds as storage_list_feeds, get_feed as storage_get_feed, remove_feed as storage_remove_feed, update_feed as storage_update_feed, upsert_feed
 from src.utils import generate_article_id, generate_feed_id
 
@@ -35,7 +35,7 @@ def add_feed(url: str, weight: float | None = None) -> tuple[Feed, bool]:
         ValueError: If the feed already exists, cannot be fetched, or has no entries.
     """
     # Discover matching providers and try each until one succeeds
-    providers = discover_or_default(url)
+    providers = discover(url)
 
     feed_meta = None
     entries = None
@@ -130,8 +130,8 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
         if not feed:
             raise FeedNotFoundError(f"Feed not found: {feed_or_id}")
 
-    # Use discover_or_default to find provider for this feed URL
-    providers = discover_or_default(feed.url)
+    # Use discover to find provider for this feed URL
+    providers = discover(feed.url)
     if not providers:
         return {"new_articles": 0, "error": f"No provider for {feed.url}"}
 

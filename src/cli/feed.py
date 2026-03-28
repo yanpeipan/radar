@@ -220,8 +220,8 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
     feed_obj, is_new = add_feed(url, weight)
 
     # Determine provider type for display
-    from src.providers import discover_or_default
-    providers = discover_or_default(url)
+    from src.providers import discover
+    providers = discover(url)
     if providers:
         provider_name = providers[0].__class__.__name__.replace("Provider", "")
     else:
