@@ -310,10 +310,10 @@ class TestGitHubReleaseProvider:
     """Tests for GitHubReleaseProvider public interface."""
 
     def test_github_release_provider_priority(self):
-        """Verify priority() returns 200."""
+        """Verify priority() returns 300 (highest - GitHub releases must use this provider)."""
         from src.providers.github_release_provider import GitHubReleaseProvider
         provider = GitHubReleaseProvider()
-        assert provider.priority() == 200
+        assert provider.priority() == 300
 
     def test_github_release_provider_match_https(self):
         """Verify match('https://github.com/owner/repo') returns True."""
@@ -459,19 +459,18 @@ class TestProviderRegistry:
         assert matched == []
 
     def test_provider_registry_discover_or_default_fallback(self):
-        """Call discover_or_default('https://unknown.example/feed') which no provider matches, verify RSSProvider is returned."""
+        """Call discover('https://unknown.example/feed') which no provider matches, verify empty list (no RSS fallback)."""
         import src.providers as providers
 
-        # No provider matches this URL
-        matched = providers.discover_or_default("https://unknown.example/feed")
-        assert len(matched) == 1
-        assert matched[0].__class__.__name__ == "RSSProvider"
+        # No provider matches this URL - returns empty list (no implicit fallback)
+        matched = providers.discover("https://unknown.example/feed")
+        assert matched == []
 
     def test_provider_registry_discover_or_default_match(self):
-        """Call discover_or_default('https://github.com/owner/repo') which matches GitHubReleaseProvider."""
+        """Call discover('https://github.com/owner/repo') which matches GitHubReleaseProvider."""
         import src.providers as providers
 
-        matched = providers.discover_or_default("https://github.com/owner/repo")
+        matched = providers.discover("https://github.com/owner/repo")
         assert len(matched) >= 1
         assert matched[0].__class__.__name__ == "GitHubReleaseProvider"
 
