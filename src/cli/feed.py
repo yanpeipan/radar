@@ -86,7 +86,7 @@ def _parse_selection(selection: str, max_idx: int) -> list[int]:
         return []
 
 
-def _get_webpage_path_filters(url: str) -> list[str]:
+def _get_webpage_selectors(url: str) -> list[str]:
     """Analyze page links and prompt user to select path patterns for filtering.
 
     Returns list of selected path prefixes (empty if user skips).
@@ -207,10 +207,10 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
             if providers:
                 provider_name = providers[0].__class__.__name__.replace("Provider", "")
                 click.secho(f"No RSS feeds found. Provider matched: {provider_name}", fg="cyan")
-                path_filters = []
+                selectors = []
                 if provider_name == "Webpage":
-                    path_filters = _get_webpage_path_filters(url)
-                feed_obj, is_new = add_feed(url, weight, path_filters)
+                    selectors = _get_webpage_selectors(url)
+                feed_obj, is_new = add_feed(url, weight, selectors)
                 if is_new:
                     click.secho(f"Added feed: {feed_obj.name} ({provider_name})", fg="green")
                 else:
@@ -282,11 +282,11 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
     else:
         provider_name = "Unknown"
 
-    path_filters = []
+    selectors = []
     if provider_name == "Webpage":
-        path_filters = _get_webpage_path_filters(url)
+        selectors = _get_webpage_selectors(url)
 
-    feed_obj, is_new = add_feed(url, weight, path_filters)
+    feed_obj, is_new = add_feed(url, weight, selectors)
 
     if is_new:
         click.secho(f"Added feed: {feed_obj.name} ({provider_name})", fg="green")

@@ -268,8 +268,8 @@ def _filter_links_by_paths(links: list[str], allowed_paths: list[str]) -> list[s
     return filtered
 
 
-def _load_feed_path_filters(url: str) -> list[str]:
-    """Load path_filters from feed metadata for a given URL.
+def _load_feed_selectors(url: str) -> list[str]:
+    """Load selectors from feed metadata for a given URL.
 
     Args:
         url: Feed URL to look up.
@@ -283,7 +283,7 @@ def _load_feed_path_filters(url: str) -> list[str]:
         feed = storage_get_feed(url)
         if feed and feed.metadata:
             meta = json.loads(feed.metadata)
-            return meta.get("path_filters", [])
+            return meta.get("selectors", [])
     except Exception:
         pass
     return []
@@ -373,7 +373,7 @@ class WebpageProvider:
         logger.debug("WebpageProvider._crawl_list found %d items with '%s'", len(items), item_sel)
 
         # Load path filters for this feed
-        path_filters = _load_feed_path_filters(url)
+        selectors = _load_feed_selectors(url)
 
         results = []
 
@@ -413,10 +413,10 @@ class WebpageProvider:
                 continue
 
             # Apply path filters if configured
-            if link and path_filters:
+            if link and selectors:
                 from urllib.parse import urlparse
                 link_path = urlparse(link).path.rstrip("/").lower()
-                if not any(link_path.startswith(p.lower()) for p in path_filters):
+                if not any(link_path.startswith(p.lower()) for p in selectors):
                     continue
 
             # Try to fetch full article content for this article link
@@ -522,10 +522,10 @@ class WebpageProvider:
             return []
 
         # Apply path filters from feed metadata
-        path_filters = _load_feed_path_filters(url)
-        if path_filters:
+        selectors = _load_feed_selectors(url)
+        if selectors:
             link_urls = [url for url, _ in scored_links]
-            filtered_urls = _filter_links_by_paths(link_urls, path_filters)
+            filtered_urls = _filter_links_by_paths(link_urls, selectors)
             filtered_set = set(filtered_urls)
             scored_links = [(url, score) for url, score in scored_links if url in filtered_set]
 
