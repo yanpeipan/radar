@@ -30,11 +30,16 @@ logger = logging.getLogger(__name__)
 # ── Helpers ─────────────────────────────────────────────────────────────────────
 
 def _is_pro_domain(url: str) -> bool:
-    """Return True if URL is on a known PRO/付费 subdomain."""
-    PRO_DOMAINS = ("pro.", "www.pro.", "app.")
+    """Return True if URL is on a domain that should be skipped (e.g., paywalled).
+
+    Loaded from config.yaml → webpage_skip_domains.
+    """
+    skip_domains = _load_webpage_skip_domains()
+    if not skip_domains:
+        return False
     from urllib.parse import urlparse
     netloc = urlparse(url).netloc.lower()
-    return any(netloc.startswith(p) for p in PRO_DOMAINS)
+    return any(netloc.startswith(p) for p in skip_domains)
 
 
 # ── Config helpers ──────────────────────────────────────────────────────────────
@@ -50,6 +55,19 @@ def _load_webpage_sites() -> dict:
         return data.get("webpage_sites", {}) if data else {}
     except Exception:
         return {}
+
+
+def _load_webpage_skip_domains() -> List[str]:
+    """Load skip_domains from config.yaml."""
+    import yaml
+    from pathlib import Path
+    config_path = Path(__file__).resolve().parent.parent.parent / "config.yaml"
+    try:
+        with open(config_path) as f:
+            data = yaml.safe_load(f)
+        return data.get("webpage_skip_domains", []) if data else []
+    except Exception:
+        return []
 
 
 def _site_config_for(url: str) -> dict:
@@ -93,19 +111,28 @@ def _construct_article_link(item, section_config: dict) -> Optional[str]:
 
 # ── Date parsing ───────────────────────────────────────────────────────────────
 
-def _parse_date(date_str: str | None) -> Optional[str]:
-    """Parse common date formats into YYYY-MM-DD."""
+def _parse_date(date_str: str | None, date_format: str | None = None) -> Optional[str]:
+    """Parse date string into YYYY-MM-DD.
+
+    Args:
+        date_str: Raw date string from page
+        date_format: Optional site-specific format pattern (e.g., "CN" for Chinese "X月X日")
+                     If None, tries ISO format only.
+    """
     if not date_str:
         return None
     date_str = date_str.strip()
 
-    m = re.match(r"(\d{1,2})月(\d{1,2})日", date_str)
-    if m:
-        month, day = int(m.group(1)), int(m.group(2))
-        now = datetime.now()
-        year = now.year if month <= now.month else now.year - 1
-        return datetime(year, month, day).strftime("%Y-%m-%d")
+    # Site-specific: Chinese "X月X日" format (e.g., "3月28日")
+    if date_format == "CN":
+        m = re.match(r"(\d{1,2})月(\d{1,2})日", date_str)
+        if m:
+            month, day = int(m.group(1)), int(m.group(2))
+            now = datetime.now()
+            year = now.year if month <= now.month else now.year - 1
+            return datetime(year, month, day).strftime("%Y-%m-%d")
 
+    # Default: ISO format YYYY-MM-DD
     try:
         return datetime.strptime(date_str[:10], "%Y-%m-%d").isoformat()
     except ValueError:
@@ -117,7 +144,7 @@ def _parse_date(date_str: str | None) -> Optional[str]:
 # ── Link discovery (generic fallback) ─────────────────────────────────────────
 
 def _root_domain(domain: str) -> str:
-    """Return root domain, e.g. 'jiqizhixin.com' from 'www.jiqizhixin.com'."""
+    """Return root domain, e.g. 'example.com' from 'www.example.com'."""
     parts = domain.lower().split(".")
     return ".".join(parts[-2:]) if len(parts) >= 2 else domain.lower()
 
@@ -246,6 +273,7 @@ class WebpageProvider:
         time_sel = config.get("time")
         tags_sel = config.get("tags")
         desc_sel = config.get("description")
+        date_format = config.get("date_format")
 
         Fetcher = self._df()
         fetcher = Fetcher()
@@ -287,7 +315,7 @@ class WebpageProvider:
             if time_sel:
                 els = item.css(time_sel)
                 if els:
-                    pub_date = _parse_date(els[0].text)
+                    pub_date = _parse_date(els[0].text, date_format)
 
             tags = []
             if tags_sel:
@@ -303,7 +331,7 @@ class WebpageProvider:
                 continue
 
             # Try to fetch full article content for this article link
-            # Skip PRO/付费域名 — they return login page content, not real articles
+            # Skip domains listed in webpage_skip_domains (e.g., paywalled)
             content = None
             if link and not _is_pro_domain(link):
                 article_items = self._crawl_article(link)

@@ -2,6 +2,12 @@
 timezone: Asia/Shanghai
 bm25_factor: 0.5
 
+# Domains to skip when fetching article full content (e.g., paywalled PRO domains)
+webpage_skip_domains:
+  - "pro."
+  - "www.pro."
+  - "app."
+
 # WebpageProvider site configurations
 # See: docs/WebpageProvider.md
 webpage_sites:
@@ -16,6 +22,7 @@ webpage_sites:
       link: null
       link_pattern: "https://pro.jiqizhixin.com/reference/{uuid}"
       link_uuid_regex: "/article/cover_image/([0-9a-f-]{36})/"
+      date_format: CN
     articles:
       wait_selector: ".article-card"
       item: ".article-card"
@@ -26,3 +33,4 @@ webpage_sites:
       link: null
       link_pattern: "https://pro.jiqizhixin.com/reference/{uuid}"
       link_uuid_regex: "/article/cover_image/([0-9a-f-]{36})/"
+      date_format: CN
