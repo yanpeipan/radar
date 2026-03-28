@@ -355,26 +355,14 @@ def search_articles_semantic(query_text: str, limit: int = 10, since: str | None
         # hnsw:space=cosine means distance = 1 - cosine_similarity (range 0-2)
         cos_sim = max(0.0, 1.0 - distance / 2.0) if distance is not None else 0.5
 
-        # Calculate freshness score
+        # Calculate freshness score (D-07: freshness signal removed from storage layer)
         pub_date = article_info.get("pub_date")
+        pub_ts = _pub_date_to_timestamp(pub_date)  # Returns int or None
         freshness = 0.0
-        if pub_date:
-            try:
-                pub_dt = datetime.fromisoformat(pub_date.replace("Z", "+00:00"))
-                if pub_dt.tzinfo is None:
-                    pub_dt = pub_dt.replace(tzinfo=timezone.utc)
-                days_ago = (datetime.now(timezone.utc) - pub_dt).days
-                freshness = max(0.0, 1.0 - days_ago / 30)
-            except (ValueError, TypeError):
-                pass
-
-        # Source weight from feed (batch-fetched above)
-        feed_id = article_info.get("feed_id")
-        feed = id_to_feed.get(feed_id) if feed_id else None
-        source_weight = feed.weight if feed and feed.weight is not None else 0.3
-
-        # Final score: 0.5 * similarity + 0.2 * freshness + 0.3 * source_weight
-        score = 0.5 * cos_sim + 0.2 * freshness + 0.3 * source_weight
+        if pub_ts:
+            pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+            days_ago = (datetime.now(timezone.utc) - pub_dt).days
+            freshness = max(0.0, 1.0 - days_ago / 30)
 
         ranked_results.append({
             "sqlite_id": sqlite_id,
@@ -384,12 +372,10 @@ def search_articles_semantic(query_text: str, limit: int = 10, since: str | None
             "title": metadatas[i].get("title") if metadatas[i] else None,
             "url": metadatas[i].get("url") if metadatas[i] else None,
             "pub_date": pub_date,
-            "distance": distance,
-            "score": score,
+            "cos_sim": cos_sim,
         })
 
-    # Sort by score descending
-    ranked_results.sort(key=lambda x: x["score"], reverse=True)
+    # ChromaDB returns results ordered by similarity - no additional sort needed
     ranked_results = ranked_results[:limit]
 
     # Convert to ArticleListItem
@@ -404,7 +390,7 @@ def search_articles_semantic(query_text: str, limit: int = 10, since: str | None
             guid=r["sqlite_id"] or r["article_id"] or "",
             pub_date=r.get("pub_date"),
             description=None,
-            score=r.get("score", 1.0),
+            vec_sim=cos_sim,
         ))
     return result_items
 
