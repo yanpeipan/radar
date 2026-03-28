@@ -2,12 +2,6 @@
 timezone: Asia/Shanghai
 bm25_factor: 0.5
 
-# Domains to skip when fetching article full content (e.g., paywalled PRO domains)
-webpage_skip_domains:
-  - "pro."
-  - "www.pro."
-  - "app."
-
 # WebpageProvider site configurations
 # See: docs/WebpageProvider.md
 webpage_sites:
