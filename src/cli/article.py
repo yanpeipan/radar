@@ -24,6 +24,13 @@ def _format_date(pub_date: int | str | None) -> str:
         tz = get_timezone()
         dt = datetime.fromtimestamp(pub_date, tz=tz)
         return dt.strftime("%Y-%m-%d")
+    # Handle Unix timestamp strings (e.g., "1774648800")
+    if isinstance(pub_date, str) and pub_date.isdigit():
+        from datetime import datetime
+        from src.application.config import get_timezone
+        tz = get_timezone()
+        dt = datetime.fromtimestamp(int(pub_date), tz=tz)
+        return dt.strftime("%Y-%m-%d")
     # Legacy string parsing for old data
     # RFC-2822 style: "Wed, 31 Oct 2024 12:00:00 GMT"
     if "," in pub_date:
