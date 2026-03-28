@@ -11,7 +11,7 @@ Requires-Dist: lxml>=6.0.0
 Requires-Dist: rich>=13.0.0
 Requires-Dist: PyGithub>=2.0.0
 Requires-Dist: dynaconf>=3.2.13
-Requires-Dist: readability-lxml>=0.8.4.1
+Requires-Dist: trafilatura>=1.0.0
 Requires-Dist: robotexclusionrulesparser>=1.7.1
 Requires-Dist: platformdirs>=4.9.4
 Requires-Dist: numpy<2,>=1.26.0
@@ -19,6 +19,8 @@ Requires-Dist: scikit-learn>=1.7.2
 Requires-Dist: pyyaml>=6.0.3
 Requires-Dist: uvloop>=0.22.0
 Requires-Dist: nanoid>=2.0.0
+Requires-Dist: scrapling>=0.4.0
+Requires-Dist: msgspec>=0.20.0
 Provides-Extra: test
 Requires-Dist: pytest>=9.0.2; extra == "test"
 Requires-Dist: pytest-asyncio>=1.0.0; extra == "test"

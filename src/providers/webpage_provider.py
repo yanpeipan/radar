@@ -35,15 +35,11 @@ def _root_domain(domain: str) -> str:
 
 
 def _discover_links(root, page_url: str) -> List[tuple[str, int]]:
-    """Score all internal links on the rendered page.
-
-    Returns list of (url, score) sorted by score descending.
-    """
+    """Count internal links by path and return sorted by count descending."""
     from urllib.parse import urljoin, urlparse
 
     base_root = _root_domain(urlparse(page_url).netloc)
-    seen: set[str] = set()
-    results: dict[str, int] = {}
+    path_counts: dict[str, int] = {}
 
     for el in root.css("a[href]"):
         href = el.attrib.get("href", "").strip()
@@ -60,40 +56,12 @@ def _discover_links(root, page_url: str) -> List[tuple[str, int]]:
             continue
 
         path = parsed.path.rstrip("/")
-        if not path or path in seen:
+        if not path:
             continue
-        seen.add(path)
 
-        score = 0
-        pl = path.lower()
+        path_counts[path] = path_counts.get(path, 0) + 1
 
-        # Positive signals
-        if re.search(r"/[0-9a-f-]{8,}", pl):
-            score += 30  # UUID / long-slug pattern
-        elif "/article/" in pl:
-            score += 25
-        elif "/post" in pl:
-            score += 20
-        elif any(x in pl for x in ["/a/", "/news/", "/story/", "/entry/"]):
-            score += 15
-        elif re.search(r"/\d+/?$", pl):
-            score += 10
-
-        # Negative signals
-        if any(x in pl for x in [
-            "/tag/", "/category/", "/author/",
-            "/page/", "/feed", "/assets/",
-            "/static/", "/images/",
-            "/login", "/register",
-            "/search", "/subscribe",
-            "/short_urls/", "/agreement/",
-        ]):
-            score -= 30
-
-        if score > 0:
-            results[full_url] = score
-
-    return sorted(results.items(), key=lambda x: x[1], reverse=True)
+    return sorted(path_counts.items(), key=lambda x: x[1], reverse=True)
 
 
 # ── Path analysis for link filtering ─────────────────────────────────────────
