@@ -118,7 +118,7 @@ def _get_webpage_selectors(url: str) -> list[str]:
 
     while True:
         console.clear()
-        click.secho("\n  Select path patterns to filter (articles only):\n", fg="cyan")
+        console.print("\n  [cyan]Select path patterns to filter (articles only):[/]\n")
 
         for i, (path, count) in enumerate(paths):
             prefix = "  "
@@ -127,9 +127,10 @@ def _get_webpage_selectors(url: str) -> list[str]:
             else:
                 prefix = "    " if i in selected else "    "
             marker = "[x]" if i in selected else "[ ]"
-            click.secho(f"{prefix}{marker} {path} ({count} links)", fg="green" if i == cursor else "white")
+            color = "green" if i == cursor else "white"
+            console.print(f"{prefix}{marker} {path} ({count} links)", style=color)
 
-        click.secho("\n  [↑/↓] move  [space] toggle  [enter] confirm  [c] cancel")
+        console.print("\n  [↑/↓] move  [space] toggle  [enter] confirm  [c] cancel")
 
         key = readchar.readkey()
         if key == readchar.key.UP:
