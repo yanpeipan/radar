@@ -1,27 +1,25 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v2.0
+milestone_name: Search Ranking Architecture
 status: planning
-stopped_at: Completed 260328-5gl: search_articles_semantic returns list[ArticleListItem]
-last_updated: "2026-03-28T12:00:00.000Z"
+stopped_at: Milestone v2.0 started — defining requirements
+last_updated: "2026-03-28T12:30:00.000Z"
 progress:
-  total_phases: 40
-  completed_phases: 39
-  total_plans: 66
-  completed_plans: 65
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (v1.9/v1.10/v1.11 milestone chain completed)
+See: .planning/PROJECT.md (v2.0 Search Ranking Architecture)
 
 **Core value:** 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
-**Current focus:** Planning next milestone — `/gsd:new-milestone`
-
-## v1.9 Phase Structure
+**Current focus:** v2.0 — Search Ranking Architecture
 
 | Phase | Goal | Requirements | Status |
 |-------|------|--------------|--------|

@@ -8,9 +8,18 @@
 
 用户能够在一个地方集中管理所有资讯来源，无需逐一访问各个网站。
 
-## Current Milestone: v2.0 (Next)
+## Current Milestone: v2.0 Search Ranking Architecture
 
-**Goal:** TBD — start with `/gsd:new-milestone`
+**Goal:** 实现 Route A — 三种搜索方法返回原始信号，应用层 `combine_scores` 统一合并，可选 Cross-Encoder 重排
+
+**Target features:**
+- `ArticleListItem` 扩展原始信号字段（`vec_sim`, `bm25_score`, `freshness`, `source_weight`, `ce_score`, `final_score`）
+- `search_articles_semantic` 移除硬编码加权，返回原始 `cos_sim`
+- BM25 归一化修复为 Sigmoid 变换
+- `list_articles` 填充 `freshness` 分数
+- Cross-Encoder 重排（lazy import）
+- `combine_scores` 统一合并函数
+- CLI search 命令接入权重配置
 
 **Status:** ⏳ Planning
 
@@ -52,6 +61,16 @@
 ---
 
 ## Requirements
+
+### Active (v2.0)
+
+- [ ] SEARCH-01: `ArticleListItem` 扩展原始信号字段 — P0
+- [ ] SEARCH-02: `search_articles_semantic` 返回原始 `cos_sim`，移除硬编码组合 — P0
+- [ ] SEARCH-03: BM25 归一化修复为 Sigmoid 变换 — P1
+- [ ] SEARCH-04: `list_articles` 填充 `freshness` 分数 — P1
+- [ ] SEARCH-05: Cross-Encoder 重排（lazy import）— P2
+- [ ] SEARCH-06: `combine_scores` 统一合并函数 — P2
+- [ ] SEARCH-07: CLI search 命令接入权重配置 — P2
 
 ### Validated (v1.11)
 
@@ -214,4 +233,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-03-28 — v1.9/v1.10/v1.11 milestone chain completed*
+*Last updated: 2026-03-28 — v2.0 Search Ranking Architecture started*
