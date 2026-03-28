@@ -243,6 +243,52 @@ async def store_article_async(
         )
 
 
+def upsert_articles(articles: list[dict]) -> list[tuple[str, str]]:
+    """Batch upsert articles, returning list of (article_id, guid) tuples.
+
+    Args:
+        articles: List of article dicts with keys: guid, title, content, link, feed_id, pub_date
+
+    Returns:
+        List of (article_id, guid) tuples for each article.
+    """
+    results = []
+    for article in articles:
+        article_id = store_article(
+            guid=article["guid"],
+            title=article["title"],
+            content=article["content"],
+            link=article["link"],
+            feed_id=article.get("feed_id"),
+            pub_date=article.get("pub_date"),
+        )
+        results.append((article_id, article["guid"]))
+    return results
+
+
+async def upsert_articles_async(articles: list[dict]) -> list[tuple[str, str]]:
+    """Async batch upsert articles, returning list of (article_id, guid) tuples.
+
+    Args:
+        articles: List of article dicts with keys: guid, title, content, link, feed_id, pub_date
+
+    Returns:
+        List of (article_id, guid) tuples for each article.
+    """
+    results = []
+    for article in articles:
+        article_id = await store_article_async(
+            guid=article["guid"],
+            title=article["title"],
+            content=article["content"],
+            link=article["link"],
+            feed_id=article.get("feed_id"),
+            pub_date=article.get("pub_date"),
+        )
+        results.append((article_id, article["guid"]))
+    return results
+
+
 def feed_exists(url: str) -> bool:
     """Check if feed with given URL exists."""
     with get_db() as conn:
