@@ -92,7 +92,8 @@ def _get_webpage_path_filters(url: str) -> list[str]:
     Returns list of selected path prefixes (empty if user skips).
     """
     from src.providers.webpage_provider import _analyze_link_paths
-    from src.cli.ui import console
+    from rich.console import Console
+    console = Console()
 
     try:
         with console.status(f"[cyan]Analyzing page links...") as _status:
