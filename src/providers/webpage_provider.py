@@ -44,30 +44,35 @@ def _is_pro_domain(url: str) -> bool:
 
 # ── Config helpers ──────────────────────────────────────────────────────────────
 
-def _load_webpage_sites() -> dict:
-    """Load webpage_sites from config.yaml (direct YAML read, bypasses Dynaconf)."""
+_config_cache: dict | None = None
+
+
+def _load_webpage_config() -> dict:
+    """Load all webpage config from config.yaml with caching."""
+    global _config_cache
+    if _config_cache is not None:
+        return _config_cache
     import yaml
     from pathlib import Path
     config_path = Path(__file__).resolve().parent.parent.parent / "config.yaml"
     try:
         with open(config_path) as f:
-            data = yaml.safe_load(f)
-        return data.get("webpage_sites", {}) if data else {}
+            data = yaml.safe_load(f) or {}
+        _config_cache = data
+        return data
     except Exception:
+        _config_cache = {}
         return {}
+
+
+def _load_webpage_sites() -> dict:
+    """Load webpage_sites from config.yaml."""
+    return _load_webpage_config().get("webpage_sites", {})
 
 
 def _load_webpage_skip_domains() -> List[str]:
     """Load skip_domains from config.yaml."""
-    import yaml
-    from pathlib import Path
-    config_path = Path(__file__).resolve().parent.parent.parent / "config.yaml"
-    try:
-        with open(config_path) as f:
-            data = yaml.safe_load(f)
-        return data.get("webpage_skip_domains", []) if data else []
-    except Exception:
-        return []
+    return _load_webpage_config().get("webpage_skip_domains", [])
 
 
 def _site_config_for(url: str) -> dict:
