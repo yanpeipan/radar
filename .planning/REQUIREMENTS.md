@@ -4,11 +4,11 @@
 
 ### Core Infrastructure
 
-- [ ] **SEARCH-01**: `ArticleListItem` 扩展原始信号字段：`vec_sim`, `bm25_score`, `freshness`, `source_weight`, `ce_score`, `final_score`；保留 `score` 字段兼容，最终由 `final_score` 统一排序
+- [x] **SEARCH-01**: `ArticleListItem` 扩展原始信号字段：`vec_sim`, `bm25_score`, `freshness`, `source_weight`, `ce_score`, `final_score`；保留 `score` 字段兼容，最终由 `final_score` 统一排序
 
 ### Storage Layer (P0)
 
-- [ ] **SEARCH-02**: `storage/vector.py` — `search_articles_semantic` 移除硬编码加权公式（`0.5×cos + 0.2×fresh + 0.3×weight`），score 直接返回 ChromaDB cosine similarity；确保 `pub_date` 以 INTEGER unix timestamp 传给 ChromaDB metadata filter
+- [x] **SEARCH-02**: `storage/vector.py` — `search_articles_semantic` 移除硬编码加权公式（`0.5×cos + 0.2×fresh + 0.3×weight`），score 直接返回 ChromaDB cosine similarity；确保 `pub_date` 以 INTEGER unix timestamp 传给 ChromaDB metadata filter
 - [ ] **SEARCH-03**: `storage/sqlite/impl.py` — `search_articles` BM25 归一化修复：改用 Sigmoid 变换 `sigmoid_norm(bm25_raw, factor)`，factor 从 `config.py` 读取（默认 0.5），填充 `ArticleListItem.bm25_score`
 - [ ] **SEARCH-04**: `storage/sqlite/impl.py` — `list_articles` 填充 freshness 分数（时间衰减，0-1），无 vec_sim/bm25_score/ce_score 时设为 0.0
 
@@ -26,7 +26,7 @@
 
 ### Bug Fix (P0)
 
-- [ ] **SEARCH-00**: 修复 `search_articles_semantic` 第363行崩溃：`_pub_date_to_timestamp` 对 INTEGER pub_date 调用 `datetime.fromisoformat(pub_date.replace("Z", "+00:00"))` 会失败；改为统一使用 `_pub_date_to_timestamp()` 处理所有 timestamp 转换
+- [x] **SEARCH-00**: 修复 `search_articles_semantic` 第363行崩溃：`_pub_date_to_timestamp` 对 INTEGER pub_date 调用 `datetime.fromisoformat(pub_date.replace("Z", "+00:00"))` 会失败；改为统一使用 `_pub_date_to_timestamp()` 处理所有 timestamp 转换
 
 ---
 
@@ -42,9 +42,9 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| SEARCH-00 | Phase 41 | Pending |
-| SEARCH-01 | Phase 41 | Pending |
-| SEARCH-02 | Phase 41 | Pending |
+| SEARCH-00 | Phase 41 | Complete |
+| SEARCH-01 | Phase 41 | Complete |
+| SEARCH-02 | Phase 41 | Complete |
 | SEARCH-03 | Phase 42 | Pending |
 | SEARCH-04 | Phase 42 | Pending |
 | SEARCH-05 | Phase 43 | Pending |
