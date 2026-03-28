@@ -27,20 +27,6 @@ from src.providers.base import Article, ContentProvider, CrawlResult, Raw
 logger = logging.getLogger(__name__)
 
 
-# ── Helpers ─────────────────────────────────────────────────────────────────────
-
-def _is_pro_domain(url: str) -> bool:
-    """Return True if URL is on a domain that should be skipped (e.g., paywalled).
-
-    Loaded from config.yaml → webpage_skip_domains.
-    """
-    skip_domains = _load_webpage_skip_domains()
-    if not skip_domains:
-        return False
-    from urllib.parse import urlparse
-    netloc = urlparse(url).netloc.lower()
-    return any(netloc.startswith(p) for p in skip_domains)
-
 
 # ── Config helpers ──────────────────────────────────────────────────────────────
 
@@ -68,11 +54,6 @@ def _load_webpage_config() -> dict:
 def _load_webpage_sites() -> dict:
     """Load webpage_sites from config.yaml."""
     return _load_webpage_config().get("webpage_sites", {})
-
-
-def _load_webpage_skip_domains() -> List[str]:
-    """Load skip_domains from config.yaml."""
-    return _load_webpage_config().get("webpage_skip_domains", [])
 
 
 def _site_config_for(url: str) -> dict:
@@ -336,9 +317,8 @@ class WebpageProvider:
                 continue
 
             # Try to fetch full article content for this article link
-            # Skip domains listed in webpage_skip_domains (e.g., paywalled)
             content = None
-            if link and not _is_pro_domain(link):
+            if link:
                 article_items = self._crawl_article(link)
                 if article_items:
                     content = article_items[0].get("content")
