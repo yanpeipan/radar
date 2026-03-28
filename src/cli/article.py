@@ -144,19 +144,41 @@ def article_open(ctx: click.Context, article_id: str) -> None:
 @click.option("--limit", default=20, help="Maximum number of results")
 @click.option("--feed-id", default=None, help="Filter by feed ID")
 @click.option("--semantic", is_flag=True, help="Use semantic search instead of keyword search")
+@click.option("--rerank", is_flag=True, help="Apply Cross-Encoder reranking to results")
 @click.option("--since", default=None, help="Start date (YYYY-MM-DD)")
 @click.option("--until", default=None, help="End date (YYYY-MM-DD)")
 @click.option("--on", multiple=True, help="Specific date (YYYY-MM-DD), can repeat")
 @click.pass_context
-def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional[str], semantic: bool, since: Optional[str], until: Optional[str], on: tuple) -> None:
+def article_search(ctx: click.Context, query: str, limit: int, feed_id: Optional[str], semantic: bool, rerank: bool, since: Optional[str], until: Optional[str], on: tuple) -> None:
     try:
+        import asyncio
+        from src.application.combine import combine_scores
+
         on_list = list(on) if on else None
+
         if semantic:
-            # Lazy import to avoid torch dependency for non-semantic search
+            # Semantic search path
             from src.storage.vector import search_articles_semantic
             articles = search_articles_semantic(query_text=query, limit=limit, since=since, until=until, on=on_list)
+
+            if rerank:
+                from src.application.rerank import rerank
+                articles = asyncio.to_thread(rerank, query, articles, limit)
+
+            # combine_scores for semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
+            articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
         else:
+            # FTS5 search path
+            from src.application.articles import search_articles
             articles = search_articles(query=query, limit=limit, feed_id=feed_id, since=since, until=until, on=on_list)
+
+            if rerank:
+                from src.application.rerank import rerank
+                articles = asyncio.to_thread(rerank, query, articles, limit)
+
+            # combine_scores for FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
+            articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
+
         print_articles(articles)
     except Exception as e:
         click.secho(f"Search unavailable: {e}.", err=True, fg="yellow")
