@@ -413,6 +413,22 @@ def upsert_feed(feed) -> tuple[Feed, bool]:
             return (feed, True)  # is new
 
 
+def _date_to_timestamp(date_str: str, tz) -> int:
+    """Convert YYYY-MM-DD to Unix timestamp at start of day in timezone."""
+    from datetime import datetime
+    dt = datetime.strptime(date_str, "%Y-%m-%d")
+    dt = dt.replace(tzinfo=tz)
+    return int(dt.timestamp())
+
+
+def _date_to_timestamp_end(date_str: str, tz) -> int:
+    """Convert YYYY-MM-DD to Unix timestamp at end of day (23:59:59) in timezone."""
+    from datetime import datetime
+    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=tz)
+    dt = dt.replace(hour=23, minute=59, second=59)
+    return int(dt.timestamp())
+
+
 def list_articles(limit: int = 20, feed_id: Optional[str] = None, since: Optional[str] = None, until: Optional[str] = None, on: Optional[list[str]] = None) -> list:
     """List articles ordered by publication date.
 
@@ -424,6 +440,9 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None, since: Optiona
         on: Optional list of specific dates to match.
     """
     from src.application.articles import ArticleListItem
+    from src.application.config import get_timezone
+
+    tz = get_timezone()
 
     # Build WHERE clause
     conditions = []
@@ -432,15 +451,17 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None, since: Optiona
         conditions.append("a.feed_id = ?")
         params.append(feed_id)
     if since:
-        conditions.append("DATE(a.pub_date) >= DATE(?)")
-        params.append(since)
+        conditions.append("a.pub_date >= ?")
+        params.append(_date_to_timestamp(since, tz))
     if until:
-        conditions.append("DATE(a.pub_date) <= DATE(?)")
-        params.append(until)
+        conditions.append("a.pub_date <= ?")
+        params.append(_date_to_timestamp_end(until, tz))
     if on:
-        placeholders = ",".join("?" * len(on))
-        conditions.append(f"DATE(a.pub_date) IN ({placeholders})")
-        params.extend(on)
+        # Convert each date to start-of-day timestamp (for exact date match)
+        on_timestamps = [_date_to_timestamp(d, tz) for d in on]
+        placeholders = ",".join("?" * len(on_timestamps))
+        conditions.append(f"a.pub_date IN ({placeholders})")
+        params.extend(on_timestamps)
     where_clause = " AND ".join(conditions) if conditions else "1=1"
 
     with get_db() as conn:
@@ -602,22 +623,27 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
         on: Optional list of specific dates to match.
     """
     from src.application.articles import ArticleListItem
+    from src.application.config import get_timezone
+
     if not query or not query.strip():
         return []
 
-    # Build WHERE clause for date filtering
+    tz = get_timezone()
+
+    # Build WHERE clause for date filtering (using timestamp comparison)
     date_conditions = []
     date_params = []
     if since:
-        date_conditions.append("DATE(a.pub_date) >= DATE(?)")
-        date_params.append(since)
+        date_conditions.append("a.pub_date >= ?")
+        date_params.append(_date_to_timestamp(since, tz))
     if until:
-        date_conditions.append("DATE(a.pub_date) <= DATE(?)")
-        date_params.append(until)
+        date_conditions.append("a.pub_date <= ?")
+        date_params.append(_date_to_timestamp_end(until, tz))
     if on:
-        placeholders = ",".join("?" * len(on))
-        date_conditions.append(f"DATE(a.pub_date) IN ({placeholders})")
-        date_params.extend(on)
+        on_timestamps = [_date_to_timestamp(d, tz) for d in on]
+        placeholders = ",".join("?" * len(on_timestamps))
+        date_conditions.append(f"a.pub_date IN ({placeholders})")
+        date_params.extend(on_timestamps)
     date_clause = " AND ".join(date_conditions) if date_conditions else None
 
     with get_db() as conn:
