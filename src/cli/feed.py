@@ -146,7 +146,7 @@ def _get_webpage_selectors(url: str) -> list[str]:
             break
         elif key.lower() == "c":
             return []
-        elif key == readchar.key.ESCAPE:
+        elif key == readchar.key.ESC:
             return []
 
     return [paths[i][0] for i in sorted(selected)]
