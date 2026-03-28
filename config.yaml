@@ -1,2 +1,3 @@
 # Application configuration
 timezone: Asia/Shanghai
+bm25_factor: 0.5

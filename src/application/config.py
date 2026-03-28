@@ -27,3 +27,8 @@ def get_timezone() -> ZoneInfo:
 def get_default_feed_weight() -> float:
     """Return the default feed weight for semantic search ranking."""
     return _get_settings().get("feed.default.weight", 0.3)
+
+
+def get_bm25_factor() -> float:
+    """Return the BM25 sigmoid normalization factor (default 0.5)."""
+    return _get_settings().get("bm25_factor", 0.5)

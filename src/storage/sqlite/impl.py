@@ -485,8 +485,11 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None, since: Optiona
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
     """
+    from datetime import datetime, timezone
     from src.application.articles import ArticleListItem
     from src.application.config import get_timezone
+    from src.storage.vector import _pub_date_to_timestamp
+    import math
 
     tz = get_timezone()
 
@@ -525,8 +528,15 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None, since: Optiona
             [*params, limit],
         )
         rows = cursor.fetchall()
-        return [
-            ArticleListItem(
+
+        def _compute_article_item(row):
+            pub_ts = _pub_date_to_timestamp(row.get("pub_date"))
+            freshness = 0.0
+            if pub_ts:
+                pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+                days_ago = (datetime.now(timezone.utc) - pub_dt).days
+                freshness = math.exp(-days_ago / 7)  # half_life_days = 7
+            return ArticleListItem(
                 id=row["id"],
                 feed_id=row["feed_id"],
                 feed_name=row["feed_name"],
@@ -535,9 +545,15 @@ def list_articles(limit: int = 20, feed_id: Optional[str] = None, since: Optiona
                 guid=row["guid"],
                 pub_date=row["pub_date"],
                 description=row["description"],
+                vec_sim=0.0,
+                bm25_score=0.0,
+                freshness=freshness,
+                source_weight=0.3,
+                ce_score=0.0,
+                final_score=0.0,
             )
-            for row in rows
-        ]
+
+        return [_compute_article_item(row) for row in rows]
 
 
 def get_article(article_id: str) -> Optional[list]:
@@ -669,7 +685,8 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
         on: Optional list of specific dates to match.
     """
     from src.application.articles import ArticleListItem
-    from src.application.config import get_timezone
+    from src.application.config import get_bm25_factor, get_timezone
+    import math
 
     if not query or not query.strip():
         return []
@@ -746,6 +763,7 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
                     """,
                     (query, limit),
                 )
+        factor = get_bm25_factor()
         return [
             ArticleListItem(
                 id=row["id"],
@@ -756,7 +774,7 @@ def search_articles(query: str, limit: int = 20, feed_id: Optional[str] = None, 
                 guid=row["guid"],
                 pub_date=row["pub_date"],
                 description=row["description"],
-                score=1 / (1 + abs(row["bm25_score"])),
+                bm25_score=1 / (1 + math.exp(row["bm25_score"] * factor)),
             )
             for row in cursor.fetchall()
         ]

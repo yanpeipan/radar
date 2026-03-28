@@ -27,18 +27,24 @@ _embedding_function: SentenceTransformer | None = None
 _chroma_lock = threading.Lock()
 
 
-def _pub_date_to_timestamp(pub_date: str | None) -> int | None:
-    """Convert pub_date string to unix timestamp for ChromaDB storage/query.
+def _pub_date_to_timestamp(pub_date: str | int | None) -> int | None:
+    """Convert pub_date to unix timestamp for ChromaDB storage/query.
 
     Handles RFC 2822 dates from RSS feeds (e.g., 'Thu, 26 Mar 2026 10:30:00 +0000')
     and ISO format dates (e.g., '2026-03-26', '2026-03-26T10:30:00+00:00').
+    Also handles INTEGER unix timestamps from SQLite directly.
 
     Args:
-        pub_date: Publication date string or None.
+        pub_date: Publication date as string, int timestamp, or None.
 
     Returns:
         Unix timestamp (seconds since epoch) or None if parsing fails.
     """
+    if pub_date is None:
+        return None
+    # Handle INTEGER unix timestamp from SQLite
+    if isinstance(pub_date, int):
+        return pub_date
     if not pub_date:
         return None
 
