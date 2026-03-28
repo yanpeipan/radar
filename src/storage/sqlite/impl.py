@@ -429,9 +429,9 @@ def upsert_feed(feed) -> tuple[Feed, bool]:
         if existing:
             # UPDATE existing feed, preserving original id
             cursor.execute(
-                """UPDATE feeds SET name = ?, etag = ?, last_modified = ?, last_fetched = ?, weight = ?
+                """UPDATE feeds SET name = ?, etag = ?, last_modified = ?, last_fetched = ?, weight = ?, metadata = ?
                    WHERE url = ?""",
-                (feed.name, feed.etag, feed.last_modified, feed.last_fetched, feed.weight, feed.url),
+                (feed.name, feed.etag, feed.last_modified, feed.last_fetched, feed.weight, feed.metadata, feed.url),
             )
             conn.commit()
             # Return Feed with preserved id
@@ -445,15 +445,16 @@ def upsert_feed(feed) -> tuple[Feed, bool]:
                     last_fetched=feed.last_fetched,
                     created_at=existing["created_at"],
                     weight=feed.weight,
+                    metadata=feed.metadata,
                 ),
                 False,  # not new
             )
         else:
             # INSERT new feed
             cursor.execute(
-                """INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at, weight)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (feed.id, feed.name, feed.url, feed.etag, feed.last_modified, feed.last_fetched, feed.created_at, feed.weight),
+                """INSERT INTO feeds (id, name, url, etag, last_modified, last_fetched, created_at, weight, metadata)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (feed.id, feed.name, feed.url, feed.etag, feed.last_modified, feed.last_fetched, feed.created_at, feed.weight, feed.metadata),
             )
             conn.commit()
             return (feed, True)  # is new

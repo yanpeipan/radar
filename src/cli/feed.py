@@ -215,7 +215,7 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
                 selectors = []
                 if provider_name == "Webpage":
                     selectors = _get_webpage_selectors(url)
-                feed_meta_data = FeedMetaData(selectors=selectors) if selectors else None
+                feed_meta_data = FeedMetaData(selectors=selectors) if selectors is not None else None
                 feed_obj, is_new = add_feed(url, weight, feed_meta_data)
                 if is_new:
                     click.secho(f"Added feed: {feed_obj.name} ({provider_name})", fg="green")
@@ -292,7 +292,7 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
     if provider_name == "Webpage":
         selectors = _get_webpage_selectors(url)
 
-    feed_meta_data = FeedMetaData(selectors=selectors) if selectors else None
+    feed_meta_data = FeedMetaData(selectors=selectors) if selectors is not None else None
     feed_obj, is_new = add_feed(url, weight, feed_meta_data)
 
     if is_new:
