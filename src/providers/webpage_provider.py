@@ -55,7 +55,7 @@ def _discover_links(root, page_url: str) -> List[tuple[str, int]]:
         if link_root != base_root:
             continue
 
-        path = parsed.path.rstrip("/")
+        path = re.sub(r"//+", "/", parsed.path).rstrip("/")
         if not path:
             continue
 
@@ -109,7 +109,7 @@ def _analyze_link_paths(url: str, limit: int = 15) -> dict[str, int]:
         if parsed.netloc.lower() != base_netloc:
             continue
 
-        path = parsed.path.rstrip("/")
+        path = re.sub(r"//+", "/", parsed.path).rstrip("/")
         if not path:
             continue
 

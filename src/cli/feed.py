@@ -129,7 +129,7 @@ def _get_webpage_selectors(url: str) -> list[str]:
             marker = "[x]" if i in selected else "[ ]"
             click.secho(f"{prefix}{marker} {path} ({count} links)", fg="green" if i == cursor else "white")
 
-        click.secho("\n  [↑/↓] move  [space] toggle  [enter] confirm  [c] cancel", fg="dim")
+        click.secho("\n  [↑/↓] move  [space] toggle  [enter] confirm  [c] cancel")
 
         key = readchar.readkey()
         if key == readchar.key.UP:
