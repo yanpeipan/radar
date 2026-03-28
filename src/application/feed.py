@@ -43,6 +43,23 @@ def add_feed(url: str, weight: float | None = None, feed_meta_data: "FeedMetaDat
     entries = None
     last_error = None
 
+    # If we have metadata with selectors, insert feed first so selectors are available during crawl
+    if feed_meta_data and feed_meta_data.selectors:
+        feed_id = generate_feed_id()
+        now = datetime.now(get_timezone()).isoformat()
+        temp_feed = Feed(
+            id=feed_id,
+            name=url,  # temporary name, will be updated
+            url=url,
+            etag=None,
+            last_modified=None,
+            last_fetched=None,
+            created_at=now,
+            weight=weight if weight is not None else get_default_feed_weight(),
+            metadata=feed_meta_data.to_json(),
+        )
+        upsert_feed(temp_feed)
+
     for provider in providers:
         try:
             feed_meta = provider.feed_meta(url)
