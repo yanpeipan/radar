@@ -260,7 +260,7 @@ def feed_list(ctx: click.Context, verbose: bool) -> None:
                 header_style="bold magenta",
                 row_styles=["", "dim"],
             )
-            table.add_column("#", justify="right", style="cyan", no_wrap=True)
+            table.add_column("Id", justify="right", style="cyan", no_wrap=True)
             table.add_column("Name", style="green", no_wrap=False)
             table.add_column("Type", style="yellow", no_wrap=True)
             table.add_column("Articles", justify="right", no_wrap=True)
