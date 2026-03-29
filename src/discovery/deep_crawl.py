@@ -77,8 +77,11 @@ def compute_link_selectors(html: str, page_url: str) -> dict[str, Selector]:
         if not path:
             path = '/'
 
-        # Get link text
-        link_text = anchor.text.strip() if hasattr(anchor, 'text') else ''
+        # Get link text (prefer aria-label for accessible text)
+        link_text = anchor.attrib.get('aria-label', '') or ''
+        if not link_text:
+            link_text = getattr(anchor, 'text', '') or ''
+            link_text = link_text.strip()
 
         # Count CSS selectors for the full path and each parent segment
         parts = path.split('/')
