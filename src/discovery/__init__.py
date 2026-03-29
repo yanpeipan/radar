@@ -5,8 +5,6 @@ import asyncio
 import logging
 from urllib.parse import urljoin
 
-import httpx
-
 from src.discovery.common_paths import FEED_CONTENT_TYPES, generate_feed_candidates
 from src.discovery.deep_crawl import deep_crawl
 from src.discovery.fetcher import validate_feed

@@ -60,32 +60,30 @@ async def _quick_validate_feed(url: str) -> tuple[bool, str | None]:
     Returns:
         Tuple of (is_valid, feed_type).
     """
-    import httpx
     FEED_TYPE_MAP = {
         'application/rss+xml': 'rss',
         'application/atom+xml': 'atom',
         'application/rdf+xml': 'rdf',
     }
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=5.0) as client:
-            response = await client.head(url)
-            if response.status_code != 200:
-                return False, None
-            content_type = response.headers.get('content-type', '').lower()
-            # Check MIME type
-            for mime, ftype in FEED_TYPE_MAP.items():
-                if mime in content_type:
-                    return True, ftype
-            # Fallback: detect from URL path for generic xml types
-            if 'xml' in content_type:
-                lower_url = url.lower()
-                if '/rss' in lower_url or '.rss' in lower_url:
-                    return True, 'rss'
-                if '/atom' in lower_url:
-                    return True, 'atom'
-                if '/rdf' in lower_url:
-                    return True, 'rdf'
+        response = await asyncio.to_thread(Fetcher.get, url)
+        if response.status != 200:
             return False, None
+        content_type = response.headers.get('content-type', '').lower()
+        # Check MIME type
+        for mime, ftype in FEED_TYPE_MAP.items():
+            if mime in content_type:
+                return True, ftype
+        # Fallback: detect from URL path for generic xml types
+        if 'xml' in content_type:
+            lower_url = url.lower()
+            if '/rss' in lower_url or '.rss' in lower_url:
+                return True, 'rss'
+            if '/atom' in lower_url:
+                return True, 'atom'
+            if '/rdf' in lower_url:
+                return True, 'rdf'
+        return False, None
     except Exception:
         return False, None
 
@@ -100,16 +98,13 @@ async def _extract_feed_title(url: str) -> str | None:
         Feed title string if found, None otherwise.
     """
     try:
-        # Use httpx directly since feedparser works with bytes/content
-        import httpx
-        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
-            response = await client.get(url)
-            if response.status_code != 200:
-                return None
-            feed = feedparser.parse(response.content)
-            if feed.feed:
-                return feed.feed.get('title')
+        response = await asyncio.to_thread(Fetcher.get, url)
+        if response.status != 200:
             return None
+        feed = feedparser.parse(response.body)
+        if feed.feed:
+            return feed.feed.get('title')
+        return None
     except Exception:
         return None
 

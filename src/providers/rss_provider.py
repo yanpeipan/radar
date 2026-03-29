@@ -10,7 +10,6 @@ from contextvars import ContextVar
 from typing import List, Optional
 
 import feedparser
-import httpx
 
 from src.providers import PROVIDERS
 from src.providers.base import Article, ContentProvider, CrawlResult, Raw
@@ -41,8 +40,9 @@ def fetch_feed_content(
     Returns:
         A tuple of (content, etag, last_modified, status_code).
         content is None if status is 304 (not modified).
-        Raises httpx.RequestError or httpx.TimeoutException on network errors.
     """
+    from scrapling import Fetcher
+
     headers: dict[str, str] = {}
     if etag:
         headers["If-None-Match"] = etag
@@ -51,24 +51,22 @@ def fetch_feed_content(
 
     # Merge browser headers with conditional headers
     request_headers = {**BROWSER_HEADERS, **headers}
-    response = httpx.get(url, headers=request_headers, timeout=30.0, follow_redirects=True)
+    response = Fetcher.get(url, headers=request_headers)
 
-    # Handle 304 Not Modified (httpx raises on 304 after redirects)
-    if response.status_code == 304:
+    # Handle 304 Not Modified
+    if response.status == 304:
         return None, None, None, 304
 
-    response.raise_for_status()
-    status_code = response.status_code
+    status_code = response.status
 
     # Extract headers for future conditional requests
     new_etag = response.headers.get("etag")
     new_last_modified = response.headers.get("last-modified")
 
-    return response.content, new_etag, new_last_modified, status_code
+    return response.body, new_etag, new_last_modified, status_code
 
 
 async def fetch_feed_content_async(
-    client: httpx.AsyncClient,
     url: str,
     etag: Optional[str] = None,
     last_modified: Optional[str] = None,
@@ -76,7 +74,6 @@ async def fetch_feed_content_async(
     """Fetch feed content asynchronously with conditional request support.
 
     Args:
-        client: Active httpx.AsyncClient instance.
         url: The URL of the feed to fetch.
         etag: Optional ETag header for conditional fetching.
         last_modified: Optional Last-Modified header for conditional fetching.
@@ -84,8 +81,10 @@ async def fetch_feed_content_async(
     Returns:
         A tuple of (content, etag, last_modified, status_code).
         content is None if status is 304 (not modified).
-        Raises httpx.HTTPStatusError on HTTP errors.
     """
+    import asyncio
+    from scrapling import Fetcher
+
     headers: dict[str, str] = {}
     if etag:
         headers["If-None-Match"] = etag
@@ -93,21 +92,15 @@ async def fetch_feed_content_async(
         headers["If-Modified-Since"] = last_modified
 
     request_headers = {**BROWSER_HEADERS, **headers}
-    response = await client.get(
-        url,
-        headers=request_headers,
-        timeout=30.0,
-        follow_redirects=True
-    )
+    response = await asyncio.to_thread(Fetcher.get, url, headers=request_headers)
 
-    if response.status_code == 304:
+    if response.status == 304:
         return None, None, None, 304
 
-    response.raise_for_status()
     new_etag = response.headers.get("etag")
     new_last_modified = response.headers.get("last-modified")
 
-    return response.content, new_etag, new_last_modified, response.status_code
+    return response.body, new_etag, new_last_modified, response.status
 
 
 def parse_feed(
@@ -171,12 +164,12 @@ class RSSProvider:
             or application/xml Content-Type. Also returns True for 403 errors
             to allow fallback to Scrapling for Cloudflare-protected feeds.
         """
-        import httpx
+        from scrapling import Fetcher
 
         try:
-            response = httpx.head(url, timeout=10.0, follow_redirects=True)
+            response = Fetcher.get(url, headers=BROWSER_HEADERS)
             # Check for 403 - Cloudflare may block HEAD but allow GET with Scrapling
-            if response.status_code == 403:
+            if response.status == 403:
                 logger.debug("RSSProvider.match(%s) got 403 on HEAD, allowing match for crawl fallback", url)
                 return True
             content_type = response.headers.get("content-type", "").lower()
@@ -188,14 +181,6 @@ class RSSProvider:
             # Also accept generic XML types for feeds
             if "application/xml" in content_type or "text/xml" in content_type:
                 return True
-            return False
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 403:
-                # 403 on HEAD doesn't mean it's not a feed (Cloudflare may block HEAD but allow GET)
-                # Return True to allow crawl() to try with Scrapling fallback
-                logger.debug("RSSProvider.match(%s) got 403 on HEAD, allowing match for crawl fallback", url)
-                return True
-            logger.debug("RSSProvider.match(%s) failed with HTTP error: %s", url, e)
             return False
         except Exception as e:
             logger.debug("RSSProvider.match(%s) failed: %s", url, e)
@@ -238,12 +223,14 @@ class RSSProvider:
 
             logger.debug("RSSProvider.crawl(%s) returned %d entries", url, len(entries))
             return entries
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 403:
+        except Exception as e:
+            # Check for 403 status for Cloudflare-protected feeds
+            error_str = str(e)
+            if "403" in error_str:
                 # Fallback to Scrapling for Cloudflare-protected feeds
-                logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
+                logger.info("Got 403 for %s, trying Scrapling fallback", url)
                 return self._crawl_with_scrapling(url)
-            logger.error("RSSProvider.crawl(%s) HTTP error: %s", url, e)
+            logger.error("RSSProvider.crawl(%s) failed: %s", url, e)
             return []
         except Exception as e:
             logger.error("RSSProvider.crawl(%s) failed: %s", url, e)
@@ -252,7 +239,7 @@ class RSSProvider:
     async def crawl_async(self, url: str, etag: Optional[str] = None, last_modified: Optional[str] = None) -> CrawlResult:
         """Fetch and parse RSS/Atom feed content asynchronously.
 
-        Uses httpx.AsyncClient for true async HTTP, with feedparser.parse()
+        Uses asyncio.to_thread with scrapling Fetcher for HTTP, with feedparser.parse()
         and parse_feed() running in a thread pool executor to avoid blocking.
 
         Args:
@@ -267,40 +254,33 @@ class RSSProvider:
 
         _feed_title_var.set(None)
         try:
-            async with httpx.AsyncClient(
-                limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
-                timeout=httpx.Timeout(30.0, connect=10.0),
-                trust_env=True,
-            ) as client:
-                content, new_etag, new_last_modified, status_code = await fetch_feed_content_async(
-                    client, url, etag=etag, last_modified=last_modified
-                )
-                if content is None:
-                    logger.info("RSS feed %s returned 304 Not Modified", url)
-                    return CrawlResult(entries=[], etag=etag, last_modified=last_modified)
+            content, new_etag, new_last_modified, status_code = await fetch_feed_content_async(
+                url, etag=etag, last_modified=last_modified
+            )
+            if content is None:
+                logger.info("RSS feed %s returned 304 Not Modified", url)
+                return CrawlResult(entries=[], etag=etag, last_modified=last_modified)
 
-                # Parse in thread pool to avoid blocking event loop
-                loop = asyncio.get_running_loop()
-                parsed = await loop.run_in_executor(None, feedparser.parse, content)
+            # Parse in thread pool to avoid blocking event loop
+            loop = asyncio.get_running_loop()
+            parsed = await loop.run_in_executor(None, feedparser.parse, content)
 
-                if parsed.feed:
-                    _feed_title_var.set(parsed.feed.get("title"))
+            if parsed.feed:
+                _feed_title_var.set(parsed.feed.get("title"))
 
-                entries, bozo_flag, bozo_exception = await loop.run_in_executor(
-                    None, parse_feed, content, url
-                )
-                if bozo_flag and bozo_exception:
-                    logger.warning("Malformed feed at %s: %s", url, bozo_exception)
+            entries, bozo_flag, bozo_exception = await loop.run_in_executor(
+                None, parse_feed, content, url
+            )
+            if bozo_flag and bozo_exception:
+                logger.warning("Malformed feed at %s: %s", url, bozo_exception)
 
-                logger.debug("RSSProvider.crawl_async(%s) returned %d entries", url, len(entries))
-                return CrawlResult(entries=entries, etag=new_etag, last_modified=new_last_modified)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 403:
-                logger.info("httpx returned 403 for %s, trying Scrapling fallback", url)
-                return await self._crawl_with_scrapling_async(url)
-            logger.error("RSSProvider.crawl_async(%s) HTTP error: %s", url, e)
-            return CrawlResult(entries=[])
+            logger.debug("RSSProvider.crawl_async(%s) returned %d entries", url, len(entries))
+            return CrawlResult(entries=entries, etag=new_etag, last_modified=new_last_modified)
         except Exception as e:
+            error_str = str(e)
+            if "403" in error_str:
+                logger.info("Got 403 for %s, trying Scrapling fallback", url)
+                return await self._crawl_with_scrapling_async(url)
             logger.error("RSSProvider.crawl_async(%s) failed: %s", url, e)
             return CrawlResult(entries=[])
 
@@ -413,22 +393,17 @@ class RSSProvider:
         Raises:
             ValueError: If feed cannot be fetched or parsed.
         """
+        from scrapling import Fetcher
         from src.models import Feed
         from src.application.config import get_timezone
         from datetime import datetime
 
         try:
-            # Lightweight fetch with short timeout - just need title
-            response = httpx.get(
-                url,
-                headers=BROWSER_HEADERS,
-                timeout=5.0,
-                follow_redirects=True
-            )
-            response.raise_for_status()
+            # Lightweight fetch - just need title
+            response = Fetcher.get(url, headers=BROWSER_HEADERS)
 
             # Parse just enough to get feed title
-            parsed = feedparser.parse(response.content)
+            parsed = feedparser.parse(response.body)
             title = parsed.feed.get("title") if parsed.feed else url
 
             # Get headers for future conditional requests
