@@ -194,10 +194,6 @@ async def _find_feed_links_on_page(html: str, page_url: str) -> list[DiscoveredF
         for anchor in page.css(selector):
             href = anchor.attrib.get('href', '')
 
-            # Skip non-HTTP URLs
-            if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
-                continue
-
             # Resolve relative URLs
             if base_override:
                 absolute = urljoin(base_override, href)
@@ -452,10 +448,6 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
         for selector in feed_selectors:
             for anchor in page.css(selector):
                 href = anchor.attrib['href']
-
-                # Skip non-HTTP URLs
-                if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
-                    continue
 
                 # Resolve relative URLs
                 if base_override:
