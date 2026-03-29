@@ -48,7 +48,8 @@
   4. `providers.discover()` returns feeds deduplicated by URL
   5. `DiscoveredFeed.valid=True` means provider confirmed handleable; no invalid feeds reach `register_feed()`
 
-**Plans**: TBD
+**Plans**:
+- [x] 045-01-PLAN.md — feed_meta pattern, provider-verified feeds, deep_crawl delegation
 
 ---
 
@@ -72,7 +73,8 @@
   2. ContentProvider docstring documents that `match(response=None)` is URL-only (no new HTTP requests)
   3. `parse_feed()` docstring clarifies it raises `ValueError`/`Exception` on invalid feeds
 
-**Plans**: TBD
+**Plans**:
+- [x] 045-01-PLAN.md — feed_meta pattern, provider-verified feeds, deep_crawl delegation
 
 ---
 
@@ -95,7 +97,8 @@
   2. All blocking HTTP calls in async functions use `asyncio.to_thread()`; no blocking `Fetcher.get()` in async context
   3. Duplicate feed validation code (`validate_feed()` in fetcher.py and `_quick_validate_feed_sync()` in RSSProvider) consolidated into a single shared utility
 
-**Plans**: TBD
+**Plans**:
+- [x] 045-01-PLAN.md — feed_meta pattern, provider-verified feeds, deep_crawl delegation
 
 ---
 
@@ -104,7 +107,7 @@
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 41-44 | v2.0 | 8/8 | Complete | 2026-03-28 |
-| 45. Discovery Core | v2.1 | 0/TBD | Not started | - |
+| 45. Discovery Core | v2.1 | 1/1 | In progress | - |
 | 46. Provider Contract | v2.1 | 0/TBD | Not started | - |
 | 47. Code Quality | v2.1 | 0/TBD | Not started | - |
 
