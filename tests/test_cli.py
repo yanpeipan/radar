@@ -245,3 +245,77 @@ class TestArticleCommands:
         assert result.exit_code == 0
         assert 'No articles found' in result.output
 
+
+class TestFeedDiscovery:
+    """Tests for feed discovery functionality."""
+
+    def test_feed_add_openai_discovers_news_rss(self, cli_runner, initialized_db, monkeypatch):
+        """feed add https://openai.com discovers news/rss.xml via CSS selector discovery."""
+        from src.discovery.models import DiscoveredResult, DiscoveredFeed
+
+        # Mock discover_feeds to return openai.com discovery result
+        mock_result = DiscoveredResult(
+            url="https://openai.com",
+            max_depth=1,
+            feeds=[
+                DiscoveredFeed(
+                    url="https://openai.com",
+                    title="https://openai.com",
+                    feed_type="webpage",
+                    source="provider_WebpageProvider",
+                    page_url="https://openai.com",
+                    valid=False,
+                ),
+                DiscoveredFeed(
+                    url="https://openai.com/news/rss.xml",
+                    title=None,
+                    feed_type="rss",
+                    source="RSSProvider",
+                    page_url="https://openai.com",
+                    valid=True,
+                ),
+            ],
+            selectors={},
+        )
+
+        async def mock_discover_feeds(url, depth):
+            return mock_result
+
+        monkeypatch.setattr("src.cli.feed.discover_feeds", mock_discover_feeds)
+
+        result = cli_runner.invoke(cli, ['feed', 'add', 'https://openai.com'], input='c\n')
+        assert result.exit_code == 0
+        assert 'news/rss.xml' in result.output
+        assert 'Discovered 2 feed' in result.output
+
+    def test_feed_add_github_cli_discovers_release_feed(self, cli_runner, initialized_db, monkeypatch):
+        """feed add https://github.com/cli/cli discovers GitHubReleaseProvider feed."""
+        from src.discovery.models import DiscoveredResult, DiscoveredFeed
+
+        # Mock discover_feeds to return GitHub release feed
+        mock_result = DiscoveredResult(
+            url="https://github.com/cli/cli",
+            max_depth=1,
+            feeds=[
+                DiscoveredFeed(
+                    url="https://github.com/cli/cli",
+                    title="https://github.com/cli/cli",
+                    feed_type="github_release",
+                    source="provider_GitHubReleaseProvider",
+                    page_url="https://github.com/cli/cli",
+                    valid=True,
+                ),
+            ],
+            selectors={},
+        )
+
+        async def mock_discover_feeds(url, depth):
+            return mock_result
+
+        monkeypatch.setattr("src.cli.feed.discover_feeds", mock_discover_feeds)
+
+        result = cli_runner.invoke(cli, ['feed', 'add', 'https://github.com/cli/cli'], input='c\n')
+        assert result.exit_code == 0
+        assert 'github.com/cli/cli' in result.output
+        assert 'Discovered 1 feed' in result.output
+

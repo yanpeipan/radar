@@ -61,8 +61,8 @@ class TestRSSProvider:
         result = provider.match("https://example.com/feed.xml", mock_response)
         assert result is True
 
-    def test_rss_provider_match_failure(self):
-        """HTML content-type in response.headers, verify match() returns False."""
+    def test_rss_provider_match_html_for_discovery(self):
+        """HTML content-type in response.headers - RSSProvider matches to enable feed discovery."""
         from src.providers.rss_provider import RSSProvider
 
         mock_response = MagicMock()
@@ -71,7 +71,8 @@ class TestRSSProvider:
 
         provider = RSSProvider()
         result = provider.match("https://example.com/page.html", mock_response)
-        assert result is False
+        # RSSProvider now matches HTML pages to discover feeds on them via discover()
+        assert result is True
 
     def test_rss_provider_match_403_fallback(self):
         """403 status triggers Cloudflare fallback - match returns True to allow crawl."""

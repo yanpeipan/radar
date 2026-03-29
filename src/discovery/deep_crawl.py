@@ -10,7 +10,7 @@ from urllib.parse import urljoin, urlparse
 
 import feedparser
 
-from scrapling import Fetcher, Selector, DynamicFetcher
+from scrapling import Fetcher, Selector, DynamicFetcher, StealthyFetcher
 from trafilatura.feeds import FEED_TYPES
 
 # Suppress scrapling 0.4.x deprecation warning logged unconditionally in DynamicFetcher.__init__
@@ -369,15 +369,14 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> DiscoveredResult:
         # Use providers.discover() for feed discovery
         # Fetch page to get response for providers
         try:
-            response = await asyncio.to_thread(Fetcher.get, start_url, headers=BROWSER_HEADERS)
+            response = await asyncio.to_thread(StealthyFetcher().fetch, start_url, headers=BROWSER_HEADERS)
             if response.status == 200:
                 # Call providers.discover() to find feeds
                 feeds = providers_discover(start_url, response, depth=1)
                 if feeds:
-                    # Only keep feeds already marked valid=True (e.g., GitHubReleaseProvider)
-                    valid_feeds = [f for f in feeds if f.valid]
-                    if valid_feeds:
-                        return DiscoveredResult(url=start_url, max_depth=max_depth, feeds=valid_feeds, selectors=selectors)
+                    # Return all discovered feeds - RSSProvider.discover() returns unverified
+                    # candidates (valid=False) which are still valid for user review
+                    return DiscoveredResult(url=start_url, max_depth=max_depth, feeds=feeds, selectors=selectors)
         except Exception:
             pass
 

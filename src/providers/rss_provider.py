@@ -32,6 +32,31 @@ _feed_title_var: ContextVar[str | None] = ContextVar("feed_title", default=None)
 from src.constants import BROWSER_HEADERS
 
 
+def _quick_validate_feed_sync(url: str) -> tuple[bool, str | None]:
+    """Quick feed validation via HEAD request only (synchronous).
+
+    Only checks HTTP 200 + Content-Type header, skipping full feed parsing.
+
+    Args:
+        url: The feed URL to validate.
+
+    Returns:
+        Tuple of (is_valid, feed_type).
+    """
+    from scrapling import Fetcher
+    try:
+        response = Fetcher.get(url, headers=BROWSER_HEADERS)
+        if response.status != 200:
+            return False, None
+        content_type = response.headers.get('content-type', '').lower()
+        if any(ft in content_type for ft in ('rss', 'atom', 'rdf', 'xml')):
+            feed_type = 'rss' if 'rss' in content_type else 'atom' if 'atom' in content_type else 'rdf'
+            return True, feed_type
+        return False, None
+    except Exception:
+        return False, None
+
+
 def fetch_feed_content(
     url: str,
     etag: Optional[str] = None,
@@ -184,9 +209,16 @@ class RSSProvider:
                 return True
             if "application/xml" in content_type or "text/xml" in content_type:
                 return True
+            # Also match HTML pages to enable feed discovery on webpages
+            # This allows RSSProvider to discover feeds on pages like openai.com
+            if "text/html" in content_type:
+                return True
             return False
 
-        # response为空时只用URL判断，不发请求
+        # When response is None, match HTTP URLs to allow feed discovery on any page
+        # This enables RSSProvider to discover feeds on webpages like openai.com
+        if url.startswith("http"):
+            return True
         return False
 
     def priority(self) -> int:
@@ -453,7 +485,9 @@ class RSSProvider:
         html = None
         if response:
             try:
-                html = response.text
+                # Use response.body to get HTML content (response.text may be empty for some fetchers)
+                if response.body:
+                    html = response.body.decode('utf-8', errors='replace') if isinstance(response.body, bytes) else str(response.body)
             except Exception:
                 pass
 
@@ -499,20 +533,97 @@ class RSSProvider:
                 valid=False,  # Unverified - caller will validate
             ))
 
-        # Probe well-known paths (only at depth=1)
+        # CSS selector-based link discovery for finding feed links on page
+        # This finds <a href*="rss">, <a href*="feed">, <a href*="atom">, <a href$=".xml">
+        feed_selectors = [
+            'a[href*="rss"]',
+            'a[href*="feed"]',
+            'a[href*="atom"]',
+            'a[href$=".xml"]',
+        ]
+
+        found_urls: set = set()
+        for selector in feed_selectors:
+            try:
+                for anchor in page.css(selector):
+                    href = anchor.attrib.get('href', '')
+                    if not href:
+                        continue
+
+                    # Resolve relative URLs
+                    if base_override:
+                        absolute = urljoin(base_override, href)
+                    else:
+                        absolute = urljoin(url, href)
+
+                    parsed = urlparse(absolute)
+
+                    # Skip different hosts
+                    if parsed.netloc.lower() != urlparse(url).netloc.lower():
+                        continue
+
+                    if absolute in found_urls:
+                        continue
+                    found_urls.add(absolute)
+
+                    # Validate path matches feed pattern
+                    path = parsed.path.lower()
+                    if not matches_feed_path_pattern(path):
+                        continue
+
+                    feeds.append(DiscoveredFeed(
+                        url=absolute,
+                        title=None,
+                        feed_type='rss',
+                        source='RSSProvider',
+                        page_url=url,
+                        valid=False,  # Unverified - caller will validate
+                    ))
+            except Exception:
+                # CSS selector may fail for some pages
+                continue
+
+        # Probe well-known paths in parallel and only add validated ones
         if depth == 1:
-            candidates = generate_feed_candidates(url, html)
-            for candidate in candidates:
-                feeds.append(DiscoveredFeed(
-                    url=candidate,
-                    title=None,
-                    feed_type='rss',
-                    source='RSSProvider',
-                    page_url=url,
-                    valid=False,
-                ))
+            well_known_feeds = _probe_well_known_paths(url, html)
+            feeds.extend(well_known_feeds)
 
         return feeds
+
+
+def _probe_well_known_paths(url: str, html: str | None) -> list["DiscoveredFeed"]:
+    """Probe well-known feed paths on a page URL and validate them in parallel.
+
+    Args:
+        url: Base page URL to probe.
+        html: Optional HTML content for subdirectory discovery.
+
+    Returns:
+        List of DiscoveredFeed found via well-known path probing (only validated ones).
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from src.discovery.common_paths import generate_feed_candidates
+
+    candidates = generate_feed_candidates(url, html)
+    if not candidates:
+        return []
+
+    results: list[DiscoveredFeed] = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        future_to_candidate = {executor.submit(_quick_validate_feed_sync, c): c for c in candidates}
+        for future in as_completed(future_to_candidate):
+            is_valid, feed_type = future.result()
+            if is_valid:
+                candidate = future_to_candidate[future]
+                results.append(DiscoveredFeed(
+                    url=candidate,
+                    title=None,
+                    feed_type=feed_type or 'rss',
+                    source='RSSProvider',
+                    page_url=url,
+                    valid=True,
+                ))
+    return results
 
 # Register this provider - it will be sorted by priority() after all modules load
 PROVIDERS.append(RSSProvider())
