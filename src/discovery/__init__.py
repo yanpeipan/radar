@@ -80,10 +80,6 @@ async def discover_feeds(url: str, max_depth: int = 1) -> list[DiscoveredFeed]:
         List of DiscoveredFeed objects found on the page.
         Empty list if no feeds found or page cannot be fetched.
     """
-    # Deep crawl for max_depth > 1
-    if max_depth > 1:
-        return await deep_crawl(url, max_depth)
-
     # Single-page discovery: delegate to deep_crawl (handles subdirectory probing)
     return await deep_crawl(url, max_depth)
 

@@ -48,17 +48,17 @@ def normalize_url_for_visit(url: str) -> str:
     return f"{scheme_host}{path}"
 
 
-async def _quick_validate_feed(url: str) -> tuple[bool, str | None]:
-    """Quick feed validation via HEAD request only.
-
-    Only checks HTTP 200 + Content-Type header, skipping full feed parsing.
-    This is ~10x faster than validate_feed which does feedparser.parse().
+async def _validate_and_extract_title(url: str) -> tuple[bool, str | None, str | None]:
+    """Validate feed and extract title with a single HTTP request.
 
     Args:
-        url: The feed URL to validate.
+        url: The feed URL to validate and extract title from.
 
     Returns:
-        Tuple of (is_valid, feed_type).
+        Tuple of (is_valid, feed_type, title).
+        is_valid: True if URL returns HTTP 200 with valid feed Content-Type.
+        feed_type: 'rss', 'atom', or 'rdf' based on Content-Type.
+        title: Feed title if found, None otherwise.
     """
     FEED_TYPE_MAP = {
         'application/rss+xml': 'rss',
@@ -68,45 +68,55 @@ async def _quick_validate_feed(url: str) -> tuple[bool, str | None]:
     try:
         response = await asyncio.to_thread(Fetcher.get, url)
         if response.status != 200:
-            return False, None
+            return False, None, None
         content_type = response.headers.get('content-type', '').lower()
-        # Check MIME type
+
+        # Determine feed type
+        feed_type = None
         for mime, ftype in FEED_TYPE_MAP.items():
             if mime in content_type:
-                return True, ftype
+                feed_type = ftype
+                break
         # Fallback: detect from URL path for generic xml types
-        if 'xml' in content_type:
+        if feed_type is None and 'xml' in content_type:
             lower_url = url.lower()
             if '/rss' in lower_url or '.rss' in lower_url:
-                return True, 'rss'
-            if '/atom' in lower_url:
-                return True, 'atom'
-            if '/rdf' in lower_url:
-                return True, 'rdf'
-        return False, None
+                feed_type = 'rss'
+            elif '/atom' in lower_url:
+                feed_type = 'atom'
+            elif '/rdf' in lower_url:
+                feed_type = 'rdf'
+
+        if feed_type is None:
+            return False, None, None
+
+        # Extract title from response body
+        title = None
+        try:
+            feed = feedparser.parse(response.body)
+            if feed.feed:
+                title = feed.feed.get('title')
+        except Exception:
+            pass  # Title extraction is best-effort
+
+        return True, feed_type, title
     except Exception:
-        return False, None
+        return False, None, None
 
 
-async def _extract_feed_title(url: str) -> str | None:
-    """Extract title from a feed URL using feedparser.
+async def _quick_validate_feed(url: str) -> tuple[bool, str | None]:
+    """Quick feed validation via HEAD request only.
+
+    Only checks HTTP 200 + Content-Type header, skipping full feed parsing.
 
     Args:
-        url: Feed URL to fetch and parse.
+        url: The feed URL to validate.
 
     Returns:
-        Feed title string if found, None otherwise.
+        Tuple of (is_valid, feed_type).
     """
-    try:
-        response = await asyncio.to_thread(Fetcher.get, url)
-        if response.status != 200:
-            return None
-        feed = feedparser.parse(response.body)
-        if feed.feed:
-            return feed.feed.get('title')
-        return None
-    except Exception:
-        return None
+    is_valid, feed_type, _ = await _validate_and_extract_title(url)
+    return is_valid, feed_type
 
 
 async def _probe_well_known_paths(page_url: str, html: str | None = None) -> list[DiscoveredFeed]:
@@ -282,10 +292,8 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
     if max_depth <= 1:
         # First, check if the starting URL is already a direct feed URL
         # This handles the case where user passes a feed URL directly (e.g., /rss/)
-        is_valid_feed, feed_type = await _quick_validate_feed(start_url)
+        is_valid_feed, feed_type, title = await _validate_and_extract_title(start_url)
         if is_valid_feed:
-            # Extract title from the direct feed URL
-            title = await _extract_feed_title(start_url)
             return [DiscoveredFeed(
                 url=start_url,
                 title=title,
