@@ -24,76 +24,75 @@ class TestRSSProvider:
         provider = RSSProvider()
         assert provider.priority() == 50
 
-    def test_rss_provider_match_success(self, httpx_mock):
-        """Mock httpx.head() to return 200 with content-type application/rss+xml, verify match() returns True."""
+    def test_rss_provider_match_success(self):
+        """Mock Fetcher.get to return 200 with content-type application/rss+xml, verify match() returns True."""
         from src.providers.rss_provider import RSSProvider
 
         # Mock response with RSS content-type
         mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_response.status = 200
         mock_response.headers = {"content-type": "application/rss+xml"}
 
-        with patch("src.providers.rss_provider.httpx.head", return_value=mock_response):
+        with patch("scrapling.Fetcher.get", return_value=mock_response):
             provider = RSSProvider()
             result = provider.match("https://example.com/feed.xml")
             assert result is True
 
-    def test_rss_provider_match_atom(self, httpx_mock):
-        """Mock httpx.head() to return 200 with content-type application/atom+xml, verify match() returns True."""
+    def test_rss_provider_match_atom(self):
+        """Mock Fetcher.get to return 200 with content-type application/atom+xml, verify match() returns True."""
         from src.providers.rss_provider import RSSProvider
 
         mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_response.status = 200
         mock_response.headers = {"content-type": "application/atom+xml"}
 
-        with patch("src.providers.rss_provider.httpx.head", return_value=mock_response):
+        with patch("scrapling.Fetcher.get", return_value=mock_response):
             provider = RSSProvider()
             result = provider.match("https://example.com/feed.atom")
             assert result is True
 
-    def test_rss_provider_match_xml(self, httpx_mock):
-        """Mock httpx.head() to return 200 with content-type application/xml, verify match() returns True."""
+    def test_rss_provider_match_xml(self):
+        """Mock Fetcher.get to return 200 with content-type application/xml, verify match() returns True."""
         from src.providers.rss_provider import RSSProvider
 
         mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_response.status = 200
         mock_response.headers = {"content-type": "application/xml"}
 
-        with patch("src.providers.rss_provider.httpx.head", return_value=mock_response):
+        with patch("scrapling.Fetcher.get", return_value=mock_response):
             provider = RSSProvider()
             result = provider.match("https://example.com/feed.xml")
             assert result is True
 
-    def test_rss_provider_match_failure(self, httpx_mock):
-        """Mock httpx.head() to return 200 with content-type text/html, verify match() returns False."""
+    def test_rss_provider_match_failure(self):
+        """Mock Fetcher.get to return 200 with content-type text/html, verify match() returns False."""
         from src.providers.rss_provider import RSSProvider
 
         mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_response.status = 200
         mock_response.headers = {"content-type": "text/html"}
 
-        with patch("src.providers.rss_provider.httpx.head", return_value=mock_response):
+        with patch("scrapling.Fetcher.get", return_value=mock_response):
             provider = RSSProvider()
             result = provider.match("https://example.com/page.html")
             assert result is False
 
-    def test_rss_provider_match_403_fallback(self, httpx_mock):
-        """Mock httpx.head() to return 403, verify match() returns True (Cloudflare fallback)."""
+    def test_rss_provider_match_403_fallback(self):
+        """Mock Fetcher.get to return 403, verify match() returns True (Cloudflare fallback)."""
         from src.providers.rss_provider import RSSProvider
-        import httpx
 
         mock_response = MagicMock()
-        mock_response.status_code = 403
+        mock_response.status = 403
         mock_response.headers = {"content-type": "text/html"}
 
-        with patch("src.providers.rss_provider.httpx.head", return_value=mock_response):
+        with patch("scrapling.Fetcher.get", return_value=mock_response):
             provider = RSSProvider()
             result = provider.match("https://example.com/feed.xml")
             # 403 triggers Cloudflare fallback - match returns True to allow crawl
             assert result is True
 
-    def test_rss_provider_crawl_success(self, httpx_mock):
-        """Mock httpx.get() to return sample RSS XML bytes, mock feedparser.parse() to return mock feed with entries."""
+    def test_rss_provider_crawl_success(self):
+        """Mock Fetcher.get to return sample RSS XML bytes, mock feedparser.parse() to return mock feed with entries."""
         from src.providers.rss_provider import RSSProvider
 
         # Sample RSS XML content
@@ -120,10 +119,10 @@ class TestRSSProvider:
         </channel>
         </rss>"""
 
-        # Mock httpx.get response
+        # Mock Fetcher.get response
         mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = rss_xml
+        mock_response.status = 200
+        mock_response.body = rss_xml
         mock_response.headers = {"etag": "test-etag", "last-modified": "test-lm"}
 
         # Mock feedparser entry
@@ -156,7 +155,7 @@ class TestRSSProvider:
         mock_feed.feed = {"title": "Test Feed"}
         mock_feed.entries = [mock_entry1, mock_entry2]
 
-        with patch("src.providers.rss_provider.httpx.get", return_value=mock_response):
+        with patch("scrapling.Fetcher.get", return_value=mock_response):
             with patch("src.providers.rss_provider.feedparser.parse", return_value=mock_feed):
                 provider = RSSProvider()
                 result = provider.crawl("https://example.com/feed.xml")
@@ -166,8 +165,8 @@ class TestRSSProvider:
                 assert result[1].get("title") == "Article 2"
 
     @pytest.mark.asyncio
-    async def test_rss_provider_crawl_async_success(self, httpx_mock):
-        """Mock httpx.AsyncClient to return mock response with RSS XML bytes, verify crawl_async() returns list of entries."""
+    async def test_rss_provider_crawl_async_success(self):
+        """Mock asyncio.to_thread(Fetcher.get) to return mock response with RSS XML bytes, verify crawl_async() returns list of entries."""
         from src.providers.rss_provider import RSSProvider
 
         rss_xml = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -184,24 +183,11 @@ class TestRSSProvider:
         </channel>
         </rss>"""
 
-        # Mock async client response - this is what fetch_feed_content_async receives
+        # Mock Fetcher response (returned by asyncio.to_thread(Fetcher.get, ...))
         mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = rss_xml
+        mock_response.status = 200
+        mock_response.body = rss_xml
         mock_response.headers = {"etag": "async-etag"}
-        mock_response.raise_for_status = MagicMock()
-
-        # Mock the response returned by client.get() - must be awaitable
-        async def mock_get(*args, **kwargs):
-            return mock_response
-
-        # Create async client instance that works as async context manager
-        mock_async_client_instance = MagicMock()
-        mock_async_client_instance.__aenter__ = AsyncMock(return_value=mock_async_client_instance)
-        mock_async_client_instance.__aexit__ = AsyncMock(return_value=None)
-        mock_async_client_instance.get = mock_get
-
-        mock_async_client_class = MagicMock(return_value=mock_async_client_instance)
 
         # Mock feedparser entry
         mock_entry = MagicMock()
@@ -220,7 +206,11 @@ class TestRSSProvider:
         mock_feed.feed = {"title": "Test Feed"}
         mock_feed.entries = [mock_entry]
 
-        with patch("src.providers.rss_provider.httpx.AsyncClient", mock_async_client_class):
+        async def mock_to_thread(func, *args, **kwargs):
+            # asyncio.to_thread(Fetcher.get, url, headers=...) returns Fetcher response
+            return mock_response
+
+        with patch("asyncio.to_thread", mock_to_thread):
             with patch("src.providers.rss_provider.feedparser.parse", return_value=mock_feed):
                 provider = RSSProvider()
                 result = await provider.crawl_async("https://example.com/feed.xml")
@@ -267,8 +257,8 @@ class TestRSSProvider:
         assert result["description"] == "Test description"
         assert result["content"] == "Full content here"
 
-    def test_rss_provider_feed_meta(self, httpx_mock):
-        """Mock httpx.get() to return 200 with sample RSS XML bytes containing feed title, verify feed_meta() returns Feed with correct name."""
+    def test_rss_provider_feed_meta(self):
+        """Mock Fetcher.get to return 200 with sample RSS XML bytes containing feed title, verify feed_meta() returns Feed with correct name."""
         from src.providers.rss_provider import RSSProvider
         from src.models import Feed
 
@@ -282,12 +272,11 @@ class TestRSSProvider:
         </rss>"""
 
         mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.content = rss_xml
+        mock_response.status = 200
+        mock_response.body = rss_xml
         mock_response.headers = {"etag": "feed-etag", "last-modified": "feed-lm"}
-        mock_response.raise_for_status = MagicMock()
 
-        with patch("src.providers.rss_provider.httpx.get", return_value=mock_response):
+        with patch("scrapling.Fetcher.get", return_value=mock_response):
             with patch("src.providers.rss_provider.feedparser.parse") as mock_parse:
                 mock_parsed = MagicMock()
                 mock_parsed.feed = {"title": "Test Feed"}
