@@ -6,16 +6,11 @@ import logging
 from typing import Optional
 
 from scrapling import Fetcher
-
-from src.discovery.common_paths import FEED_CONTENT_TYPES
+from trafilatura.feeds import FEED_TYPES
 
 logger = logging.getLogger(__name__)
 
-FEED_TYPE_MAP = {
-    'rss': 'application/rss+xml',
-    'atom': 'application/atom+xml',
-    'rdf': 'application/rdf+xml',
-}
+_FEED_TYPE_KEYWORDS = ('atom', 'rdf', 'rss', 'json')
 
 
 async def validate_feed(url: str) -> tuple[bool, str | None]:
@@ -36,30 +31,21 @@ async def validate_feed(url: str) -> tuple[bool, str | None]:
 
         content_type = response.headers.get('content-type', '').lower()
 
-        # Check if Content-Type matches any feed type
-        for feed_type, mime_type in FEED_TYPE_MAP.items():
-            if mime_type in content_type or feed_type in content_type:
-                return True, feed_type
-
-        # Also check against FEED_CONTENT_TYPES
-        for ft in FEED_CONTENT_TYPES:
-            if ft in content_type:
-                # Determine feed_type from content type or URL extension
-                if 'rss' in content_type:
-                    return True, 'rss'
-                if 'atom' in content_type:
-                    return True, 'atom'
-                if 'rdf' in content_type:
-                    return True, 'rdf'
-                # For text/xml or application/xml, detect from URL path
-                if 'xml' in content_type:
-                    lower_url = url.lower()
-                    if '/rss' in lower_url or '.rss' in lower_url or '/feed' in lower_url:
-                        return True, 'rss'
-                    if '/atom' in lower_url:
-                        return True, 'atom'
-                    if '/rdf' in lower_url:
-                        return True, 'rdf'
+        # Check if Content-Type matches any known feed MIME type from trafilatura
+        if any(ft in content_type for ft in FEED_TYPES):
+            # Determine feed_type from MIME type keywords
+            for keyword in _FEED_TYPE_KEYWORDS:
+                if keyword in content_type:
+                    return True, keyword if keyword != 'rdf' else 'rdf'
+        # For generic xml types, detect from URL path
+        if 'xml' in content_type:
+            lower_url = url.lower()
+            if '/rss' in lower_url or '.rss' in lower_url or '/feed' in lower_url:
+                return True, 'rss'
+            if '/atom' in lower_url:
+                return True, 'atom'
+            if '/rdf' in lower_url:
+                return True, 'rdf'
 
         return False, None
 

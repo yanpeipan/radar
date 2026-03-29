@@ -74,11 +74,7 @@ def matches_feed_path_pattern(path: str) -> bool:
     return any(p.match(path) for p in _FEED_PATH_PATTERNS)
 
 
-# MIME types for feed Content-Type validation (DISC-04)
-FEED_CONTENT_TYPES: tuple[str, ...] = (
-    "application/rss+xml",
-    "application/atom+xml",
-    "application/rdf+xml",
-    "application/xml",
-    "text/xml",
-)
+# Feed MIME types from trafilatura (DISC-04)
+from trafilatura.feeds import FEED_TYPES
+
+FEED_CONTENT_TYPES: tuple[str, ...] = tuple(FEED_TYPES)

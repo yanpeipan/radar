@@ -194,36 +194,5 @@ class GitHubReleaseProvider:
             created_at=now,
         )
 
-    def discover(self, url: str) -> "List[DiscoveredFeed]":
-        """Return DiscoveredFeed for a GitHub repository URL.
-
-        Args:
-            url: GitHub repository URL.
-
-        Returns:
-            List containing a single DiscoveredFeed for the repo.
-        """
-        from src.discovery.models import DiscoveredFeed
-        from src.utils.github import parse_github_url
-        from src.models import Feed
-        from src.application.config import get_timezone
-        from datetime import datetime
-
-        owner, repo = parse_github_url(url)
-        client = _get_github_client()
-        gh_repo = client.get_repo(f"{owner}/{repo}")
-
-        repo_name = gh_repo.full_name or f"{owner}/{repo}"
-        now = datetime.now(get_timezone()).isoformat()
-
-        return [DiscoveredFeed(
-            url=url,
-            title=repo_name,
-            feed_type="rss",
-            source="provider",
-            page_url=url,
-        )]
-
-
 # Register this provider - highest priority (300)
 PROVIDERS.append(GitHubReleaseProvider())

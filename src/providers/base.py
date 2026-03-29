@@ -7,10 +7,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, List, Optional, Protocol, runtime_checkable
 
-# Import dataclasses for type hints only (avoid circular imports)
-if TYPE_CHECKING:
-    from src.discovery.models import DiscoveredFeed
-
 # Forward declarations for Article and Raw types
 # Raw will be defined by concrete providers based on their crawl() return type
 Article = dict  # Using dict for flexibility; concrete providers define structure
@@ -106,20 +102,5 @@ class ContentProvider(Protocol):
         Returns:
             Feed object with name, url, and basic metadata populated.
             Raises exception if URL cannot be fetched or parsed.
-        """
-        ...
-
-    def discover(self, url: str) -> "List[DiscoveredFeed]":
-        """Discover feeds from a URL using this provider.
-
-        Returns a list of DiscoveredFeed objects that this provider
-        can offer for the given URL. Used by feed add to get
-        provider-discovered feeds without crawling.
-
-        Args:
-            url: URL to discover feeds for.
-
-        Returns:
-            List of DiscoveredFeed objects. Empty list if no feeds discovered.
         """
         ...

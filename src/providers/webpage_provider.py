@@ -375,26 +375,4 @@ class WebpageProvider:
         return Feed(id="", name=title, url=url, etag=None,
                      last_modified=None, last_fetched=now, created_at=now)
 
-    def discover(self, url: str) -> "List[DiscoveredFeed]":
-        """Return DiscoveredFeed for a webpage URL.
-
-        Args:
-            url: Webpage URL.
-
-        Returns:
-            List containing a single DiscoveredFeed for the webpage.
-        """
-        from src.discovery.models import DiscoveredFeed
-
-        # Use feed_meta to get page title
-        feed = self.feed_meta(url)
-        return [DiscoveredFeed(
-            url=url,
-            title=feed.name,
-            feed_type="webpage",
-            source="provider",
-            page_url=url,
-        )]
-
-
 PROVIDERS.append(WebpageProvider())

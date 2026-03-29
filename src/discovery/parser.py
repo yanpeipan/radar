@@ -6,21 +6,9 @@ from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 from scrapling import Selector
+from trafilatura.feeds import FEED_TYPES, BLACKLIST, LINK_VALIDATION_RE
 
 from src.discovery.models import DiscoveredFeed
-
-# Trafilatura-style link validation regex (for <a href> fallback when no <link> found)
-LINK_VALIDATION_RE = re.compile(
-    r"\.(?:atom|rdf|rss|xml)$|"
-    r"\b(?:atom|rss)\b|"
-    r"\?type=100$|"
-    r"feeds/posts/default/?$|"
-    r"\?feed=(?:atom|rdf|rss|rss2)|"
-    r"feed$"
-)
-
-# Blacklist paths containing "comments"
-BLACKLIST = re.compile(r"\bcomments\b")
 
 
 def resolve_url(page_url: str, href: str, base_href: str | None = None) -> str:
@@ -40,17 +28,8 @@ def resolve_url(page_url: str, href: str, base_href: str | None = None) -> str:
 
 
 # Comprehensive feed MIME types (from trafilatura)
-FEED_TYPE_MAP = {
-    'application/rss+xml': 'rss',
-    'application/atom+xml': 'atom',
-    'application/rdf+xml': 'rdf',
-    'application/feed+json': 'json',
-    'application/json': 'json',
-    'text/rss+xml': 'rss',
-    'text/atom+xml': 'atom',
-    'text/xml': None,  # generic XML - defer to URL pattern
-    'application/xml': None,
-}
+# FEED_TYPES contains all known feed MIME types
+_FEED_TYPE_KEYWORDS = ('atom', 'rdf', 'rss', 'json')  # ordered priority
 
 
 def extract_feed_type(content_type: str) -> str | None:
@@ -63,15 +42,12 @@ def extract_feed_type(content_type: str) -> str | None:
         'rss', 'atom', 'rdf', 'json' or None if not a feed type.
     """
     ct_lower = content_type.lower()
-    if ct_lower in FEED_TYPE_MAP:
-        return FEED_TYPE_MAP[ct_lower]
-    # Fallback: check for keywords in content-type
-    if 'rss' in ct_lower:
-        return 'rss'
-    if 'atom' in ct_lower:
-        return 'atom'
-    if 'rdf' in ct_lower:
-        return 'rdf'
+    # Check if content_type matches any known feed MIME type from trafilatura
+    if any(ft in ct_lower for ft in FEED_TYPES):
+        # Determine feed type from MIME type keywords
+        for keyword in _FEED_TYPE_KEYWORDS:
+            if keyword in ct_lower:
+                return keyword if keyword != 'rdf' else 'rdf'
     return None
 
 

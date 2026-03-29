@@ -125,5 +125,12 @@ Last activity: 2026-03-29 - Enhanced parse_link_elements with trafilatura LINK_V
 | 260329m9a | Refactor RSSProvider.discover(): trafilatura.fetch_url() + xml.etree for title extraction | 2026-03-29 | 0ce4e21 |
 | 260329m9b | Merge validate+extract into single HTTP request in deep_crawl | 2026-03-29 | 54a551b |
 | 260329m9c | Enhance parse_link_elements with LINK_VALIDATION_RE fallback + BLACKLIST filter | 2026-03-29 | e43dda1 |
+| 260329m10 | Dedupe feed MIME types: use trafilatura.feeds.FEED_TYPES instead of hardcoded | 2026-03-29 | |
 
 - Phase 44-01: Wired article search with --rerank flag, combine_scores weight config for semantic (gamma=0.2, delta=0.0) and FTS5 (gamma=0.0, delta=0.2) paths
+
+## Planned Tasks
+
+| # | Description | Priority | Notes |
+|---|-------------|----------|-------|
+| TBD-asyncfetcher | 用 AsyncFetcher 替换 asyncio.to_thread(Fetcher.get)，提升异步并发性能 | 高 | 影响文件: rss_provider.py, fetcher.py, deep_crawl.py, discover.py |

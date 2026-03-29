@@ -10,6 +10,7 @@ from urllib.parse import urljoin, urlparse
 import feedparser
 
 from scrapling import Fetcher, Selector, DynamicFetcher
+from trafilatura.feeds import FEED_TYPES
 
 # Suppress scrapling 0.4.x deprecation warning logged unconditionally in DynamicFetcher.__init__
 _scrapling_logger = logging.getLogger("scrapling")
@@ -60,23 +61,19 @@ async def _validate_and_extract_title(url: str) -> tuple[bool, str | None, str |
         feed_type: 'rss', 'atom', or 'rdf' based on Content-Type.
         title: Feed title if found, None otherwise.
     """
-    FEED_TYPE_MAP = {
-        'application/rss+xml': 'rss',
-        'application/atom+xml': 'atom',
-        'application/rdf+xml': 'rdf',
-    }
     try:
         response = await asyncio.to_thread(Fetcher.get, url)
         if response.status != 200:
             return False, None, None
         content_type = response.headers.get('content-type', '').lower()
 
-        # Determine feed type
+        # Determine feed type using trafilatura FEED_TYPES
         feed_type = None
-        for mime, ftype in FEED_TYPE_MAP.items():
-            if mime in content_type:
-                feed_type = ftype
-                break
+        if any(ft in content_type for ft in FEED_TYPES):
+            for keyword in ('atom', 'rdf', 'rss', 'json'):
+                if keyword in content_type:
+                    feed_type = keyword if keyword != 'rdf' else 'rdf'
+                    break
         # Fallback: detect from URL path for generic xml types
         if feed_type is None and 'xml' in content_type:
             lower_url = url.lower()

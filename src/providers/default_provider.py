@@ -100,19 +100,5 @@ class DefaultProvider:
             "DefaultProvider is fallback only and should not be called"
         )
 
-    def discover(self, url: str) -> "List[DiscoveredFeed]":
-        """Not implemented - DefaultProvider is fallback only.
-
-        Args:
-            url: URL to discover feeds for (ignored).
-
-        Returns:
-            Never returns - raises NotImplementedError.
-        """
-        raise NotImplementedError(
-            "DefaultProvider is fallback only and should not be called"
-        )
-
-
 # Register this provider - it will be sorted last by priority()
 PROVIDERS.append(DefaultProvider())
