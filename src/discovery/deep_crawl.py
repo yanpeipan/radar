@@ -214,11 +214,6 @@ async def _find_feed_links_on_page(html: str, page_url: str) -> list[DiscoveredF
             if parsed.netloc.lower() != _urlparse(page_url).netloc.lower():
                 continue
 
-            # Skip non-HTML resources (simple heuristic)
-            path = parsed.path.lower()
-            if any(path.endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg', '.woff', '.pdf', '.zip', '.mp3', '.mp4')):
-                continue
-
             if absolute in found_urls:
                 continue
             found_urls.add(absolute)
@@ -482,12 +477,8 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
                 if parsed.netloc.lower() != base_host:
                     continue
 
-                # Skip non-HTML resources (simple heuristic)
-                path = parsed.path.lower()
-                if any(path.endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg', '.woff', '.pdf', '.zip', '.mp3', '.mp4')):
-                    continue
-
                 # Validate path ends with feed-like pattern using matches_feed_path_pattern (fallback validation)
+                path = parsed.path.lower()
                 if not matches_feed_path_pattern(path):
                     continue
 
