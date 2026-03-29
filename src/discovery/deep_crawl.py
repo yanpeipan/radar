@@ -39,9 +39,9 @@ def compute_link_selectors(html: str, page_url: str) -> dict[str, Selector]:
     """
     from urllib.parse import urlparse as _urlparse
 
-    from src.discovery.models import Selector as SelectorModel
+    from src.discovery.models import LinkSelector as LinkSelectorModel
 
-    selectors: dict[str, SelectorModel] = {}
+    selectors: dict[str, LinkSelectorModel] = {}
     page = Selector(content=html)
 
     # Check for <base href> override
@@ -87,7 +87,7 @@ def compute_link_selectors(html: str, page_url: str) -> dict[str, Selector]:
             if parent in selectors:
                 selectors[parent].count += 1
             else:
-                selectors[parent] = SelectorModel(
+                selectors[parent] = LinkSelectorModel(
                     path=parent,
                     link=absolute,
                     text=link_text,

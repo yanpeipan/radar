@@ -5,7 +5,7 @@ from typing import Optional
 
 
 @dataclass
-class Selector:
+class LinkSelector:
     """Represents a CSS path selector with example link info.
 
     Attributes:
@@ -33,7 +33,7 @@ class DiscoveredResult:
     url: str
     max_depth: int
     feeds: list["DiscoveredFeed"] = field(default_factory=list)
-    selectors: dict[str, Selector] = field(default_factory=dict)
+    selectors: dict[str, LinkSelector] = field(default_factory=dict)
 
 
 @dataclass

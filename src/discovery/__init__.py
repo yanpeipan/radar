@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 from src.discovery.common_paths import FEED_CONTENT_TYPES, generate_feed_candidates
 from src.discovery.deep_crawl import deep_crawl, compute_link_selectors
 from src.discovery.fetcher import validate_feed
-from src.discovery.models import DiscoveredFeed, DiscoveredResult
+from src.discovery.models import DiscoveredFeed, DiscoveredResult, LinkSelector
 from src.discovery.parser import parse_link_elements
 from src.providers.rss_provider import BROWSER_HEADERS
 
@@ -86,4 +86,4 @@ async def discover_feeds(url: str, max_depth: int = 1) -> DiscoveredResult:
 
 
 # Public exports
-__all__ = ["discover_feeds", "DiscoveredFeed", "DiscoveredResult", "Selector", "deep_crawl"]
+__all__ = ["discover_feeds", "DiscoveredFeed", "DiscoveredResult", "LinkSelector", "deep_crawl"]
