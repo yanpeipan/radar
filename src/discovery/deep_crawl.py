@@ -115,22 +115,23 @@ def normalize_url_for_visit(url: str) -> str:
     return f"{scheme_host}{path}"
 
 
-async def _validate_and_extract_title(url: str) -> tuple[bool, str | None, str | None]:
+async def _validate_and_extract_title(url: str) -> tuple[bool, str | None, str | None, bytes | None]:
     """Validate feed and extract title with a single HTTP request.
 
     Args:
         url: The feed URL to validate and extract title from.
 
     Returns:
-        Tuple of (is_valid, feed_type, title).
+        Tuple of (is_valid, feed_type, title, body).
         is_valid: True if URL returns HTTP 200 with valid feed Content-Type.
         feed_type: 'rss', 'atom', or 'rdf' based on Content-Type.
         title: Feed title if found, None otherwise.
+        body: Raw response body for selectors computation, None if not valid feed.
     """
     try:
         response = await asyncio.to_thread(Fetcher.get, url)
         if response.status != 200:
-            return False, None, None
+            return False, None, None, None
         content_type = response.headers.get('content-type', '').lower()
 
         # Determine feed type using trafilatura FEED_TYPES
@@ -151,20 +152,21 @@ async def _validate_and_extract_title(url: str) -> tuple[bool, str | None, str |
                 feed_type = 'rdf'
 
         if feed_type is None:
-            return False, None, None
+            return False, None, None, None
 
         # Extract title from response body
         title = None
+        body = response.body
         try:
-            feed = feedparser.parse(response.body)
+            feed = feedparser.parse(body)
             if feed.feed:
                 title = feed.feed.get('title')
         except Exception:
             pass  # Title extraction is best-effort
 
-        return True, feed_type, title
+        return True, feed_type, title, body
     except Exception:
-        return False, None, None
+        return False, None, None, None
 
 
 async def _quick_validate_feed(url: str) -> tuple[bool, str | None]:
@@ -178,7 +180,7 @@ async def _quick_validate_feed(url: str) -> tuple[bool, str | None]:
     Returns:
         Tuple of (is_valid, feed_type).
     """
-    is_valid, feed_type, _ = await _validate_and_extract_title(url)
+    is_valid, feed_type, _, _ = await _validate_and_extract_title(url)
     return is_valid, feed_type
 
 
@@ -345,8 +347,15 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> tuple[list[Discovere
     if max_depth <= 1:
         # First, check if the starting URL is already a direct feed URL
         # This handles the case where user passes a feed URL directly (e.g., /rss/)
-        is_valid_feed, feed_type, title = await _validate_and_extract_title(start_url)
+        is_valid_feed, feed_type, title, body = await _validate_and_extract_title(start_url)
         if is_valid_feed:
+            # Compute selectors from the fetched body
+            if body:
+                try:
+                    html_text = body.decode('utf-8') if isinstance(body, bytes) else body
+                    selectors = compute_link_selectors(html_text, start_url)
+                except Exception:
+                    pass
             return ([DiscoveredFeed(
                 url=start_url,
                 title=title,
@@ -355,38 +364,19 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> tuple[list[Discovere
                 page_url=start_url,
             )], selectors)
 
-        # Single-page discovery: fetch and discover
-        html = None
-        page_url = start_url
-        try:
-            response = await asyncio.to_thread(
-                Fetcher.get, start_url, headers=BROWSER_HEADERS
-            )
-            if response.status == 200 and response.text and len(response.text) > 100:
-                html = response.text
-                page_url = response.url
-        except Exception:
-            pass
-
-        # Adaptive: if static fetcher got empty content, try DynamicFetcher (Playwright)
-        if html is None:
+        # Not a direct feed - use the body we already fetched for selectors
+        if body:
             try:
-                dynamic = DynamicFetcher()
-                dyn_response = await asyncio.to_thread(
-                    dynamic.fetch, start_url, timeout=20000, wait=3000
-                )
-                if dyn_response.body and len(dyn_response.body) > 100:
-                    html = dyn_response.body.decode('utf-8')
-                    page_url = dyn_response.url
+                html = body.decode('utf-8') if isinstance(body, bytes) else body
+                page_url = start_url
+                selectors = compute_link_selectors(html, page_url)
+                feeds = await _discover_feeds_on_page(html, page_url)
+                if feeds:
+                    return (feeds, selectors)
             except Exception:
                 pass
 
-        if html:
-            selectors = compute_link_selectors(html, page_url)
-            feeds = await _discover_feeds_on_page(html, page_url)
-            return (feeds, selectors)
-
-        # Fall back to well-known path probing (handles JS-rendered pages, 403, etc.)
+        # Fall back to well-known path probing
         return (await _probe_well_known_paths(start_url), selectors)
 
     # Deep crawl (max_depth > 1)
