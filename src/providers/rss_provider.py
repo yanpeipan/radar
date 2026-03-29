@@ -9,7 +9,10 @@ import logging
 from contextvars import ContextVar
 from typing import List, Optional
 
+import xml.etree.ElementTree as ET
+
 import feedparser
+from trafilatura import fetch_url
 
 from src.providers import PROVIDERS
 from src.providers.base import Article, ContentProvider, CrawlResult, Raw
@@ -437,7 +440,7 @@ class RSSProvider:
         from src.discovery.models import DiscoveredFeed
 
         try:
-            # Lightweight fetch - just need title and type
+            # Get content-type header to determine feed type
             response = Fetcher.get(url, headers=BROWSER_HEADERS)
             content_type = response.headers.get("content-type", "").lower()
 
@@ -449,9 +452,28 @@ class RSSProvider:
             else:
                 feed_type = "rss"
 
-            # Parse to get feed title
-            parsed = feedparser.parse(response.body)
-            title = parsed.feed.get("title") if parsed.feed else None
+            # Use trafilatura to fetch feed content
+            downloaded = fetch_url(url)
+            if not downloaded:
+                return []
+
+            # Parse XML with xml.etree to extract title
+            title = None
+            try:
+                root = ET.fromstring(downloaded)
+                if root.tag == "rss":
+                    channel = root.find("channel")
+                    if channel is not None:
+                        title_elem = channel.find("title")
+                        title = title_elem.text if title_elem is not None else None
+                elif root.tag == "{http://www.w3.org/2005/Atom}feed" or root.tag == "feed":
+                    # Atom feed
+                    title_elem = root.find("{http://www.w3.org/2005/Atom}title")
+                    if title_elem is None:
+                        title_elem = root.find("title")
+                    title = title_elem.text if title_elem is not None else None
+            except Exception:
+                title = None
 
             return [DiscoveredFeed(
                 url=url,
