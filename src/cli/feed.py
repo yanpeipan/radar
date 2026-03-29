@@ -178,10 +178,11 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
       rss-reader feed add example.com --automatic on
     """
     feeds: list = []
+    result = None
+    elapsed = 0.0
 
     if discover == "on":
         # Run feed discovery (continue even if it fails or finds nothing)
-        elapsed = 0.0
         try:
             console = Console()
             start = time.time()
@@ -193,35 +194,35 @@ def feed_add(ctx: click.Context, url: str, discover: str, automatic: str, discov
             click.secho(f"Discovery error: {e}, falling back to provider", fg="yellow")
             feeds = []
 
-        # Fallback: try providers if no feeds discovered
-        if not feeds:
-            from src.providers import discover as discover_providers
-            from src.providers.rss_provider import RSSProvider
+    # Fallback: try providers if no feeds discovered
+    if not feeds:
+        from src.providers import discover as discover_providers
+        from src.providers.rss_provider import RSSProvider
 
-            matched = discover_providers(url)
-            for provider in matched:
-                try:
-                    feed = provider.feed_meta(url)
-                    feeds.append(DiscoveredFeed(
-                        url=feed.url,
-                        title=feed.name,
-                        feed_type="rss" if isinstance(provider, RSSProvider) else "webpage",
-                        source="provider_match",
-                        page_url=url,
-                    ))
-                    click.secho(f"Matched via provider: {provider.__class__.__name__}", fg="cyan")
-                except Exception as e:
-                    pass
+        matched = discover_providers(url)
+        for provider in matched:
+            try:
+                feed = provider.feed_meta(url)
+                feeds.append(DiscoveredFeed(
+                    url=feed.url,
+                    title=feed.name,
+                    feed_type="rss" if isinstance(provider, RSSProvider) else "webpage",
+                    source="provider_match",
+                    page_url=url,
+                ))
+                click.secho(f"Matched via provider: {provider.__class__.__name__}", fg="cyan")
+            except Exception:
+                pass
 
-        if feeds:
-            click.secho(f"Discovered {len(feeds)} feed(s) in {elapsed:.1f}s", fg="cyan")
-            if result.selectors:
-                click.secho("Link selectors:", fg="cyan")
-                for sel in sorted(result.selectors.values(), key=lambda x: -x.count):
-                    click.echo(f"  {sel.path} ({sel.count} links)")
-                    if sel.text:
-                        click.echo(f"    text: {sel.text}")
-                    click.echo(f"    example: {sel.link}")
+    if feeds:
+        click.secho(f"Discovered {len(feeds)} feed(s) in {elapsed:.1f}s", fg="cyan")
+        if result and result.selectors:
+            click.secho("Link selectors:", fg="cyan")
+            for sel in sorted(result.selectors.values(), key=lambda x: -x.count):
+                click.echo(f"  {sel.path} ({sel.count} links)")
+                if sel.text:
+                    click.echo(f"    text: {sel.text}")
+                click.echo(f"    example: {sel.link}")
 
     # Automatic or selection
     if not feeds:
