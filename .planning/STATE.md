@@ -113,7 +113,7 @@ None yet.
 
 ## Session Continuity
 
-Last activity: 2026-03-29 - Merged validate+extract into single HTTP request in deep_crawl (260329-m9b)
+Last activity: 2026-03-29 - Enhanced parse_link_elements with trafilatura LINK_VALIDATION_RE fallback (260329-m9c)
 
 ## Quick Tasks Completed
 
@@ -124,5 +124,6 @@ Last activity: 2026-03-29 - Merged validate+extract into single HTTP request in 
 | 260329b | Replace httpx with scrapling Fetcher in providers and discovery (rss_provider, fetcher, deep_crawl) | 2026-03-29 | 6283e09 |
 | 260329m9a | Refactor RSSProvider.discover(): trafilatura.fetch_url() + xml.etree for title extraction | 2026-03-29 | 0ce4e21 |
 | 260329m9b | Merge validate+extract into single HTTP request in deep_crawl | 2026-03-29 | 54a551b |
+| 260329m9c | Enhance parse_link_elements with LINK_VALIDATION_RE fallback + BLACKLIST filter | 2026-03-29 | e43dda1 |
 
 - Phase 44-01: Wired article search with --rerank flag, combine_scores weight config for semantic (gamma=0.2, delta=0.0) and FTS5 (gamma=0.0, delta=0.2) paths
