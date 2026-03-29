@@ -6,7 +6,7 @@ import logging
 from urllib.parse import urljoin
 
 from src.discovery.common_paths import FEED_CONTENT_TYPES, generate_feed_candidates
-from src.discovery.deep_crawl import deep_crawl
+from src.discovery.deep_crawl import deep_crawl, compute_link_selectors
 from src.discovery.fetcher import validate_feed
 from src.discovery.models import DiscoveredFeed, DiscoveredResult
 from src.discovery.parser import parse_link_elements
@@ -78,10 +78,11 @@ async def discover_feeds(url: str, max_depth: int = 1) -> DiscoveredResult:
 
     Returns:
         DiscoveredResult containing list of DiscoveredFeed objects found.
+        For max_depth=1, selectors contains link path prefix counts.
     """
     # Single-page discovery: delegate to deep_crawl (handles subdirectory probing)
-    feeds = await deep_crawl(url, max_depth)
-    return DiscoveredResult(url=url, max_depth=max_depth, feeds=feeds)
+    feeds, selectors = await deep_crawl(url, max_depth)
+    return DiscoveredResult(url=url, max_depth=max_depth, feeds=feeds, selectors=selectors)
 
 
 # Public exports

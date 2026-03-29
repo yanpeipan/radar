@@ -11,10 +11,12 @@ class DiscoveredResult:
         url: The URL that was searched for feeds.
         max_depth: The maximum crawl depth used.
         feeds: List of discovered feeds.
+        selectors: Dict mapping path prefix to link count (for max_depth=1).
     """
     url: str
     max_depth: int
     feeds: list["DiscoveredFeed"] = field(default_factory=list)
+    selectors: dict[str, int] = field(default_factory=dict)
 
 
 @dataclass

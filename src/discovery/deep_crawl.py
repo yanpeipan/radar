@@ -22,6 +22,72 @@ from src.discovery.models import DiscoveredFeed
 from src.discovery.parser import parse_link_elements, resolve_url
 from src.providers.rss_provider import BROWSER_HEADERS
 
+
+def compute_link_selectors(html: str, page_url: str) -> dict[str, int]:
+    """Compute link path selector counts from HTML.
+
+    For each link URL like '/news/2026-03-03/xxxxx', extracts parent
+    path segments and counts how many links share each prefix.
+
+    Examples:
+        /news/2026-03-03/xxxxx -> '/news/2026-03-03/' : 1
+        /news/2026-03-03/yyyyy -> '/news/2026-03-03/' : 2
+        /news/2026-03-03/     -> '/news/' : 1 (one up)
+
+    Args:
+        html: Raw HTML content.
+        page_url: URL the HTML was fetched from.
+
+    Returns:
+        Dict mapping path prefix to count of links under that prefix.
+    """
+    from urllib.parse import urlparse as _urlparse
+
+    selectors: dict[str, int] = {}
+    page = Selector(content=html)
+
+    # Check for <base href> override
+    base_override: str | None = None
+    head = page.find('head')
+    if head:
+        base_tag = head.find('base[href]')
+        if base_tag:
+            base_override = base_tag.attrib['href']
+
+    base_parsed = _urlparse(page_url)
+
+    for anchor in page.css('a[href]'):
+        href = anchor.attrib.get('href', '')
+        if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
+            continue
+
+        # Resolve relative URLs
+        if base_override:
+            absolute = urljoin(base_override, href)
+        else:
+            absolute = urljoin(page_url, href)
+
+        parsed = _urlparse(absolute)
+
+        # Skip external hosts or non-HTTP
+        if parsed.netloc.lower() != base_parsed.netloc.lower():
+            continue
+        if parsed.scheme not in ('http', 'https'):
+            continue
+
+        path = parsed.path.rstrip('/')
+        if not path:
+            path = '/'
+
+        # Count the full path and each parent segment
+        parts = path.split('/')
+        for i in range(len(parts) - 1):
+            parent = '/'.join(parts[:i+1]) + '/'
+            selectors[parent] = selectors.get(parent, 0) + 1
+
+    return selectors
+
+
 def normalize_url_for_visit(url: str) -> str:
     """Normalize URL for visited-set tracking.
 
@@ -263,7 +329,7 @@ async def _discover_feeds_on_page(html: str, page_url: str) -> list[DiscoveredFe
     return await _probe_well_known_paths(page_url, html)
 
 
-async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]:
+async def deep_crawl(start_url: str, max_depth: int = 1) -> tuple[list[DiscoveredFeed], dict[str, int]]:
     """Discover feeds using BFS crawling up to max_depth.
 
     Args:
@@ -271,20 +337,23 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
         max_depth: Maximum crawl depth (1 = current page only, 2+ = BFS crawl).
 
     Returns:
-        List of DiscoveredFeed objects found across all crawled pages.
+        Tuple of (list of DiscoveredFeed objects, selectors dict).
+        For max_depth=1, selectors contains link path prefix counts.
+        For max_depth>1, selectors is empty (expensive to compute).
     """
+    selectors: dict[str, int] = {}
     if max_depth <= 1:
         # First, check if the starting URL is already a direct feed URL
         # This handles the case where user passes a feed URL directly (e.g., /rss/)
         is_valid_feed, feed_type, title = await _validate_and_extract_title(start_url)
         if is_valid_feed:
-            return [DiscoveredFeed(
+            return ([DiscoveredFeed(
                 url=start_url,
                 title=title,
                 feed_type=feed_type or 'rss',
                 source='direct_url',
                 page_url=start_url,
-            )]
+            )], selectors)
 
         # Single-page discovery: fetch and discover
         html = None
@@ -313,10 +382,12 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
                 pass
 
         if html:
-            return await _discover_feeds_on_page(html, page_url)
+            selectors = compute_link_selectors(html, page_url)
+            feeds = await _discover_feeds_on_page(html, page_url)
+            return (feeds, selectors)
 
         # Fall back to well-known path probing (handles JS-rendered pages, 403, etc.)
-        return await _probe_well_known_paths(start_url)
+        return (await _probe_well_known_paths(start_url), selectors)
 
     # Deep crawl (max_depth > 1)
     # Normalize start URL
@@ -326,7 +397,7 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
     # This handles sites that return 403/404 on main page but have feeds at well-known paths
     start_feeds = await _probe_well_known_paths(start_url)
     if start_feeds:
-        return start_feeds
+        return (start_feeds, selectors)
 
     # BFS queue: (url, depth)
     queue: deque[tuple[str, int]] = deque()
@@ -517,4 +588,4 @@ async def deep_crawl(start_url: str, max_depth: int = 1) -> list[DiscoveredFeed]
             seen.add(feed.url)
             unique_feeds.append(feed)
 
-    return unique_feeds
+    return (unique_feeds, selectors)
