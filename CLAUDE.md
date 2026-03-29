@@ -14,10 +14,10 @@
 - **No API**: 纯本地应用，无后端服务
 <!-- GSD:project-end -->
 
-<!-- GSD:stack-start source:docs/Technology Stack.md -->
+<!-- GSD:stack-start source:docs/technology-stack.md -->
 ## Technology Stack
 
-See [docs/Technology Stack.md](docs/Technology%20Stack.md) for current dependencies.
+See [docs/technology-stack.md](docs/technology-stack.md) for current dependencies.
 
 Key technologies:
 - **RSS/Feed**: feedparser, trafilatura

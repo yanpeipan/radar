@@ -3,7 +3,7 @@ timezone: Asia/Shanghai
 bm25_factor: 0.5
 
 # WebpageProvider site configurations
-# See: docs/WebpageProvider.md
+# See: docs/webpage-provider.md
 webpage_sites:
   jiqizhixin.com:
     _default:
