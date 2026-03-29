@@ -1,52 +1,83 @@
-# Requirements — v2.0 Search Ranking Architecture
+# v2.1 Requirements — 使用最佳实践重构 src/discovery & src/providers
 
-## Milestone v2.0 Requirements
-
-### Core Infrastructure
-
-- [x] **SEARCH-01**: `ArticleListItem` 扩展原始信号字段：`vec_sim`, `bm25_score`, `freshness`, `source_weight`, `ce_score`, `final_score`；保留 `score` 字段兼容，最终由 `final_score` 统一排序
-
-### Storage Layer (P0)
-
-- [x] **SEARCH-02**: `storage/vector.py` — `search_articles_semantic` 移除硬编码加权公式（`0.5×cos + 0.2×fresh + 0.3×weight`），score 直接返回 ChromaDB cosine similarity；确保 `pub_date` 以 INTEGER unix timestamp 传给 ChromaDB metadata filter
-- [x] **SEARCH-03**: `storage/sqlite/impl.py` — `search_articles` BM25 归一化修复：改用 Sigmoid 变换 `sigmoid_norm(bm25_raw, factor)`，factor 从 `config.py` 读取（默认 0.5），填充 `ArticleListItem.bm25_score`
-- [x] **SEARCH-04**: `storage/sqlite/impl.py` — `list_articles` 填充 freshness 分数（时间衰减，0-1），无 vec_sim/bm25_score/ce_score 时设为 0.0
-
-### Application Layer (P1)
-
-- [ ] **SEARCH-05**: 新增 `application/rerank.py` — Cross-Encoder 重排，使用 `BAAI/bge-reranker-base`；`torch` 和 `transformers` 在 `rerank()` 函数内部 lazy import；全局缓存 `_model`/`_tokenizer` 避免重复加载
-- [ ] **SEARCH-06**: 新增 `application/combine.py` — `combine_scores(candidates, alpha, beta, gamma, delta)` 统一合并函数；牛顿冷却定律计算 freshness（half_life_days=7天）；按 final_score 降序返回
-
-### CLI Integration (P2)
-
-- [x] **SEARCH-07**: CLI `article search` 命令调整：
-  - `--semantic` 时：`vector_search` → 可选 `rerank` → `combine_scores(gamma=0.2, delta=0.0)`
-  - 默认 FTS5 时：`search_articles` → 可选 `rerank` → `combine_scores(gamma=0.0, delta=0.2)`
-  - `alpha/beta` 始终传入（默认 0.3）；`gamma/delta` 根据搜索类型显式传入
-
-### Bug Fix (P0)
-
-- [x] **SEARCH-00**: 修复 `search_articles_semantic` 第363行崩溃：`_pub_date_to_timestamp` 对 INTEGER pub_date 调用 `datetime.fromisoformat(pub_date.replace("Z", "+00:00"))` 会失败；改为统一使用 `_pub_date_to_timestamp()` 处理所有 timestamp 转换
+**Goal:** Clean up and harden the feed discovery architecture using best practices.
 
 ---
 
-## Out of Scope
+## REFACTORING CATEGORIES
 
-- BM25 分数的 `factor` 通过 CLI 参数暴露（由 `config.py` 管理，默认 0.5）
-- ChromaDB 批量查询优化
-- 多语言/多模型 Cross-Encoder 支持
+### Architecture (ARCH)
+
+- [ ] **ARCH-01**: `providers.discover()` uses `feed_meta()` pattern for validation instead of `parse_feed()`
+  - `feed_meta()` returns `FeedMetaData` with url, title, feed_type, source, page_url
+  - `parse_feed()` raises on invalid feeds; `feed_meta()` returns `None` on failure
+  - Change `providers.discover()` to call `feed_meta()` not `parse_feed()`
+
+- [ ] **ARCH-02**: `discover_feeds()` always returns provider-verified feeds
+  - `DiscoveredResult.feeds` only contains feeds that a provider confirms it can handle
+  - Remove feeds from `deep_crawl()` that no provider matches
+
+- [ ] **ARCH-03**: `deep_crawl()` delegates feed validation entirely to providers
+  - `deep_crawl()` does URL discovery only; providers handle validation
+  - `page_feeds = providers.discover()` on each crawled page
+  - `max_depth <= 1` path also uses `providers.discover()` not inline validation
+
+- [ ] **ARCH-04**: `match()` edge cases resolved — `response=None` handling
+  - All providers' `match()` handles `response=None` gracefully
+  - When `response=None`, match is URL-only (no new HTTP requests)
+  - Document this constraint in `ContentProvider` docstring
+
+### Constants & Code Quality (QUAL)
+
+- [ ] **QUAL-01**: `src/constants.py` `BROWSER_HEADERS` used consistently everywhere
+  - All HTTP requests in `src/providers/`, `src/discovery/`, `src/application/` use `BROWSER_HEADERS`
+  - No hardcoded User-Agent strings anywhere in `src/`
+
+- [ ] **QUAL-02**: Async patterns consistent across providers
+  - All providers use `asyncio.to_thread()` for blocking HTTP calls
+  - No blocking `Fetcher.get()` calls in async functions
+
+- [ ] **QUAL-03**: Clean up duplicate feed validation code
+  - `discovery/fetcher.py`'s `validate_feed()` and `_quick_validate_feed_sync()` in RSSProvider overlap
+  - Consolidate into a single shared validation utility
+
+### API Surface (API)
+
+- [ ] **API-01**: `ContentProvider.parse_feed()` docstring clarifies it raises on failure
+  - `parse_feed()` called only after `match()` confirms the provider handles the URL
+  - Use `feed_meta()` for non-throwing validation
+
+- [ ] **API-02**: `providers.discover()` returns only unique feeds by URL
+  - Deduplicate feeds by URL across all providers
+
+- [ ] **API-03**: `DiscoveredFeed.valid` field semantics clarified
+  - `valid=True` means provider confirmed handleable
+  - `valid=False` means discovered but not yet validated
+  - No feed with `valid=False` should reach `register_feed()`
+
+---
+
+## OUT OF SCOPE
+
+- New provider types
+- Changes to storage layer
+- Changes to search/ranking
+- OPML import/export
+- Read/unread state
 
 ---
 
 ## Traceability
 
 | REQ-ID | Phase | Status |
-|--------|-------|--------|
-| SEARCH-00 | Phase 41 | Complete |
-| SEARCH-01 | Phase 41 | Complete |
-| SEARCH-02 | Phase 41 | Complete |
-| SEARCH-03 | Phase 42 | Complete |
-| SEARCH-04 | Phase 42 | Complete |
-| SEARCH-05 | Phase 43 | Pending |
-| SEARCH-06 | Phase 43 | Pending |
-| SEARCH-07 | Phase 44 | Complete |
+|---------|-------|--------|
+| ARCH-01 | Phase 45 | Pending |
+| ARCH-02 | Phase 45 | Pending |
+| ARCH-03 | Phase 45 | Pending |
+| ARCH-04 | Phase 46 | Pending |
+| QUAL-01 | Phase 47 | Pending |
+| QUAL-02 | Phase 47 | Pending |
+| QUAL-03 | Phase 47 | Pending |
+| API-01 | Phase 46 | Pending |
+| API-02 | Phase 45 | Pending |
+| API-03 | Phase 45 | Pending |

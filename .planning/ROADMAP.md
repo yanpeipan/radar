@@ -14,172 +14,124 @@
 - [x] **v1.10 uvloop Best Practices Review** — Phase 39 (shipped 2026-03-28)
 - [x] **v1.11 Comprehensive uvloop Audit** — Phase 40 (shipped 2026-03-28)
 - [x] **v2.0 Search Ranking Architecture** — Phases 41-44 (shipped 2026-03-28)
+- [ ] **v2.1 Discovery & Providers Refactor** — Phases 45-47 (in progress)
 
-## Phase Progress
+## Phases
 
-| Phase | Plans | Status | Completed |
-|-------|-------|--------|-----------|
-| 1. Foundation | Complete | ✅ | 2026-03-22 |
-| 2. Search & Refresh | Complete | ✅ | 2026-03-22 |
-| 3. Web Crawling | Complete | ✅ | 2026-03-22 |
-| 4. GitHub API Client | Complete | ✅ | 2026-03-23 |
-| 5. Changelog Detection | Complete | ✅ | 2026-03-23 |
-| 6. Unified Display | Complete | ✅ | 2026-03-23 |
-| 7. Tagging System | Complete | ✅ | 2026-03-23 |
-| 8. GitHub URL Metadata | Complete | ✅ | 2026-03-23 |
-| 8.1 Unified Feed Add | 2/2 | ✅ | 2026-03-23 |
-| 9. Enhanced Article List | 1/1 | ✅ | 2026-03-23 |
-| 10. Article Detail View | 1/1 | ✅ | 2026-03-23 |
-| 11. GitHub Release Tagging | 1/1 | ✅ | 2026-03-23 |
-| 12. Provider Core Infrastructure | 2/2 | ✅ | 2026-03-23 |
-| 13. Provider Implementations | 2/2 | ✅ | 2026-03-23 |
-| 14. CLI Integration | 3/3 | ✅ | 2026-03-23 |
-| 15. PyGithub Refactor | 2/2 | ✅ | 2026-03-23 |
-| 16. GitHubReleaseProvider | 1/1 | ✅ | 2026-03-24 |
-| 17. Anti-屎山 Refactoring | 2/2 | ✅ | 2026-03-24 |
-| 18. Storage Layer Enforcement | 1/1 | ✅ | 2026-03-24 |
-| 19. uvloop Setup | 1/1 | ✅ | 2026-03-25 |
-| 20. RSSProvider Async | 1/1 | ✅ | 2026-03-24 |
-| 21. Concurrent Fetch | 1/1 | ✅ | 2026-03-25 |
-| 22. CLI Integration | 1/1 | ✅ | 2026-03-25 |
-| 23. nanoid Code Changes | 1/1 | ✅ | 2026-03-25 |
-| 24. Migration Script | 0/1 | Deferred | — |
-| 25. Verification | 1/1 | ✅ | 2026-03-25 |
-| 26. pytest框架搭建 | 1/1 | ✅ | 2026-03-24 |
-| 27. Provider单元测试 | 1/1 | ✅ | 2026-03-24 |
-| 28. Storage层单元测试 | 1/1 | ✅ | 2026-03-25 |
-| 29. CLI集成测试 | 1/1 | ✅ | 2026-03-25 |
-| 30. Semantic Search Infrastructure | 3/3 | ✅ | 2026-03-27 |
-| 31. Write Path - Incremental Embedding | 2/2 | ✅ | 2026-03-26 |
-| 32. Query Path - Semantic Search CLI | 1/1 | ✅ | 2026-03-27 |
-| 33. Polish - Error Handling | 1/1 | ✅ | 2026-03-27 |
-| 34. Discovery Core Module | 3/3 | ✅ | 2026-03-27 |
-| 35. Discovery CLI Command | 1/1 | ✅ | 2026-03-27 |
-| 36. Feed Add Integration | 1/1 | ✅ | 2026-03-27 |
-| 37. Deep Crawling | 2/2 | ✅ | 2026-03-27 |
-| 38. Search Result Ranking | 1/1 | ✅ | 2026-03-27 |
-| 39. uvloop Best Practices Review | 1/1 | ✅ | 2026-03-28 |
-| 40. Comprehensive uvloop Audit | 1/1 | ✅ | 2026-03-28 |
-| 41. ArticleListItem & Semantic Search Core | 1/1 | Complete   | 2026-03-28 |
-| 42. Storage Scoring Fixes | 1/1 | Complete    | 2026-03-28 |
-| 43. Scoring Infrastructure | 1/1 | ✅ Complete | 2026-03-28 |
-| 44. CLI Integration | 1/1 | Complete   | 2026-03-28 |
+- [ ] **Phase 45: Discovery Core Architecture** - feed_meta pattern, provider-verified feeds, deep_crawl delegation
+- [ ] **Phase 46: Provider Contract & match() Semantics** - match() edge cases, parse_feed() docstring
+- [ ] **Phase 47: Code Quality & Consistency** - BROWSER_HEADERS, async patterns, duplicate code cleanup
+
+---
+
+## Phase Details
+
+### Phase 45: Discovery Core Architecture
+
+**Goal**: Discovery module uses feed_meta() pattern for validation; all discovered feeds are provider-verified
+
+**Depends on**: Phase 44 (v2.0 shipped)
+
+**Requirements**: ARCH-01, ARCH-02, ARCH-03, API-02, API-03
+
+**Files affected**:
+- `src/providers/__init__.py` (providers.discover())
+- `src/discovery/__init__.py` (discover_feeds())
+- `src/discovery/deep_crawl.py` (deep_crawl())
+- `src/discovery/fetcher.py` (validate_feed, _quick_validate_feed_sync)
+- `src/providers/rss_provider.py` (RSSProvider)
+
+**Success Criteria** (what must be TRUE):
+  1. `providers.discover()` calls `feed_meta()` (not `parse_feed()`) to validate discovered feeds
+  2. `discover_feeds()` returns only feeds that a provider confirms it can handle via `match()`
+  3. `deep_crawl()` performs URL discovery only; all feed validation delegated to `providers.discover()`
+  4. `providers.discover()` returns feeds deduplicated by URL
+  5. `DiscoveredFeed.valid=True` means provider confirmed handleable; no invalid feeds reach `register_feed()`
+
+**Plans**: TBD
+
+---
+
+### Phase 46: Provider Contract & match() Semantics
+
+**Goal**: Provider match() contract documented and consistent; parse_feed() behavior clarified
+
+**Depends on**: Phase 45
+
+**Requirements**: ARCH-04, API-01
+
+**Files affected**:
+- `src/providers/__init__.py` (ContentProvider docstring)
+- `src/providers/rss_provider.py` (match())
+- `src/providers/github_release_provider.py` (match())
+- `src/providers/github_provider.py` (match())
+- `src/providers/webpage_provider.py` (match())
+
+**Success Criteria** (what must be TRUE):
+  1. All providers' `match()` handles `response=None` gracefully (URL-only matching)
+  2. ContentProvider docstring documents that `match(response=None)` is URL-only (no new HTTP requests)
+  3. `parse_feed()` docstring clarifies it raises `ValueError`/`Exception` on invalid feeds
+
+**Plans**: TBD
+
+---
+
+### Phase 47: Code Quality & Consistency
+
+**Goal**: Consistent HTTP headers and async patterns across all modules
+
+**Depends on**: Phase 46
+
+**Requirements**: QUAL-01, QUAL-02, QUAL-03
+
+**Files affected**:
+- `src/constants.py` (BROWSER_HEADERS)
+- `src/providers/*.py` (all providers)
+- `src/discovery/*.py` (all discovery modules)
+- `src/application/fetch.py`
+
+**Success Criteria** (what must be TRUE):
+  1. All HTTP requests use `BROWSER_HEADERS` from `src/constants.py`; no hardcoded User-Agent strings
+  2. All blocking HTTP calls in async functions use `asyncio.to_thread()`; no blocking `Fetcher.get()` in async context
+  3. Duplicate feed validation code (`validate_feed()` in fetcher.py and `_quick_validate_feed_sync()` in RSSProvider) consolidated into a single shared utility
+
+**Plans**: TBD
+
+---
+
+## Progress
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 41-44 | v2.0 | 8/8 | Complete | 2026-03-28 |
+| 45. Discovery Core | v2.1 | 0/TBD | Not started | - |
+| 46. Provider Contract | v2.1 | 0/TBD | Not started | - |
+| 47. Code Quality | v2.1 | 0/TBD | Not started | - |
+
+---
+
+## Coverage
+
+**v2.1 Requirements Map:**
+
+| Requirement | Phase | Description |
+|-------------|-------|-------------|
+| ARCH-01 | Phase 45 | providers.discover() uses feed_meta() pattern |
+| ARCH-02 | Phase 45 | discover_feeds() returns provider-verified feeds only |
+| ARCH-03 | Phase 45 | deep_crawl() delegates validation to providers |
+| ARCH-04 | Phase 46 | match() edge cases (response=None handling) |
+| QUAL-01 | Phase 47 | BROWSER_HEADERS used consistently everywhere |
+| QUAL-02 | Phase 47 | asyncio.to_thread() for blocking HTTP calls |
+| QUAL-03 | Phase 47 | Duplicate feed validation code cleanup |
+| API-01 | Phase 46 | parse_feed() docstring clarifies it raises on failure |
+| API-02 | Phase 45 | providers.discover() returns only unique feeds by URL |
+| API-03 | Phase 45 | DiscoveredFeed.valid field semantics clarified |
+
+**Coverage:** 10/10 requirements mapped
 
 ---
 
 ## Milestone Details
-
-<details>
-<summary>✅ v1.0 MVP (Phases 1-3) — SHIPPED 2026-03-22</summary>
-
-- [x] Phase 1: Foundation
-- [x] Phase 2: Search & Refresh
-- [x] Phase 3: Web Crawling
-  - [x] Phase 3.1: Fix httpx User-Agent (gap closure)
-
-</details>
-
-<details>
-<summary>✅ v1.1 GitHub Monitoring + Tagging (Phases 4-8) — SHIPPED 2026-03-23</summary>
-
-- [x] Phase 4: GitHub API Client + Releases Integration
-- [x] Phase 5: Changelog Detection + Scraping
-- [x] Phase 6: Unified Display + Refresh Integration
-- [x] Phase 7: Tagging System
-- [x] Phase 8: GitHub URL Metadata
-
-</details>
-
-<details>
-<summary>✅ v1.2 Article List Enhancements (Phases 8.1-11) — SHIPPED 2026-03-23</summary>
-
-- [x] Phase 8.1: Unified Feed Add (gap closure)
-- [x] Phase 9: Enhanced Article List
-- [x] Phase 10: Article Detail View
-- [x] Phase 11: GitHub Release Tagging
-
-</details>
-
-<details>
-<summary>✅ v1.3 Provider Architecture (Phases 12-15) — SHIPPED 2026-03-23</summary>
-
-- [x] Phase 12: Provider Core Infrastructure (2/2 plans)
-- [x] Phase 13: Provider Implementations + Tag Parsers (2/2 plans)
-- [x] Phase 14: CLI Integration (3/3 plans)
-- [x] Phase 15: PyGithub Refactor (2/2 plans)
-
-</details>
-
-<details>
-<summary>✅ v1.4 Storage Layer Enforcement (Phases 16-18) — SHIPPED 2026-03-25</summary>
-
-- [x] Phase 16: GitHubReleaseProvider (1/1 plans)
-- [x] Phase 17: Anti-屎山 Refactoring (2/2 plans)
-- [x] Phase 18: Storage Layer Enforcement (1/1 plans)
-
-</details>
-
-<details>
-<summary>✅ v1.5 uvloop并发支持 (Phases 19-22) — SHIPPED 2026-03-25</summary>
-
-- [x] Phase 19: uvloop Setup + crawl_async Protocol
-- [x] Phase 20: RSSProvider Async HTTP
-- [x] Phase 21: Concurrent Fetch + SQLite Serialization
-- [x] Phase 22: CLI Integration
-
-</details>
-
-<details>
-<summary>✅ v1.7 pytest测试框架 (Phases 26-29) — SHIPPED 2026-03-25</summary>
-
-- [x] Phase 26: pytest框架搭建
-- [x] Phase 27: Provider单元测试
-- [x] Phase 28: Storage层单元测试
-- [x] Phase 29: CLI集成测试
-
-</details>
-
-<details>
-<summary>✅ v1.8 ChromaDB 语义搜索 (Phases 30-33) — SHIPPED 2026-03-27</summary>
-
-- [x] Phase 30: Semantic Search Infrastructure (3/3 plans)
-- [x] Phase 31: Write Path - Incremental Embedding (2/2 plans)
-- [x] Phase 32: Query Path - Semantic Search CLI (1/1 plans)
-- [x] Phase 33: Polish - Error Handling (1/1 plans)
-
-</details>
-
-<details>
-<summary>✅ v1.9 Automatic Discovery Feed (Phases 34-37) — SHIPPED 2026-03-27</summary>
-
-- [x] Phase 34: Discovery Core Module (3/3 plans)
-- [x] Phase 35: Discovery CLI Command (1/1 plans)
-- [x] Phase 36: Feed Add Integration (1/1 plans)
-- [x] Phase 37: Deep Crawling (2/2 plans)
-
-**Key features:** `discover <url>` CLI, BFS crawler with robots.txt, CSS selector link discovery, multi-factor ranking
-
-</details>
-
-<details>
-<summary>✅ v1.10 uvloop Best Practices Review (Phase 39) — SHIPPED 2026-03-28</summary>
-
-- [x] Phase 39: uvloop Best Practices Review (1/1 plans)
-
-**Key changes:** Simplified `install_uvloop()` to `uvloop.install()`, removed dead code from `asyncio_utils.py` (93→44 lines)
-
-</details>
-
-<details>
-<summary>✅ v1.11 Comprehensive uvloop Audit (Phase 40) — SHIPPED 2026-03-28</summary>
-
-- [x] Phase 40: Comprehensive uvloop Audit (1/1 plans)
-
-**Key findings:** Zero `asyncio.run()` in `src/`, 5 `uvloop.run()` at CLI boundaries, no blocking I/O outside `to_thread()`
-
-</details>
-
----
 
 <details>
 <summary>✅ v2.0 Search Ranking Architecture (Phases 41-44) — SHIPPED 2026-03-28</summary>
@@ -192,6 +144,16 @@
 **Key features:** Route A unified search ranking — raw signals from storage, combine_scores at application layer, optional Cross-Encoder reranking, Newton's cooling law freshness
 
 </details>
+
+---
+
+### v2.1 Discovery & Providers Refactor (Phases 45-47) — IN PROGRESS
+
+**Milestone Goal:** Clean up and harden the feed discovery architecture using best practices.
+
+- [ ] Phase 45: Discovery Core Architecture
+- [ ] Phase 46: Provider Contract & match() Semantics
+- [ ] Phase 47: Code Quality & Consistency
 
 ---
 
