@@ -120,6 +120,7 @@ Last activity: 2026-03-29 - Removed all hardcoded site logic from WebpageProvide
 | # | Description | Date | Commit |
 |---|-------------|------|--------|
 | 260328 | Refactor provider priority: GitHubRelease=300, RSS=200, Webpage=100; removed github.com hardcoding | 2026-03-28 | 213ad74 |
-| 260329 | Refactor WebpageProvider: SITE_CONFIGS → config.yaml; zero domain hardcoding in Python | 2026-03-29 | 42a0a6b |
+| 260329a | Refactor WebpageProvider: SITE_CONFIGS → config.yaml; zero domain hardcoding in Python | 2026-03-29 | 42a0a6b |
+| 260329b | Replace httpx with scrapling Fetcher in providers and discovery (rss_provider, fetcher, deep_crawl) | 2026-03-29 | 6283e09 |
 
 - Phase 44-01: Wired article search with --rerank flag, combine_scores weight config for semantic (gamma=0.2, delta=0.0) and FTS5 (gamma=0.0, delta=0.2) paths
