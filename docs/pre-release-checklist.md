@@ -4,17 +4,17 @@
 
 - [ ] Bump version in `pyproject.toml` (currently `1.0.0`)
 - [ ] Update `pyproject.toml` description if needed
-- [ ] Verify `pyproject.toml` `[project.scripts]` entry is `radar` (currently `rss-reader`)
+- [x] Verify `pyproject.toml` `[project.scripts]` entry is `radar` (currently `rss-reader`)
 - [ ] Update README.md version badge if applicable
 - [ ] Add CHANGELOG.md or update version history
 
 ## Code Quality
 
-- [ ] Run full test suite: `pytest tests/ -v`
-- [ ] Check test coverage: `pytest --cov=src --cov-report=term-missing`
-- [ ] Verify no `TODO`, `FIXME`, or `XXX` comments left in code
-- [ ] Check for hardcoded paths or secrets
-- [ ] Verify all dependencies are listed in `pyproject.toml`
+- [x] Run full test suite: `pytest tests/ -v` ✅ 75 passed
+- [x] Check test coverage: `pytest --cov=src --cov-report=term-missing` ✅ 51% coverage
+- [x] Verify no `TODO`, `FIXME`, or `XXX` comments left in code ✅ None found
+- [x] Check for hardcoded paths or secrets ✅ GITHUB_TOKEN from env only
+- [x] Verify all dependencies are listed in `pyproject.toml` ✅ All imports OK
 - [ ] Run linting if configured (flake8, ruff, mypy)
 
 ## Documentation
@@ -22,7 +22,7 @@
 - [ ] Update README.md with latest features
 - [ ] Verify all doc links are working
 - [ ] Add installation instructions for common platforms
-- [ ] Document optional dependencies (`[ml]`, `[cloudflare]`)
+- [x] Document optional dependencies (`[ml]`, `[cloudflare]`) ✅ In README
 - [ ] Add troubleshooting section if needed
 
 ## Package Build
