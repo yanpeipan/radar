@@ -29,7 +29,7 @@ uv pip install feedship
 pip install feedship[ml]
 
 # All features
-pip install feedship[ml,semantic]
+pip install feedship[ml]
 ```
 
 ## Quick Start
