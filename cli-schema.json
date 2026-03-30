@@ -1,0 +1,322 @@
+{
+  "name": "feedship",
+  "version": "1.0.2",
+  "description": "Personal information delivery system - collect, subscribe to, and organize information sources",
+  "commands": {
+    "feed": {
+      "description": "Manage RSS/Atom feeds and GitHub release trackers",
+      "subcommands": {
+        "add": {
+          "description": "Add a new feed by URL with automatic provider detection",
+          "arguments": [
+            {
+              "name": "url",
+              "type": "string",
+              "description": "Website URL or direct feed URL"
+            }
+          ],
+          "options": [
+            {
+              "name": "--auto-discover",
+              "type": "flag",
+              "default": true,
+              "description": "Enable feed auto-discovery before adding"
+            },
+            {
+              "name": "--no-auto-discover",
+              "type": "flag",
+              "description": "Disable feed auto-discovery"
+            },
+            {
+              "name": "--automatic",
+              "type": "choice",
+              "default": "off",
+              "choices": ["on", "off"],
+              "description": "Automatically add all discovered feeds"
+            },
+            {
+              "name": "--discover-depth",
+              "type": "integer",
+              "default": 1,
+              "range": [1, 10],
+              "description": "Discovery crawl depth"
+            },
+            {
+              "name": "--weight",
+              "type": "float",
+              "default": 0.3,
+              "description": "Feed weight for semantic search"
+            }
+          ]
+        },
+        "list": {
+          "description": "List all subscribed feeds with status",
+          "arguments": [],
+          "options": [
+            {
+              "name": "-v, --verbose",
+              "type": "flag",
+              "default": false,
+              "description": "Show detailed output for each feed"
+            }
+          ]
+        },
+        "remove": {
+          "description": "Remove a subscribed feed by ID",
+          "arguments": [
+            {
+              "name": "feed-id",
+              "type": "string",
+              "description": "Feed ID to remove"
+            }
+          ],
+          "options": []
+        }
+      }
+    },
+    "fetch": {
+      "description": "Fetch new articles from subscribed feeds",
+      "arguments": [
+        {
+          "name": "ids",
+          "type": "string[]",
+          "nargs": "*",
+          "description": "Specific feed IDs to fetch (optional)"
+        }
+      ],
+      "options": [
+        {
+          "name": "--all",
+          "type": "flag",
+          "default": false,
+          "description": "Fetch all subscribed feeds"
+        },
+        {
+          "name": "--concurrency",
+          "type": "integer",
+          "default": 10,
+          "range": [1, 100],
+          "description": "Max concurrent fetches"
+        }
+      ]
+    },
+    "article": {
+      "description": "Manage and view fetched articles",
+      "subcommands": {
+        "list": {
+          "description": "List articles with optional filtering",
+          "arguments": [],
+          "options": [
+            {
+              "name": "--limit",
+              "type": "integer",
+              "default": 20,
+              "description": "Maximum articles to show"
+            },
+            {
+              "name": "--feed-id",
+              "type": "string",
+              "default": null,
+              "description": "Filter by feed ID"
+            },
+            {
+              "name": "--since",
+              "type": "date",
+              "default": null,
+              "description": "Start date (YYYY-MM-DD)"
+            },
+            {
+              "name": "--until",
+              "type": "date",
+              "default": null,
+              "description": "End date (YYYY-MM-DD)"
+            },
+            {
+              "name": "--on",
+              "type": "date[]",
+              "default": null,
+              "multiple": true,
+              "description": "Specific date (YYYY-MM-DD), can repeat"
+            }
+          ]
+        },
+        "view": {
+          "description": "View full article content and metadata",
+          "arguments": [
+            {
+              "name": "article-id",
+              "type": "string",
+              "description": "Article ID to view"
+            }
+          ],
+          "options": []
+        },
+        "open": {
+          "description": "Open article in system browser",
+          "arguments": [
+            {
+              "name": "article-id",
+              "type": "string",
+              "description": "Article ID to open"
+            }
+          ],
+          "options": []
+        },
+        "related": {
+          "description": "Find articles semantically related to an article",
+          "arguments": [
+            {
+              "name": "article-id",
+              "type": "string",
+              "description": "Article ID to find related articles for"
+            }
+          ],
+          "options": [
+            {
+              "name": "--limit",
+              "type": "integer",
+              "default": 5,
+              "description": "Maximum related articles to show"
+            }
+          ]
+        }
+      }
+    },
+    "search": {
+      "description": "Search articles using full-text or semantic search",
+      "arguments": [
+        {
+          "name": "query",
+          "type": "string",
+          "description": "Search query string"
+        }
+      ],
+      "options": [
+        {
+          "name": "--limit",
+          "type": "integer",
+          "default": 20,
+          "description": "Maximum results to show"
+        },
+        {
+          "name": "--feed-id",
+          "type": "string",
+          "default": null,
+          "description": "Filter by feed ID (FTS5 mode only)"
+        },
+        {
+          "name": "--semantic",
+          "type": "flag",
+          "default": false,
+          "description": "Use semantic (vector) search instead of keyword search"
+        },
+        {
+          "name": "--rerank",
+          "type": "flag",
+          "default": false,
+          "description": "Apply Cross-Encoder reranking to results"
+        },
+        {
+          "name": "--since",
+          "type": "date",
+          "default": null,
+          "description": "Start date filter"
+        },
+        {
+          "name": "--until",
+          "type": "date",
+          "default": null,
+          "description": "End date filter"
+        },
+        {
+          "name": "--on",
+          "type": "date[]",
+          "default": null,
+          "multiple": true,
+          "description": "Specific date (YYYY-MM-DD), can repeat"
+        }
+      ]
+    },
+    "discover": {
+      "description": "Discover RSS/Atom/RDF feeds on a website without subscribing",
+      "arguments": [
+        {
+          "name": "url",
+          "type": "string",
+          "description": "Website URL to discover feeds from"
+        }
+      ],
+      "options": [
+        {
+          "name": "--discover-depth",
+          "type": "integer",
+          "default": 1,
+          "range": [1, 10],
+          "description": "Crawl depth for discovery"
+        }
+      ]
+    }
+  },
+  "globalOptions": [
+    {
+      "name": "-v, --verbose",
+      "type": "flag",
+      "default": false,
+      "description": "Enable verbose output"
+    },
+    {
+      "name": "--version",
+      "type": "flag",
+      "description": "Show version"
+    }
+  ],
+  "outputFormats": {
+    "table": {
+      "description": "Tabular output using Rich tables",
+      "commands": ["feed list", "article list", "search", "discover"],
+      "features": ["header-styles", "row-styles", "column-width", "overflow-ellipsis"]
+    },
+    "panel": {
+      "description": "Bordered panel output using Rich Panel",
+      "commands": ["article view"],
+      "features": ["title", "subtitle", "content"]
+    },
+    "progress": {
+      "description": "Progress bar using Rich Progress",
+      "commands": ["fetch", "discover"],
+      "features": ["spinner", "elapsed-time", "article-count"]
+    }
+  },
+  "searchModes": {
+    "fts5": {
+      "description": "Full-text search using SQLite FTS5",
+      "scoring": "BM25 + freshness",
+      "supportsFeedFilter": true
+    },
+    "semantic": {
+      "description": "Vector similarity using sentence-transformers",
+      "requiresMlExtra": true,
+      "scoring": "cosine-similarity + freshness"
+    },
+    "reranked": {
+      "description": "Cross-Encoder reranking applied to results",
+      "slower": true,
+      "moreAccurate": true
+    }
+  },
+  "providerTypes": {
+    "rss": {
+      "description": "RSS 2.0 / Atom / RDF feeds",
+      "examples": ["https://example.com/feed.xml"]
+    },
+    "github": {
+      "description": "GitHub releases",
+      "urlPattern": "github.com/*",
+      "examples": ["https://github.com/python/cpython"]
+    },
+    "webpage": {
+      "description": "Generic webpage with article extraction",
+      "requiresMlExtra": true
+    }
+  }
+}
