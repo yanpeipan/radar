@@ -17,7 +17,7 @@ import feedparser
 from trafilatura import fetch_url
 
 from src.providers import PROVIDERS
-from src.providers.base import Article, ContentProvider, CrawlResult, Raw
+from src.providers.base import Article, ContentProvider, FetchedResult, Raw
 from src.discovery.models import DiscoveredFeed
 
 if TYPE_CHECKING:
@@ -25,149 +25,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Thread-safe context variable for feed title (avoids instance state race conditions)
-_feed_title_var: ContextVar[str | None] = ContextVar("feed_title", default=None)
-
 # Browser-like User-Agent header to avoid 403 bot blocks
 from src.constants import BROWSER_HEADERS
-
-
-def _quick_validate_feed_sync(url: str) -> tuple[bool, str | None]:
-    """Quick feed validation via HEAD request only (synchronous).
-
-    Only checks HTTP 200 + Content-Type header, skipping full feed parsing.
-
-    Args:
-        url: The feed URL to validate.
-
-    Returns:
-        Tuple of (is_valid, feed_type).
-    """
-    from scrapling import Fetcher
-    try:
-        response = Fetcher.get(url, headers=BROWSER_HEADERS)
-        if response.status != 200:
-            return False, None
-        content_type = response.headers.get('content-type', '').lower()
-        if any(ft in content_type for ft in ('rss', 'atom', 'rdf', 'xml')):
-            feed_type = 'rss' if 'rss' in content_type else 'atom' if 'atom' in content_type else 'rdf'
-            return True, feed_type
-        return False, None
-    except Exception:
-        return False, None
-
-
-def fetch_feed_content(
-    url: str,
-    etag: Optional[str] = None,
-    last_modified: Optional[str] = None,
-) -> tuple[Optional[bytes], Optional[str], Optional[str], int]:
-    """Fetch feed content from URL with conditional request support.
-
-    Args:
-        url: The URL of the feed to fetch.
-        etag: Optional ETag header for conditional fetching.
-        last_modified: Optional Last-Modified header for conditional fetching.
-
-    Returns:
-        A tuple of (content, etag, last_modified, status_code).
-        content is None if status is 304 (not modified).
-    """
-    from scrapling import Fetcher
-
-    headers: dict[str, str] = {}
-    if etag:
-        headers["If-None-Match"] = etag
-    if last_modified:
-        headers["If-Modified-Since"] = last_modified
-
-    # Merge browser headers with conditional headers
-    request_headers = {**BROWSER_HEADERS, **headers}
-    response = Fetcher.get(url, headers=request_headers)
-
-    # Handle 304 Not Modified
-    if response.status == 304:
-        return None, None, None, 304
-
-    status_code = response.status
-
-    # Extract headers for future conditional requests
-    new_etag = response.headers.get("etag")
-    new_last_modified = response.headers.get("last-modified")
-
-    return response.body, new_etag, new_last_modified, status_code
-
-
-async def fetch_feed_content_async(
-    url: str,
-    etag: Optional[str] = None,
-    last_modified: Optional[str] = None,
-) -> tuple[Optional[bytes], Optional[str], Optional[str], int]:
-    """Fetch feed content asynchronously with conditional request support.
-
-    Args:
-        url: The URL of the feed to fetch.
-        etag: Optional ETag header for conditional fetching.
-        last_modified: Optional Last-Modified header for conditional fetching.
-
-    Returns:
-        A tuple of (content, etag, last_modified, status_code).
-        content is None if status is 304 (not modified).
-    """
-    import asyncio
-    from scrapling import Fetcher
-
-    headers: dict[str, str] = {}
-    if etag:
-        headers["If-None-Match"] = etag
-    if last_modified:
-        headers["If-Modified-Since"] = last_modified
-
-    request_headers = {**BROWSER_HEADERS, **headers}
-    response = await asyncio.to_thread(Fetcher.get, url, headers=request_headers)
-
-    if response.status == 304:
-        return None, None, None, 304
-
-    new_etag = response.headers.get("etag")
-    new_last_modified = response.headers.get("last-modified")
-
-    return response.body, new_etag, new_last_modified, response.status
-
-
-def parse_feed(
-    content: bytes,
-    url: str,
-) -> tuple[list, bool, Optional[Exception]]:
-    """Parse RSS/Atom feed content using feedparser.
-
-    Args:
-        content: Raw feed content as bytes.
-        url: URL of the feed (used for logging).
-
-    Returns:
-        A tuple of (entries, bozo_flag, bozo_exception).
-        bozo_flag is True if the feed is malformed (but parsing still succeeded).
-        bozo_exception contains the exception if bozo_flag is True.
-    """
-    feed = feedparser.parse(content)
-
-    bozo_flag = feed.bozo
-    bozo_exception = None
-
-    if bozo_flag:
-        bozo_exception = feed.bozo_exception
-        logger.warning(
-            "Malformed feed detected for %s: %s",
-            url,
-            bozo_exception,
-        )
-
-    entries = []
-    for entry in feed.entries:
-        entries.append(entry)
-
-    return entries, bozo_flag, bozo_exception
 
 
 class RSSProvider:
@@ -180,10 +39,42 @@ class RSSProvider:
     def __init__(self) -> None:
         pass
 
-    @property
-    def feed_title(self) -> str | None:
-        """Return the feed title from the last crawl() call in this context, or None."""
-        return _feed_title_var.get()
+    def _fetch_feed_content_sync(
+        self,
+        url: str,
+        etag: Optional[str] = None,
+        last_modified: Optional[str] = None,
+    ) -> "Response":
+        """Fetch feed content synchronously with conditional request support.
+
+        Args:
+            url: The URL of the feed to fetch.
+            etag: Optional ETag header for conditional fetching.
+            last_modified: Optional Last-Modified header for conditional fetching.
+
+        Returns:
+            Response object. Caller should check response.status == 304 for not modified.
+        """
+        from scrapling import Fetcher
+
+        headers: dict[str, str] = {}
+        if etag:
+            headers["If-None-Match"] = etag
+        if last_modified:
+            headers["If-Modified-Since"] = last_modified
+
+        # Merge browser headers with conditional headers
+        request_headers = {**BROWSER_HEADERS, **headers}
+        # Use increased retries (5) and retry delay (2s) to handle intermittent TLS errors
+        # that can occur with certain hosts through HTTP proxies
+        response = Fetcher.get(
+            url,
+            headers=request_headers,
+            retries=5,
+            retry_delay=2,
+            timeout=30,
+        )
+        return response
 
     def match(self, url: str, response: "Response" = None) -> bool:
         """Check if URL points to RSS/Atom feed via Content-Type header.
@@ -231,190 +122,87 @@ class RSSProvider:
         """
         return 50
 
-    def crawl(self, url: str) -> List[Raw]:
+    def fetch_articles(self, feed: Feed) -> FetchedResult:
         """Fetch and parse RSS/Atom feed content.
 
         Args:
-            url: URL of the feed to crawl.
+            feed: Feed object containing url and optional etag/last_modified.
 
         Returns:
-            List of feedparser entry dicts, or empty list on error.
+            FetchedResult with articles and updated etag/last_modified.
         """
-        _feed_title_var.set(None)
         try:
-            content, etag, last_modified, status_code = fetch_feed_content(url)
-            if content is None:
-                logger.warning("RSS feed %s returned 304 Not Modified", url)
-                return []
+            response = self._fetch_feed_content_sync(feed.url, feed.etag, feed.last_modified)
+            if response.status == 304:
+                logger.info("RSS feed %s returned 304 Not Modified", feed.url)
+                return FetchedResult(articles=[], etag=feed.etag, last_modified=feed.last_modified)
 
-            # Parse full feed to get feed-level metadata (title)
-            parsed = feedparser.parse(content)
-            if parsed.feed:
-                _feed_title_var.set(parsed.feed.get("title"))
-
-            entries, bozo_flag, bozo_exception = parse_feed(content, url)
-            if bozo_flag and bozo_exception:
-                logger.warning("Malformed feed at %s: %s", url, bozo_exception)
-
-            logger.debug("RSSProvider.crawl(%s) returned %d entries", url, len(entries))
-            return entries
-        except Exception as e:
-            # Check for 403 status for Cloudflare-protected feeds
-            error_str = str(e)
-            if "403" in error_str:
-                # Fallback to Scrapling for Cloudflare-protected feeds
-                logger.info("Got 403 for %s, trying Scrapling fallback", url)
-                return self._crawl_with_scrapling(url)
-            logger.error("RSSProvider.crawl(%s) failed: %s", url, e)
-            return []
-        except Exception as e:
-            logger.error("RSSProvider.crawl(%s) failed: %s", url, e)
-            return []
-
-    async def crawl_async(self, url: str, etag: Optional[str] = None, last_modified: Optional[str] = None) -> CrawlResult:
-        """Fetch and parse RSS/Atom feed content asynchronously.
-
-        Uses asyncio.to_thread with scrapling Fetcher for HTTP, with feedparser.parse()
-        and parse_feed() running in a thread pool executor to avoid blocking.
-
-        Args:
-            url: URL of the feed to crawl.
-            etag: Optional ETag header for conditional fetching.
-            last_modified: Optional Last-Modified header for conditional fetching.
-
-        Returns:
-            CrawlResult with entries and updated etag/last_modified.
-        """
-        import asyncio
-
-        _feed_title_var.set(None)
-        try:
-            content, new_etag, new_last_modified, status_code = await fetch_feed_content_async(
-                url, etag=etag, last_modified=last_modified
+            articles = self.parse_articles(response)
+            logger.debug("RSSProvider.fetch_articles(%s) returned %d entries", feed.url, len(articles))
+            return FetchedResult(
+                articles=articles,
+                etag=response.headers.get("etag"),
+                last_modified=response.headers.get("last-modified"),
             )
-            if content is None:
-                logger.info("RSS feed %s returned 304 Not Modified", url)
-                return CrawlResult(entries=[], etag=etag, last_modified=last_modified)
-
-            # Parse in thread pool to avoid blocking event loop
-            loop = asyncio.get_running_loop()
-            parsed = await loop.run_in_executor(None, feedparser.parse, content)
-
-            if parsed.feed:
-                _feed_title_var.set(parsed.feed.get("title"))
-
-            entries, bozo_flag, bozo_exception = await loop.run_in_executor(
-                None, parse_feed, content, url
-            )
-            if bozo_flag and bozo_exception:
-                logger.warning("Malformed feed at %s: %s", url, bozo_exception)
-
-            logger.debug("RSSProvider.crawl_async(%s) returned %d entries", url, len(entries))
-            return CrawlResult(entries=entries, etag=new_etag, last_modified=new_last_modified)
         except Exception as e:
-            error_str = str(e)
-            if "403" in error_str:
-                logger.info("Got 403 for %s, trying Scrapling fallback", url)
-                return await self._crawl_with_scrapling_async(url)
-            logger.error("RSSProvider.crawl_async(%s) failed: %s", url, e)
-            return CrawlResult(entries=[])
+            logger.error("RSSProvider.fetch_articles(%s) failed: %s", feed.url, e)
+            return FetchedResult(articles=[])
 
-    def _crawl_with_scrapling(self, url: str) -> CrawlResult:
-        """Fetch RSS feed using Scrapling to bypass Cloudflare protection.
+    def parse_articles(self, response: "Response") -> List[Article]:
+        """Parse RSS/Atom feed content and convert to Article dicts.
 
         Args:
-            url: URL of the feed to crawl.
+            response: Response object from _fetch_feed_content_sync.
 
         Returns:
-            CrawlResult with entries (no etag/last_modified from Scrapling).
-        """
-        try:
-            from scrapling import Fetcher
-
-            response = Fetcher.get(url)
-
-            # Scrapling returns bytes in response.body
-            content = response.body
-            if not content:
-                logger.warning("Scrapling returned empty content for %s", url)
-                return CrawlResult(entries=[])
-
-            # Parse full feed to get feed-level metadata (title)
-            parsed = feedparser.parse(content)
-            if parsed.feed:
-                _feed_title_var.set(parsed.feed.get("title"))
-
-            entries, bozo_flag, bozo_exception = parse_feed(content, url)
-            if bozo_flag and bozo_exception:
-                logger.warning("Malformed feed at %s (Scrapling): %s", url, bozo_exception)
-
-            logger.debug("RSSProvider._crawl_with_scrapling(%s) returned %d entries", url, len(entries))
-            return CrawlResult(entries=entries)
-        except ImportError:
-            logger.warning("Scrapling not installed, skipping Cloudflare fallback for %s", url)
-            return CrawlResult(entries=[])
-        except Exception as e:
-            logger.error("RSSProvider._crawl_with_scrapling(%s) failed: %s", url, e)
-            return CrawlResult(entries=[])
-
-    async def _crawl_with_scrapling_async(self, url: str) -> CrawlResult:
-        """Async wrapper for Scrapling fallback using asyncio.to_thread().
-
-        Args:
-            url: URL of the feed to crawl.
-
-        Returns:
-            CrawlResult with entries.
-        """
-        import asyncio
-
-        return await asyncio.to_thread(self._crawl_with_scrapling, url)
-
-    def parse(self, raw: Raw) -> Article:
-        """Convert feedparser entry to Article dict.
-
-        Args:
-            raw: Feedparser entry dict.
-
-        Returns:
-            Article dict with title, link, guid, pub_date, description, content.
+            List of Article dicts.
         """
         from src.utils import generate_article_id
 
-        # Extract title
-        title = raw.get("title")
+        content = response.body
+        feed = feedparser.parse(content)
 
-        # Extract link
-        link = raw.get("link")
+        # Log bozo (malformed feed) warnings
+        if feed.bozo:
+            logger.warning("Malformed feed detected: %s", feed.bozo_exception)
 
-        # Generate article ID (guid)
-        guid = generate_article_id(raw)
+        articles = []
+        for raw in feed.entries:
+            # Extract title
+            title = raw.get("title")
 
-        # Extract pub_date (published or updated)
-        pub_date = raw.get("published") or raw.get("updated")
+            # Extract link
+            link = raw.get("link")
 
-        # Extract description
-        description = None
-        if hasattr(raw, "description"):
-            description = raw.description
-        elif hasattr(raw, "summary"):
-            description = raw.summary
+            # Generate article ID (guid)
+            guid = generate_article_id(raw)
 
-        # Extract content
-        content = None
-        if hasattr(raw, "content") and raw.content:
-            content = raw.content[0].value if raw.content else None
-        elif hasattr(raw, "summary_detail") and hasattr(raw.summary_detail, "value"):
-            content = raw.summary_detail.value
+            # Extract pub_date (published or updated)
+            pub_date = raw.get("published") or raw.get("updated")
 
-        return Article(
-            title=title,
-            link=link,
-            guid=guid,
-            pub_date=pub_date,
-            description=description,
-            content=content,
-        )
+            # Extract description
+            description = None
+            if hasattr(raw, "description"):
+                description = raw.description
+            elif hasattr(raw, "summary"):
+                description = raw.summary
+
+            # Extract content
+            content_val = None
+            if hasattr(raw, "content") and raw.content:
+                content_val = raw.content[0].value if raw.content else None
+            elif hasattr(raw, "summary_detail") and hasattr(raw.summary_detail, "value"):
+                content_val = raw.summary_detail.value
+
+            articles.append(Article(
+                title=title,
+                link=link,
+                guid=guid,
+                pub_date=pub_date,
+                description=description,
+                content=content_val,
+            ))
+        return articles
 
     def parse_feed(self, url: str, response: "Response" = None) -> "DiscoveredFeed":
         """Validate URL is an RSS/Atom feed and return as DiscoveredFeed.
@@ -424,10 +212,8 @@ class RSSProvider:
             response: Pre-fetched HTTP response (may be None).
 
         Returns:
-            DiscoveredFeed with valid=True if URL is a valid RSS/Atom feed.
-
-        Raises:
-            ValueError: If feed cannot be fetched or parsed.
+            DiscoveredFeed with valid=True if URL is a valid RSS/Atom feed,
+            valid=False if validation fails.
         """
         from scrapling import Fetcher
 
@@ -448,8 +234,15 @@ class RSSProvider:
                 page_url=url,
                 valid=True,
             )
-        except Exception as e:
-            raise ValueError(f"Failed to fetch feed metadata: {e}")
+        except Exception:
+            return DiscoveredFeed(
+                url=url,
+                title=None,
+                feed_type="rss",
+                source=f"provider_{self.__class__.__name__}",
+                page_url=url,
+                valid=False,
+            )
 
     def discover(self, url: str, response: "Response" = None, depth: int = 1) -> List["DiscoveredFeed"]:
         """Discover feed URLs from a page.
@@ -463,62 +256,82 @@ class RSSProvider:
         Returns:
             List of discovered DiscoveredFeed (unverified, validation happens in caller).
         """
-        from src.discovery.models import DiscoveredFeed
-        from src.discovery.common_paths import generate_feed_candidates, matches_feed_path_pattern
+        feeds: List["DiscoveredFeed"] = []
 
-        feeds: List[DiscoveredFeed] = []
+        # Phase 1: If response is a feed type, return it as validated
+        feed_result = self._check_feed_content_type(url, response)
+        if feed_result is not None:
+            return [feed_result]
 
-        # If response is a feed type, return it as validated
-        if response:
-            content_type = response.headers.get('content-type', '') or ""
-            if any(ft in content_type for ft in ('rss', 'atom', 'rdf', 'xml')):
-                return [DiscoveredFeed(
-                    url=url,
-                    title=None,
-                    feed_type='rss' if 'rss' in content_type else 'atom' if 'atom' in content_type else 'rdf',
-                    source='RSSProvider',
-                    page_url=url,
-                    valid=True,
-                )]
-
-        # Parse HTML page for feed discovery
-        html = None
-        if response:
-            try:
-                # Use response.body to get HTML content (response.text may be empty for some fetchers)
-                if response.body:
-                    html = response.body.decode('utf-8', errors='replace') if isinstance(response.body, bytes) else str(response.body)
-            except Exception:
-                pass
-
+        # Phase 2: Parse HTML page
+        from src.utils.scraping_utils import parse_html_body, find_base_href
+        html = parse_html_body(response)
         if not html:
             return feeds
 
-        # Parse <link rel="alternate"> tags
+        # Phase 3: Find <link rel="alternate"> tags
         from scrapling import Selector
         page = Selector(content=html)
+        base_override = find_base_href(page)
+        feeds.extend(self._find_link_alternate_tags(page, url, base_override))
 
-        # Check for <base href> override
-        base_override: str | None = None
-        head = page.find('head')
-        if head:
-            base_tag = head.find('base[href]')
-            if base_tag:
-                base_override = base_tag.attrib['href']
+        # Phase 4: CSS selector-based link discovery
+        feeds.extend(self._find_css_selector_links(page, url, base_override))
 
-        # Find feed link tags
+        # Phase 5: Probe well-known paths (only at depth 1)
+        if depth == 1:
+            feeds.extend(_probe_well_known_paths(url, html))
+
+        return feeds
+
+    def _check_feed_content_type(self, url: str, response: "Response" = None) -> "DiscoveredFeed | None":
+        """Check if response Content-Type indicates a feed.
+
+        Args:
+            url: Page URL.
+            response: HTTP response.
+
+        Returns:
+            DiscoveredFeed if Content-Type is feed type, None otherwise.
+        """
+        if not response:
+            return None
+
+        from src.discovery.models import DiscoveredFeed
+        content_type = response.headers.get('content-type', '') or ""
+        if any(ft in content_type for ft in ('rss', 'atom', 'rdf', 'xml')):
+            feed_type = 'rss' if 'rss' in content_type else 'atom' if 'atom' in content_type else 'rdf'
+            return DiscoveredFeed(
+                url=url,
+                title=None,
+                feed_type=feed_type,
+                source='RSSProvider',
+                page_url=url,
+                valid=True,
+            )
+        return None
+
+    def _find_link_alternate_tags(self, page: "Selector", url: str, base_override: str | None = None) -> list["DiscoveredFeed"]:
+        """Find <link rel="alternate"> tags pointing to feeds.
+
+        Args:
+            page: Parsed HTML page.
+            url: Page URL for resolving relative URLs.
+            base_override: Optional base href override.
+
+        Returns:
+            List of discovered feeds from link tags.
+        """
+        from src.discovery.models import DiscoveredFeed
+        from src.discovery.common_paths import matches_feed_path_pattern
+
+        feeds: List["DiscoveredFeed"] = []
         for link_tag in page.css('link[rel="alternate"]'):
             href = link_tag.attrib.get('href', '')
             if not href:
                 continue
 
-            # Resolve relative URLs
-            if base_override:
-                absolute = urljoin(base_override, href)
-            else:
-                absolute = urljoin(url, href)
-
-            # Validate it looks like a feed
+            absolute = urljoin(base_override, href) if base_override else urljoin(url, href)
             parsed = urlparse(absolute)
             path = parsed.path.lower()
             if not matches_feed_path_pattern(path):
@@ -530,11 +343,24 @@ class RSSProvider:
                 feed_type='rss',
                 source='RSSProvider',
                 page_url=url,
-                valid=False,  # Unverified - caller will validate
+                valid=False,
             ))
+        return feeds
 
-        # CSS selector-based link discovery for finding feed links on page
-        # This finds <a href*="rss">, <a href*="feed">, <a href*="atom">, <a href$=".xml">
+    def _find_css_selector_links(self, page: "Selector", url: str, base_override: str | None = None) -> list["DiscoveredFeed"]:
+        """Find feed links via CSS selectors (a[href*="rss"], a[href*="feed"], etc).
+
+        Args:
+            page: Parsed HTML page.
+            url: Page URL for resolving relative URLs and host comparison.
+            base_override: Optional base href override.
+
+        Returns:
+            List of discovered feeds from CSS selector links.
+        """
+        from src.discovery.models import DiscoveredFeed
+        from src.discovery.common_paths import matches_feed_path_pattern
+
         feed_selectors = [
             'a[href*="rss"]',
             'a[href*="feed"]',
@@ -542,7 +368,10 @@ class RSSProvider:
             'a[href$=".xml"]',
         ]
 
+        feeds: List["DiscoveredFeed"] = []
         found_urls: set = set()
+        page_host = urlparse(url).netloc.lower()
+
         for selector in feed_selectors:
             try:
                 for anchor in page.css(selector):
@@ -550,23 +379,16 @@ class RSSProvider:
                     if not href:
                         continue
 
-                    # Resolve relative URLs
-                    if base_override:
-                        absolute = urljoin(base_override, href)
-                    else:
-                        absolute = urljoin(url, href)
-
+                    absolute = urljoin(base_override, href) if base_override else urljoin(url, href)
                     parsed = urlparse(absolute)
 
                     # Skip different hosts
-                    if parsed.netloc.lower() != urlparse(url).netloc.lower():
+                    if parsed.netloc.lower() != page_host:
                         continue
-
                     if absolute in found_urls:
                         continue
                     found_urls.add(absolute)
 
-                    # Validate path matches feed pattern
                     path = parsed.path.lower()
                     if not matches_feed_path_pattern(path):
                         continue
@@ -577,17 +399,10 @@ class RSSProvider:
                         feed_type='rss',
                         source='RSSProvider',
                         page_url=url,
-                        valid=False,  # Unverified - caller will validate
+                        valid=False,
                     ))
             except Exception:
-                # CSS selector may fail for some pages
                 continue
-
-        # Probe well-known paths in parallel and only add validated ones
-        if depth == 1:
-            well_known_feeds = _probe_well_known_paths(url, html)
-            feeds.extend(well_known_feeds)
-
         return feeds
 
 
@@ -601,29 +416,24 @@ def _probe_well_known_paths(url: str, html: str | None) -> list["DiscoveredFeed"
     Returns:
         List of DiscoveredFeed found via well-known path probing (only validated ones).
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import asyncio
     from src.discovery.common_paths import generate_feed_candidates
 
     candidates = generate_feed_candidates(url, html)
     if not candidates:
         return []
 
-    results: list[DiscoveredFeed] = []
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        future_to_candidate = {executor.submit(_quick_validate_feed_sync, c): c for c in candidates}
-        for future in as_completed(future_to_candidate):
-            is_valid, feed_type = future.result()
-            if is_valid:
-                candidate = future_to_candidate[future]
-                results.append(DiscoveredFeed(
-                    url=candidate,
-                    title=None,
-                    feed_type=feed_type or 'rss',
-                    source='RSSProvider',
-                    page_url=url,
-                    valid=True,
-                ))
-    return results
+    async def _validate_one(candidate: str) -> DiscoveredFeed | None:
+        try:
+            return await asyncio.to_thread(RSSProvider().parse_feed, candidate, None)
+        except Exception:
+            return None
+
+    async def _validate_all() -> list[DiscoveredFeed]:
+        results = await asyncio.gather(*[_validate_one(c) for c in candidates])
+        return [r for r in results if r is not None]
+
+    return asyncio.run(_validate_all())
 
 # Register this provider - it will be sorted by priority() after all modules load
 PROVIDERS.append(RSSProvider())
