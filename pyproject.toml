@@ -42,7 +42,11 @@ ml = [
     "safetensors>=0.4.3",
     "transformers>=4.40.0",
 ]
-semantic = ["chromadb>=0.4.0"]
+semantic = [
+    "chromadb>=0.4.0",
+    "sentence-transformers>=3.0.0",
+    "torch>=2.0.0; python_version < '3.13'",
+]
 cloudflare = [
     "scrapling>=0.4.0",
     "playwright>=1.49.0",
