@@ -92,26 +92,25 @@ async def test_semaphore_custom_concurrency():
 @pytest.mark.asyncio
 async def test_fetch_one_async_returns_dict(sample_feed):
     """Verify fetch_one_async returns expected dict structure."""
-    with patch("src.application.fetch.discover_or_default", return_value=[]):
-        result = await fetch_one_async(sample_feed)
-        assert isinstance(result, dict)
-        assert "new_articles" in result
+    result = await fetch_one_async(sample_feed)
+    assert isinstance(result, dict)
+    assert "new_articles" in result
 
 
 @pytest.mark.asyncio
-async def test_fetch_one_async_crawled_feed():
-    """Verify fetch_one_async skips 'crawled' system feed."""
-    crawled_feed = Feed(
-        id="crawled",
-        name="Crawled Pages",
+async def test_fetch_one_async_no_provider():
+    """Verify fetch_one_async returns error when no provider matches."""
+    empty_feed = Feed(
+        id="empty",
+        name="Empty URL Feed",
         url="",
         etag=None,
         last_modified=None,
         last_fetched=None,
         created_at="2024-01-01T00:00:00+00:00",
     )
-    result = await fetch_one_async(crawled_feed)
-    assert result == {"new_articles": 0}
+    result = await fetch_one_async(empty_feed)
+    assert result == {"new_articles": 0, "error": "No provider for "}
 
 
 @pytest.mark.asyncio
