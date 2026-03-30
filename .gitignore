@@ -47,9 +47,6 @@ Thumbs.db
 # Project specific
 .planning/
 .claude/
-.claude-flow/
-.swarm/
-data/
 
 # Lock files (use pyproject.toml for dependency versions)
 uv.lock
@@ -57,13 +54,3 @@ pip-lock.json
 
 # Ignore dynaconf secret files
 .secrets.*
-
-# Coverage reports
-.coverage
-.coverage.*
-
-# pytest cache
-.pytest_cache/
-
-# Strange pip accident file
-=*
