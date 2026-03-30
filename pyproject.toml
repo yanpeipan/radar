@@ -1,5 +1,5 @@
 [project]
-name = "rss-reader"
+name = "radar"
 version = "1.0.0"
 description = "A personal information system for collecting, subscribing to, and organizing information sources from the internet"
 requires-python = ">=3.10"
