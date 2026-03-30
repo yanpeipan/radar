@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore", message="urllib3.*doesn't match a supported ve
 
 
 @click.group()
-@click.version_option(version="1.0.0")
+@click.version_option(version="1.0.2")
 @click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
 @click.pass_context
 def cli(ctx: click.Context, verbose: bool) -> None:
