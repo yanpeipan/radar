@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Optional
 
 from src.application.config import get_timezone, get_default_feed_weight
-from src.models import Feed
+from src.models import Feed, FeedMetaData
 from src.providers import discover
 from src.storage import list_feeds as storage_list_feeds, get_feed as storage_get_feed, remove_feed as storage_remove_feed, update_feed as storage_update_feed, upsert_feed
 from src.utils import generate_article_id, generate_feed_id
@@ -128,8 +128,28 @@ def register_feed(feed_url: str, feed_name: str | None = None, weight: float | N
     Returns:
         Tuple of (saved Feed object, is_new).
     """
+    import json as json_module
     from src.models import Feed
     from src.application.config import get_default_feed_weight
+
+    # Preserve existing metadata selectors if new metadata doesn't have selectors
+    # This prevents overwriting existing selectors when updating via CLI
+    if feed_meta_data and feed_meta_data.selectors is None:
+        from src.storage import get_db
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT metadata FROM feeds WHERE url = ?", (feed_url,))
+            row = cursor.fetchone()
+            if row and row["metadata"]:
+                try:
+                    existing_meta = json_module.loads(row["metadata"])
+                    if existing_meta.get("selectors"):
+                        feed_meta_data = FeedMetaData(
+                            feed_type=feed_meta_data.feed_type,
+                            selectors=existing_meta["selectors"]
+                        )
+                except (json_module.JSONDecodeError, TypeError):
+                    pass
 
     now = datetime.now(get_timezone()).isoformat()
     feed = Feed(
