@@ -48,5 +48,9 @@ Thumbs.db
 .planning/
 .claude/
 
+# Lock files (use pyproject.toml for dependency versions)
+uv.lock
+pip-lock.json
+
 # Ignore dynaconf secret files
 .secrets.*
