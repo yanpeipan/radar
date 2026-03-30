@@ -49,7 +49,7 @@ cloudflare = [
 ]
 
 [project.scripts]
-rss-reader = "src.cli:cli"
+radar = "src.cli:cli"
 
 [build-system]
 requires = ["setuptools>=61.0"]
