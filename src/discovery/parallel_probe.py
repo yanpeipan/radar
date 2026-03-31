@@ -77,7 +77,7 @@ async def _probe_one(url: str) -> DiscoveredFeed | None:
         DiscoveredFeed if valid feed found, None otherwise.
     """
     try:
-        response = await async_fetch_with_fallback(url, timeout=10)
+        response = await async_fetch_with_fallback(url, timeout=30)
         if response is None:
             return None
         # Skip 429 rate limit without retry (per D-02, D-05)
