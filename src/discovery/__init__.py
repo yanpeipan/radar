@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 
 from src.discovery.common_paths import generate_feed_candidates
-from src.discovery.parallel_probe import probe_feed_paths_parallel
 from src.discovery.deep_crawl import deep_crawl
 from src.discovery.models import DiscoveredFeed, DiscoveredResult, LinkSelector
+from src.discovery.parallel_probe import probe_feed_paths_parallel
 
 logger = logging.getLogger(__name__)
 

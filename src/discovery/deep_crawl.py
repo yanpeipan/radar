@@ -9,17 +9,17 @@ from collections import deque
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+from cachetools import TTLCache
+from robotexclusionrulesparser import RobotExclusionRulesParser
 from scrapling import Selector
 
-# Suppress scrapling 0.4.x deprecation warning
+from src.constants import BROWSER_HEADERS
+from src.discovery.models import DiscoveredFeed, DiscoveredResult
+from src.utils.scraping_utils import async_fetch_with_fallback
+
+# Suppress scrapling 0.4.x deprecation warning (after imports to avoid E402)
 _scrapling_logger = logging.getLogger("scrapling")
 _scrapling_logger.disabled = True
-from cachetools import TTLCache
-from robotexclusionrulesparser import RobotExclusionRulesParser  # noqa: E402
-
-from src.constants import BROWSER_HEADERS  # noqa: E402
-from src.discovery.models import DiscoveredFeed, DiscoveredResult  # noqa: E402
-from src.utils.scraping_utils import async_fetch_with_fallback  # noqa: E402
 
 # robots.txt cache: parsed robots per host (1-hour TTL)
 robots_cache: TTLCache = TTLCache(maxsize=5000, ttl=3600)

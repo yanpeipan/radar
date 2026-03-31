@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 import feedparser
 
-from src.discovery.common_paths import _ROOT_PATH_PATTERNS, _SUB_DIRECTORY_PATTERNS
+from src.discovery.common_paths import _SUB_DIRECTORY_PATTERNS
 from src.discovery.models import DiscoveredFeed
 from src.utils.scraping_utils import async_fetch_with_fallback
 
