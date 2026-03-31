@@ -115,7 +115,7 @@ def _normalize_published_at(published_at: str | None, tz) -> str:
     from email.utils import parsedate_to_datetime
 
     if not published_at:
-        return time_module.strftime('%Y-%m-%d %H:%M:%S')
+        return time.strftime('%Y-%m-%d %H:%M:%S')
 
     try:
         # Try RFC-2822 first (feedparser standard)
@@ -138,7 +138,7 @@ def _normalize_published_at(published_at: str | None, tz) -> str:
         dt = datetime.strptime(published_at[:10], "%Y-%m-%d").replace(tzinfo=tz)
         return dt.strftime('%Y-%m-%d %H:%M:%S')
 
-    return time_module.strftime('%Y-%m-%d %H:%M:%S')
+    return time.strftime('%Y-%m-%d %H:%M:%S')
 
 
 def store_article(
