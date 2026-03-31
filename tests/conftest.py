@@ -57,8 +57,8 @@ def sample_feed():
         name="Test Feed",
         url="https://example.com/feed.xml",
         etag=None,
-        last_modified=None,
-        last_fetched_at=None,
+        modified_at=None,
+        fetched_at=None,
         created_at="2024-01-01T00:00:00+00:00",
     )
 

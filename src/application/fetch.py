@@ -57,10 +57,10 @@ async def fetch_one_async(feed: Feed) -> dict:
 
     articles = result.articles
 
-    # Always update feed metadata after successful crawl (persists etag/last_modified even on 304)
+    # Always update feed metadata after successful crawl (persists etag/modified_at even on 304)
     now = time.strftime('%Y-%m-%d %H:%M:%S')
     storage_update_feed(
-        feed.id, now, etag=result.etag, last_modified=result.last_modified
+        feed.id, now, etag=result.etag, modified_at=result.modified_at
     )
 
     if not articles:

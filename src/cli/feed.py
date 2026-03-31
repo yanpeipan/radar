@@ -285,7 +285,7 @@ def feed_list(ctx: click.Context, verbose: bool) -> None:
 
         if verbose:
             for f in feeds:
-                last_fetched = f.last_fetched_at or "Never"
+                last_fetched = f.fetched_at or "Never"
                 provider_type = _get_provider_type(f.url)
                 articles_count = getattr(f, "articles_count", 0)
                 weight = f.weight if f.weight is not None else 0.3
@@ -316,7 +316,7 @@ def feed_list(ctx: click.Context, verbose: bool) -> None:
             table.add_column("Last Fetched", style="dim", no_wrap=True)
 
             for _i, f in enumerate(feeds, 1):
-                last_fetched = f.last_fetched_at or "Never"
+                last_fetched = f.fetched_at or "Never"
                 if last_fetched != "Never":
                     last_fetched = last_fetched[:10]
                 provider_type = _get_provider_type(f.url)

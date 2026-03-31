@@ -43,14 +43,14 @@ class RSSProvider:
         self,
         url: str,
         etag: str | None = None,
-        last_modified: str | None = None,
+        modified_at: str | None = None,
     ) -> Response:
         """Fetch feed content synchronously with conditional request support.
 
         Args:
             url: The URL of the feed to fetch.
             etag: Optional ETag header for conditional fetching.
-            last_modified: Optional Last-Modified header for conditional fetching.
+            modified_at: Optional Last-Modified header for conditional fetching.
 
         Returns:
             Response object. Caller should check response.status == 304 for not modified.
@@ -60,8 +60,8 @@ class RSSProvider:
         headers: dict[str, str] = {}
         if etag:
             headers["If-None-Match"] = etag
-        if last_modified:
-            headers["If-Modified-Since"] = last_modified
+        if modified_at:
+            headers["If-Modified-Since"] = modified_at
 
         # Merge browser headers with conditional headers
         request_headers = {**BROWSER_HEADERS, **headers}
@@ -131,19 +131,19 @@ class RSSProvider:
         """Fetch and parse RSS/Atom feed content.
 
         Args:
-            feed: Feed object containing url and optional etag/last_modified.
+            feed: Feed object containing url and optional etag/modified_at.
 
         Returns:
-            FetchedResult with articles and updated etag/last_modified.
+            FetchedResult with articles and updated etag/modified_at.
         """
         try:
             response = self._fetch_feed_content_sync(
-                feed.url, feed.etag, feed.last_modified
+                feed.url, feed.etag, feed.modified_at
             )
             if response.status == 304:
                 logger.info("RSS feed %s returned 304 Not Modified", feed.url)
                 return FetchedResult(
-                    articles=[], etag=feed.etag, last_modified=feed.last_modified
+                    articles=[], etag=feed.etag, modified_at=feed.modified_at
                 )
 
             articles = self.parse_articles(response)
@@ -155,7 +155,7 @@ class RSSProvider:
             return FetchedResult(
                 articles=articles,
                 etag=response.headers.get("etag"),
-                last_modified=response.headers.get("last-modified"),
+                modified_at=response.headers.get("last-modified"),
             )
         except Exception as e:
             logger.error("RSSProvider.fetch_articles(%s) failed: %s", feed.url, e)

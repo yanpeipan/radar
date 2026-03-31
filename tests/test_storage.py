@@ -34,8 +34,8 @@ class TestArticleOperations:
             name="Test Feed",
             url="https://example.com/feed.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -66,8 +66,8 @@ class TestArticleOperations:
             name="Async Feed",
             url="https://example.com/async.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -97,8 +97,8 @@ class TestArticleOperations:
             name="List Feed",
             url="https://example.com/list.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -153,8 +153,8 @@ class TestArticleOperations:
             name="Feed 1",
             url="https://example.com/feed1.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         feed2 = Feed(
@@ -162,8 +162,8 @@ class TestArticleOperations:
             name="Feed 2",
             url="https://example.com/feed2.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed1)
@@ -207,8 +207,8 @@ class TestArticleOperations:
             name="Get Feed",
             url="https://example.com/get.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -248,8 +248,8 @@ class TestArticleOperations:
             name="Trunc Feed",
             url="https://example.com/trunc.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -288,8 +288,8 @@ class TestArticleOperations:
             name="Search Feed",
             url="https://example.com/search.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -327,8 +327,8 @@ class TestArticleOperations:
             name="Search Feed 1",
             url="https://example.com/s1.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         feed2 = Feed(
@@ -336,8 +336,8 @@ class TestArticleOperations:
             name="Search Feed 2",
             url="https://example.com/s2.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed1)
@@ -377,8 +377,8 @@ class TestArticleOperations:
             name="Empty Search Feed",
             url="https://example.com/empty.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -410,8 +410,8 @@ class TestArticleOperations:
             name="Update Feed",
             url="https://example.com/update.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -465,8 +465,8 @@ class TestFeedOperations:
             name="Exists Feed",
             url="https://example.com/exists.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -489,8 +489,8 @@ class TestFeedOperations:
             name="Add Feed",
             url="https://example.com/add.xml",
             etag="test-etag",
-            last_modified="test-lm",
-            last_fetched_at="2024-01-15T10:00:00+00:00",
+            modified_at="test-lm",
+            fetched_at="2024-01-15T10:00:00+00:00",
             created_at="2024-01-01T00:00:00+00:00",
         )
 
@@ -517,8 +517,8 @@ class TestFeedOperations:
             name="Duplicate Feed 1",
             url="https://example.com/dup.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         feed2 = Feed(
@@ -526,8 +526,8 @@ class TestFeedOperations:
             name="Duplicate Feed 2",
             url="https://example.com/dup.xml",  # Same URL
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
 
@@ -546,8 +546,8 @@ class TestFeedOperations:
             name="List Feed 1",
             url="https://example.com/list1.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         feed2 = Feed(
@@ -555,8 +555,8 @@ class TestFeedOperations:
             name="List Feed 2",
             url="https://example.com/list2.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-02T00:00:00+00:00",
         )
         add_feed(feed1)
@@ -609,8 +609,8 @@ class TestFeedOperations:
             name="Get Feed",
             url="https://example.com/get.xml",
             etag="get-etag",
-            last_modified="get-lm",
-            last_fetched_at=None,
+            modified_at="get-lm",
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -640,8 +640,8 @@ class TestFeedOperations:
             name="Remove Feed",
             url="https://example.com/remove.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)
@@ -671,8 +671,8 @@ class TestFeedOperations:
             name="Cascade Feed",
             url="https://example.com/cascade.xml",
             etag=None,
-            last_modified=None,
-            last_fetched_at=None,
+            modified_at=None,
+            fetched_at=None,
             created_at="2024-01-01T00:00:00+00:00",
         )
         add_feed(feed)

@@ -25,8 +25,8 @@ class Feed:
         name: Display name of the feed.
         url: URL of the feed.
         etag: ETag header value for conditional fetching.
-        last_modified: Last-Modified header value for conditional fetching.
-        last_fetched_at: ISO timestamp of last successful fetch.
+        modified_at: Last-Modified header value for conditional fetching.
+        fetched_at: ISO timestamp of last successful fetch.
         created_at: ISO timestamp when feed was added.
         metadata: JSON string with provider-specific data (e.g., github_token).
     """
@@ -36,8 +36,8 @@ class Feed:
     url: str
     created_at: str
     etag: str | None = None
-    last_modified: str | None = None
-    last_fetched_at: str | None = None
+    modified_at: str | None = None
+    fetched_at: str | None = None
     metadata: str | None = None  # JSON string with provider-specific data
     weight: float | None = None  # Feed weight for semantic search ranking (default 0.3)
 

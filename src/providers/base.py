@@ -26,7 +26,7 @@ class FetchedResult:
 
     articles: list[Article]
     etag: str | None = None
-    last_modified: str | None = None
+    modified_at: str | None = None
 
 
 @runtime_checkable
@@ -74,10 +74,10 @@ class ContentProvider(Protocol):
         """Fetch and parse content from Feed.
 
         Args:
-            feed: Feed object containing url and optional etag/last_modified.
+            feed: Feed object containing url and optional etag/modified_at.
 
         Returns:
-            FetchedResult with articles list and updated etag/last_modified.
+            FetchedResult with articles list and updated etag/modified_at.
         """
         ...
 
