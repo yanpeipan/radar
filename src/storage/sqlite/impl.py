@@ -167,7 +167,7 @@ def store_article(
     from src.application.config import get_timezone
 
     tz = get_timezone()
-    now = datetime.now(tz).isoformat()
+    now = time.strftime('%Y-%m-%d %H:%M:%S')
     normalized_published_at = _normalize_published_at(published_at, tz)
 
     with get_db() as conn:
