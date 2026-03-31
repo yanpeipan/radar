@@ -162,6 +162,13 @@ class GitHubReleaseProvider:
             # content: None (no additional content for releases)
             content = None
 
+            # author: GitHub release has "author" dict with "login" key
+            author = None
+            if isinstance(raw.get("author"), dict):
+                author = raw.get("author", {}).get("login")
+            else:
+                author = raw.get("author")
+
             articles.append(
                 Article(
                     title=title,
@@ -170,6 +177,9 @@ class GitHubReleaseProvider:
                     published_at=published_at,
                     description=description,
                     content=content,
+                    author=author,
+                    tags="",
+                    category="",
                 )
             )
         return articles
