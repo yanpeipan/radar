@@ -14,6 +14,7 @@ from urllib.parse import urljoin, urlparse
 import feedparser
 
 from src.discovery.models import DiscoveredFeed
+from src.discovery.parallel_probe import probe_feed_paths_parallel
 from src.providers import PROVIDERS
 from src.providers.base import Article, FetchedResult
 
@@ -362,7 +363,9 @@ class RSSProvider:
 
         # Phase 5: Probe well-known paths (only at depth 1)
         if depth == 1:
-            feeds.extend(_probe_well_known_paths(url, html))
+            async def _discover_parallel():
+                return await probe_feed_paths_parallel(url, html)
+            feeds.extend(asyncio.run(_discover_parallel()))
 
         return feeds
 
@@ -511,43 +514,44 @@ class RSSProvider:
         return feeds
 
 
-def _probe_well_known_paths(url: str, html: str | None) -> list[DiscoveredFeed]:
-    """Probe well-known feed paths on a page URL and validate them in parallel.
-
-    Args:
-        url: Base page URL to probe.
-        html: Optional HTML content for subdirectory discovery.
-
-    Returns:
-        List of DiscoveredFeed found via well-known path probing (only validated ones).
-    """
-    import concurrent.futures
-
-    from src.discovery.common_paths import generate_feed_candidates
-
-    candidates = generate_feed_candidates(url, html)
-    if not candidates:
-        return []
-
-    def _validate_one(candidate: str) -> DiscoveredFeed | None:
-        try:
-            return RSSProvider().parse_feed(candidate, None)
-        except Exception:
-            return None
-
-    # Use ThreadPoolExecutor for parallel validation (avoid asyncio.run() nesting issues)
-    results: list[DiscoveredFeed] = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [executor.submit(_validate_one, c) for c in candidates]
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                result = future.result()
-                if result is not None:
-                    results.append(result)
-            except Exception:
-                pass
-
-    return results
+# DEPRECATED: Replaced by probe_feed_paths_parallel in src.discovery.parallel_probe
+# def _probe_well_known_paths(url: str, html: str | None) -> list[DiscoveredFeed]:
+#     """Probe well-known feed paths on a page URL and validate them in parallel.
+#
+#     Args:
+#         url: Base page URL to probe.
+#         html: Optional HTML content for subdirectory discovery.
+#
+#     Returns:
+#         List of DiscoveredFeed found via well-known path probing (only validated ones).
+#     """
+#     import concurrent.futures
+#
+#     from src.discovery.common_paths import generate_feed_candidates
+#
+#     candidates = generate_feed_candidates(url, html)
+#     if not candidates:
+#         return []
+#
+#     def _validate_one(candidate: str) -> DiscoveredFeed | None:
+#         try:
+#             return RSSProvider().parse_feed(candidate, None)
+#         except Exception:
+#             return None
+#
+#     # Use ThreadPoolExecutor for parallel validation (avoid asyncio.run() nesting issues)
+#     results: list[DiscoveredFeed] = []
+#     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+#         futures = [executor.submit(_validate_one, c) for c in candidates]
+#         for future in concurrent.futures.as_completed(futures):
+#             try:
+#                 result = future.result()
+#                 if result is not None:
+#                     results.append(result)
+#             except Exception:
+#                 pass
+#
+#     return results
 
 
 # Register this provider - it will be sorted by priority() after all modules load
