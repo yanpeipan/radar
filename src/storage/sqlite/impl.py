@@ -180,18 +180,18 @@ def store_article(
         if existing:
             # UPDATE existing article
             article_id = existing["id"]
-            updated_at = time.strftime('%Y-%m-%d %H:%M:%S')
+            modified_at = time.strftime('%Y-%m-%d %H:%M:%S')
             cursor.execute(
-                """UPDATE articles SET title = ?, content = ?, link = ?, published_at = ?, updated_at = ?
+                """UPDATE articles SET title = ?, content = ?, link = ?, published_at = ?, modified_at = ?
                    WHERE guid = ?""",
-                (title, content, link, normalized_published_at, updated_at, guid),
+                (title, content, link, normalized_published_at, modified_at, guid),
             )
         else:
             # INSERT new article
             article_id = generate()
-            updated_at = time.strftime('%Y-%m-%d %H:%M:%S')
+            modified_at = time.strftime('%Y-%m-%d %H:%M:%S')
             cursor.execute(
-                """INSERT INTO articles (id, feed_id, title, link, guid, published_at, content, created_at, updated_at)
+                """INSERT INTO articles (id, feed_id, title, link, guid, published_at, content, created_at, modified_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     article_id,
@@ -202,7 +202,7 @@ def store_article(
                     normalized_published_at,
                     content,
                     now,
-                    updated_at,
+                    modified_at,
                 ),
             )
 

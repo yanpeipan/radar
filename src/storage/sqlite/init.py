@@ -50,10 +50,10 @@ class DatabaseInitializer:
                     link TEXT,
                     guid TEXT NOT NULL,
                     published_at TEXT,
+                    modified_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     description TEXT,
                     content TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(feed_id, id)
                 )
             """)
