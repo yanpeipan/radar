@@ -242,12 +242,7 @@ class RSSProvider:
             category = None
             if hasattr(raw, "category"):
                 cat = raw.category
-                if hasattr(cat, "term"):
-                    # Atom: Tag object with .term attribute
-                    category = cat.term
-                else:
-                    # RSS 2.0: plain string
-                    category = cat
+                category = cat.term if hasattr(cat, "term") else cat  # Atom: Tag.term, RSS 2.0: plain string
 
             articles.append(
                 Article(

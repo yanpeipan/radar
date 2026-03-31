@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
 
-from src.application.config import get_default_feed_weight, get_timezone
+from src.application.config import get_default_feed_weight
 from src.models import Feed, FeedMetaData
 from src.providers import discover
 from src.storage import get_feed as storage_get_feed

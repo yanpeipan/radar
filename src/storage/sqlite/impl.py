@@ -170,7 +170,6 @@ def store_article(
     Returns:
         article_id: The ID of the stored article.
     """
-    from datetime import datetime
 
     from src.application.config import get_timezone
 

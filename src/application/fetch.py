@@ -11,7 +11,6 @@ import asyncio
 import logging
 import time
 
-from src.application.config import get_timezone
 from src.application.feed import FeedNotFoundError, fetch_one, get_feed
 from src.models import Feed, FeedType
 from src.providers import match_first
