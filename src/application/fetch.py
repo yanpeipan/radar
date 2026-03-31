@@ -116,6 +116,9 @@ async def fetch_one_async(feed: Feed) -> dict:
                         "content": a["content"],
                         "url": a["link"],
                         "published_at": a["published_at"],
+                        "author": a.get("author") or "",
+                        "tags": a.get("tags") or "",
+                        "category": a.get("category") or "",
                     }
                 )
             await asyncio.to_thread(add_article_embeddings, embedding_articles)

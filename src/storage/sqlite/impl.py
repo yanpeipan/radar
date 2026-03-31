@@ -220,8 +220,8 @@ def store_article(
 
         # Sync to FTS5
         cursor.execute(
-            """INSERT OR REPLACE INTO articles_fts(rowid, title, description, content)
-               SELECT rowid, title, description, content FROM articles WHERE id = ?""",
+            """INSERT OR REPLACE INTO articles_fts(rowid, title, description, content, author, tags, category)
+               SELECT rowid, title, description, content, author, tags, category FROM articles WHERE id = ?""",
             (article_id,),
         )
 

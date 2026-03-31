@@ -94,6 +94,9 @@ class DatabaseInitializer:
                     title,
                     description,
                     content,
+                    author,
+                    tags,
+                    category,
                     tokenize='porter ascii'
                 )
             """)

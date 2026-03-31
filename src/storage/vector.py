@@ -245,11 +245,13 @@ def add_article_embeddings(articles: list[dict]) -> None:
         content = article.get("content") or ""
         url = article.get("url") or ""
         published_at = article.get("published_at")
+        author = article.get("author") or ""
+        tags = article.get("tags") or ""
+        category = article.get("category") or ""
 
-        if content and len(content) >= 50:
-            embedding_text = content
-        else:
-            embedding_text = f"{title} {content}".strip()
+        # Compose rich embedding text from all available fields
+        parts = [title, author, tags, category, content]
+        embedding_text = " ".join(p for p in parts if p)
 
         if not embedding_text:
             logger.warning(
