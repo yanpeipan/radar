@@ -53,6 +53,7 @@ def _sync_fetch_with_fallback(
     url: str,
     headers: dict | None = None,
     timeout: int = 10,
+    stealth_timeout: int | None = None,
 ) -> Response | None:
     """Sync fetch with fallback (no caching). Internal use only.
 
@@ -64,7 +65,9 @@ def _sync_fetch_with_fallback(
     Args:
         url: URL to fetch.
         headers: Optional HTTP headers (uses BROWSER_HEADERS if None).
-        timeout: Request timeout in seconds.
+        timeout: Request timeout in seconds for basic Fetcher.
+        stealth_timeout: Timeout in milliseconds for stealth fetcher.
+            Defaults to timeout * 1000 (same as basic fetcher but in ms).
 
     Returns:
         Response object with .html_content, .status, etc., or None on failure.
@@ -75,6 +78,10 @@ def _sync_fetch_with_fallback(
         from src.constants import BROWSER_HEADERS
 
         headers = BROWSER_HEADERS
+
+    # Default stealth timeout to timeout * 1000 (convert seconds to ms)
+    if stealth_timeout is None:
+        stealth_timeout = timeout * 1000
 
     # Fast path: try basic Fetcher
     try:
@@ -93,13 +100,17 @@ def _sync_fetch_with_fallback(
         _logger.debug(f"Basic fetch failed ({e}), trying stealth fetcher for {url}")
 
     # Fallback: try stealth fetcher (slower but bypasses most anti-bots)
-    # Use 30 second timeout for stealth fetcher (handles JS rendering)
+    # Use configurable timeout for stealth fetcher (handles JS rendering)
     try:
         stealth = StealthyFetcher()
-        return stealth.fetch(url, headers=headers, timeout=30000)
+        return stealth.fetch(url, headers=headers, timeout=stealth_timeout)
     except Exception as e:
         _logger.warning(f"Stealth fetcher also failed for {url}: {e}")
         return None
+
+
+# Backward-compatible alias
+fetch_with_fallback = _sync_fetch_with_fallback
 
 
 async def _rate_limit_host(url: str, rate_limit: float = _DEFAULT_RATE_LIMIT) -> None:
