@@ -7,6 +7,7 @@ Priority is 50 (higher than DefaultProvider at 0, lower than GitHubReleaseProvid
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
@@ -189,8 +190,13 @@ class RSSProvider:
             # Generate article ID (guid)
             guid = generate_article_id(raw)
 
-            # Extract published_at (published or updated)
-            published_at = raw.get("published") or raw.get("updated")
+            # Extract published_at using struct_time for consistent format
+            if hasattr(raw, "published_parsed") and isinstance(raw.published_parsed, tuple):
+                published_at = time.strftime('%Y-%m-%d %H:%M:%S', raw.published_parsed)
+            elif hasattr(raw, "updated_parsed") and isinstance(raw.updated_parsed, tuple):
+                published_at = time.strftime('%Y-%m-%d %H:%M:%S', raw.updated_parsed)
+            else:
+                published_at = raw.get("published") or raw.get("updated")
 
             # Extract description
             description = None
