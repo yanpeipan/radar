@@ -73,10 +73,14 @@ async def fetch_one_async(feed: Feed) -> dict:
             {
                 "guid": article_guid,
                 "title": article.get("title") or "",
-                "content": article.get("content") or article.get("description") or "",
+                "content": article.get("content") or "",
+                "description": article.get("description") or "",
                 "link": article.get("link") or "",
                 "feed_id": feed.id,
                 "published_at": article.get("published_at"),
+                "author": article.get("author"),
+                "tags": article.get("tags"),
+                "category": article.get("category"),
             }
         )
 
