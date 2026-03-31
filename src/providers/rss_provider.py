@@ -198,21 +198,54 @@ class RSSProvider:
             else:
                 published_at = raw.get("published") or raw.get("updated")
 
-            # Extract description
+            # Extract description (feedparser semantics)
+            # - raw.description: short description/summary
+            # - raw.summary: typically same as or similar to description
+            # - raw.summary_detail.value: detailed summary (longer version, fallback)
             description = None
             if hasattr(raw, "description"):
                 description = raw.description
             elif hasattr(raw, "summary"):
                 description = raw.summary
-
-            # Extract content
-            content_val = None
-            if hasattr(raw, "content") and raw.content:
-                content_val = raw.content[0].value if raw.content else None
             elif hasattr(raw, "summary_detail") and hasattr(
                 raw.summary_detail, "value"
             ):
-                content_val = raw.summary_detail.value
+                description = raw.summary_detail.value
+
+            # Extract content (feedparser semantics)
+            # - raw.content[0].value: full article content
+            # Note: summary_detail.value is NOT content, it's a detailed summary
+            content_val = None
+            if hasattr(raw, "content") and raw.content:
+                content_val = raw.content[0].value if raw.content else None
+
+            # Extract author (feedparser semantics)
+            # - raw.author: can be a dict with "name" key (Atom) or a string (RSS 2.0)
+            # - raw.dc_creator: RSS 2.0 fallback for author
+            author = None
+            if hasattr(raw, "author"):
+                author = raw.author
+                if isinstance(author, dict):
+                    author = author.get("name")
+            if not author and hasattr(raw, "dc_creator"):
+                author = raw.dc_creator
+
+            # Extract tags (feedparser semantics)
+            # - raw.tags: list of tag objects with .term attribute
+            tags = ""
+            if hasattr(raw, "tags") and raw.tags:
+                tags = ",".join([t.term for t in raw.tags if hasattr(t, "term")])
+
+            # Extract category (feedparser semantics)
+            # - raw.category: can be a string (RSS 2.0) or dict with "term" key (Atom)
+            # - raw.categories: list of categories as fallback
+            category = None
+            if hasattr(raw, "category"):
+                cat = raw.category
+                if isinstance(cat, dict):
+                    category = cat.get("term")
+                else:
+                    category = cat
 
             articles.append(
                 Article(
@@ -222,6 +255,9 @@ class RSSProvider:
                     published_at=published_at,
                     description=description,
                     content=content_val,
+                    author=author,
+                    tags=tags,
+                    category=category,
                 )
             )
         return articles
