@@ -36,12 +36,15 @@ See [docs/](docs/) for project documentation.
 
 ### Release Process
 
-See [docs/release.md](docs/release.md) for release workflow. **TL;DR**:
+See [docs/release.md](docs/release.md) for full workflow. **Critical steps**:
 
-1. Ensure lint passes locally: `uv run ruff format --check . && uv run ruff check .`
-2. Commit all changes
-3. Create release: `gh release create v1.x.x --title "v1.x.x" --notes "..."`
-4. This triggers PyPI publish via GitHub Actions
+1. **Bump version FIRST** in `pyproject.toml`: `version = "1.2.2"`
+2. Run pre-commit: `uv run pre-commit run --all`
+3. Commit: `git add -A && git commit -m "Release v1.2.2"`
+4. Create release: `gh release create v1.2.2 --title "v1.2.2" --notes "..."`
+5. Verify: `curl -s pypi.org/pypi/feedship/json | grep version`
+
+**Common failures**: Wrong version in pyproject.toml, using `git tag` instead of `gh release create`
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:docs/Architecture.md -->
