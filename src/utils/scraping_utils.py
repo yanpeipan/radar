@@ -126,23 +126,27 @@ _STEALTH_SETTINGS = {
 }
 
 # Page action for stealth fetcher - scroll to bottom to trigger lazy loading
-# This is a lambda that gets passed to page_action parameter
-_PAGE_ACTION_SCROLL = """async (page) => {
-    await page.evaluate(async () => {
-        await new Promise((resolve) => {
-            let totalHeight = 0;
-            const distance = 100;
-            const timer = setInterval(() => {
-                window.scrollBy(0, distance);
-                totalHeight += distance;
-                if (totalHeight >= document.body.scrollHeight - window.innerHeight) {
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 100);
-        });
-    });
-}"""
+# This must be a Python callable that accepts a Playwright page object
+def _scroll_page(page):
+    """Scroll page to bottom to trigger lazy loading."""
+    page.evaluate(
+        """
+        async () => {
+            await new Promise((resolve) => {
+                let totalHeight = 0;
+                const distance = 100;
+                const timer = setInterval(() => {
+                    window.scrollBy(0, distance);
+                    totalHeight += distance;
+                    if (totalHeight >= document.body.scrollHeight - window.innerHeight) {
+                        clearInterval(timer);
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
+        """
+    )
 
 
 # ============================================================================
@@ -221,7 +225,7 @@ def _sync_fetch_with_fallback(
             url,
             headers=headers,
             timeout=stealth_timeout,
-            page_action=_PAGE_ACTION_SCROLL,
+            page_action=_scroll_page,
             follow_redirects=True,
             **_STEALTH_SETTINGS,
         )
