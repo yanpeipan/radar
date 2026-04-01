@@ -1,0 +1,17 @@
+#!/bin/sh
+# Pre-commit hook: run ruff lint on staged Python files
+
+echo "Running ruff lint..."
+
+# Lint only staged Python files
+ruff check --quiet 2>&1 | head -20
+RESULT=$?
+
+if [ $RESULT -ne 0 ]; then
+    echo "Lint errors found. Fix them before committing."
+    echo "Or bypass with: git commit --no-verify"
+    exit 1
+fi
+
+echo "Lint passed."
+exit 0
