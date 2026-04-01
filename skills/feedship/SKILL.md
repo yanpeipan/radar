@@ -30,16 +30,24 @@ uv pip install 'feedship[cloudflare,ml]'
 > **Note:** `cloudflare` extra provides scrapling (HTML fetching); `ml` extra provides
 > sentence-transformers + chromadb (semantic search). Both are required for full functionality.
 
-### Offline/HuggingFace Mirror Setup
+### HuggingFace Mirror Setup (China / Restricted Networks)
 
-If HuggingFace is not accessible (e.g. in China), set mirror before installing:
+If HuggingFace is not accessible, set mirror before all operations:
 
 ```bash
-export HF_ENDPOINT=https://hf-mirror.com
-pipx install 'feedship[cloudflare,ml]'
+# Add to ~/.bashrc for persistence
+echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.bashrc
+source ~/.bashrc
+
+# Install with mirror
+HF_ENDPOINT=https://hf-mirror.com pipx install 'feedship[cloudflare,ml]'
 ```
 
 After installation, verify with: `feedship --version`
+
+> **First-time setup for semantic search:** After installing, run `feedship fetch --all`
+> to populate the vector database with article embeddings. Semantic search requires
+> embeddings to be generated first (chromadb storage).
 
 ---
 
