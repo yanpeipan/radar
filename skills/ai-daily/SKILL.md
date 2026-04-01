@@ -74,7 +74,13 @@ feedship article list --limit 100 --since YYYY-MM-DD
 
 Filter to articles actually published today (check the date column in output).
 
-### Step 3: Generate 3-Section Report
+Then use semantic search to focus on current themes:
+
+```bash
+feedship search "AI machine learning news" --semantic --limit 20 --since YYYY-MM-DD
+```
+
+### Step 4: Generate 3-Section Report
 
 Read full content for articles you want to summarize:
 
