@@ -77,7 +77,7 @@ Filter to articles actually published today (check the date column in output).
 Then use semantic search to focus on current themes:
 
 ```bash
-feedship search "AI machine learning news" --semantic --limit 20 --since YYYY-MM-DD
+feedship search "AI LLM GPT machine learning" --semantic --limit 33 --since YYYY-MM-DD
 ```
 
 ### Step 4: Generate 3-Section Report
