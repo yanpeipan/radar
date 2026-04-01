@@ -130,15 +130,19 @@ _BASIC_FETCH_TIMEOUT = 10
 
 # StealthyFetcher.fetch() timeout in milliseconds
 # Note: StealthyFetcher uses ms, not seconds!
-_STEALTH_TIMEOUT_MS = 30000
+# Reduced from 30000ms to 15000ms because without network_idle=True,
+# pages load much faster (no waiting for external resources to finish)
+_STEALTH_TIMEOUT_MS = 15000
 
 # Stealth fetcher settings - enabled when basic fetcher is blocked
 # These settings help bypass Cloudflare, hCaptcha, and other anti-bot systems
 _STEALTH_SETTINGS = {
     # Disable images/fonts/stylesheets for speed, they don't affect CSS selection
     "disable_resources": True,
-    # Wait for network to be idle before returning (ensures dynamic content loads)
-    "network_idle": True,
+    # DO NOT wait for network to be idle - waiting for all connections to finish
+    # causes timeouts when external resources (ads, analytics, fonts) are blocked
+    # or slow to resolve. The page content is already loaded after 'load' event.
+    "network_idle": False,
     # Add random noise to canvas to prevent fingerprinting
     "hide_canvas": True,
     # Prevent WebRTC from leaking local IP (important when using proxy)
