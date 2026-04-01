@@ -24,7 +24,14 @@ from src.application.feed import (  # noqa: E402
     remove_feed,
 )
 from src.cli.discover import _display_feeds  # noqa: E402
-from src.cli.ui import FetchProgress, print_summary  # noqa: E402
+from src.cli.ui import (  # noqa: E402
+    FetchProgress,
+    format_discover_feeds,
+    format_feed_list,
+    print_json,
+    print_json_error,
+    print_summary,
+)
 from src.discovery import DiscoveredFeed, discover_feeds  # noqa: E402
 from src.models import FeedMetaData  # noqa: E402
 
@@ -171,6 +178,7 @@ def feed(ctx: click.Context) -> None:
     type=float,
     help="Feed weight for semantic search (default: 0.3)",
 )
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def feed_add(
     ctx: click.Context,
@@ -179,6 +187,7 @@ def feed_add(
     automatic: str,
     discover_depth: int,
     weight: float | None,
+    json_output: bool,
 ) -> None:
     """Add a new feed by URL (auto-detects provider type).
 
@@ -210,10 +219,12 @@ def feed_add(
                 feeds = result.feeds
             elapsed = time.time() - start
         except Exception as e:
+            if json_output:
+                print_json_error(f"Discovery error: {e}", "discovery_error")
             click.secho(f"Discovery error: {e}", err=True, fg="red")
             sys.exit(1)
 
-    if feeds:
+    if feeds and not json_output:
         click.secho(f"Discovered {len(feeds)} feed(s) in {elapsed:.1f}s", fg="cyan")
         if result and result.selectors:
             click.secho("Link selectors:", fg="cyan")
@@ -225,7 +236,10 @@ def feed_add(
 
     # Automatic or selection
     if not feeds:
-        click.secho("No feeds discovered.", fg="yellow")
+        if json_output:
+            print_json({"feeds": [], "count": 0})
+        else:
+            click.secho("No feeds discovered.", fg="yellow")
         return
 
     if automatic == "on":
@@ -241,12 +255,26 @@ def feed_add(
                 added_count += 1
             else:
                 updated_count += 1
+        if json_output:
+            print_json(
+                {
+                    "added": added_count,
+                    "updated": updated_count,
+                    "total": len(feeds),
+                }
+            )
+            return
         if updated_count > 0:
             click.secho(
                 f"Added {added_count}, updated {updated_count} feed(s).", fg="green"
             )
         else:
             click.secho(f"Added {added_count} feed(s) automatically.", fg="green")
+        return
+
+    # JSON mode with discovered feeds but not automatic
+    if json_output:
+        print_json(format_discover_feeds(feeds, elapsed))
         return
 
     # Show feed list and prompt for selection
@@ -280,13 +308,21 @@ def feed_add(
 
 @feed.command("list")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
-def feed_list(ctx: click.Context, verbose: bool) -> None:
+def feed_list(ctx: click.Context, verbose: bool, json_output: bool) -> None:
     """List all subscribed feeds with provider type."""
     try:
         feeds = list_feeds()
         if not feeds:
+            if json_output:
+                print_json(format_feed_list([]))
+                return
             click.secho("No feeds subscribed yet. Use 'feed add <url>' to add one.")
+            return
+
+        if json_output:
+            print_json(format_feed_list(feeds))
             return
 
         from rich.console import Console
@@ -345,6 +381,8 @@ def feed_list(ctx: click.Context, verbose: bool) -> None:
 
             console.print(table)
     except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to list feeds: {e}", "list_error")
         click.secho(f"Error: Failed to list feeds: {e}", err=True, fg="red")
         logger.exception("Failed to list feeds")
         sys.exit(1)
@@ -352,17 +390,25 @@ def feed_list(ctx: click.Context, verbose: bool) -> None:
 
 @feed.command("remove")
 @click.argument("feed_id")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
-def feed_remove(ctx: click.Context, feed_id: str) -> None:
+def feed_remove(ctx: click.Context, feed_id: str, json_output: bool) -> None:
     """Remove a feed by ID."""
     try:
         removed = remove_feed(feed_id)
         if removed:
-            click.secho(f"Removed feed: {feed_id}", fg="green")
+            if json_output:
+                print_json({"item": {"id": feed_id, "removed": True}})
+            else:
+                click.secho(f"Removed feed: {feed_id}", fg="green")
         else:
+            if json_output:
+                print_json_error("Feed not found", "not_found", exit_code=2)
             click.secho(f"Feed not found: {feed_id}", fg="yellow")
             sys.exit(1)
     except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to remove feed: {e}", "remove_error")
         click.secho(f"Error: Failed to remove feed: {e}", err=True, fg="red")
         logger.exception("Failed to remove feed")
         sys.exit(1)
