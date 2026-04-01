@@ -30,17 +30,28 @@ uv pip install 'feedship[cloudflare,ml]'
 > **Note:** `cloudflare` extra provides scrapling (HTML fetching); `ml` extra provides
 > sentence-transformers + chromadb (semantic search). Both are required for full functionality.
 
-### HuggingFace Mirror Setup (China / Restricted Networks)
+### China / Restricted Networks
 
-If HuggingFace is not accessible, set mirror before all operations:
+For environments where PyPI or HuggingFace is not accessible, use mirrors:
 
 ```bash
 # Add to ~/.bashrc for persistence
 echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.bashrc
+echo 'export PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/' >> ~/.bashrc
 source ~/.bashrc
 
-# Install with mirror
-HF_ENDPOINT=https://hf-mirror.com pipx install 'feedship[cloudflare,ml]'
+# Install
+pipx install 'feedship[cloudflare,ml]'
+```
+
+### Upgrade
+
+```bash
+# Upgrade to latest version
+pipx upgrade feedship
+
+# Or reinstall
+pipx install 'feedship[cloudflare,ml]' --force
 ```
 
 After installation, verify with: `feedship --version`
