@@ -313,7 +313,7 @@ class NitterProvider:
         """Validate nitter: URL and return as DiscoveredFeed.
 
         Args:
-            url: Nitter pseudo-URL (e.g., 'nitter:elonmusk').
+            url: Nitter pseudo-URL (e.g., 'nitter:elonmusk', 'x:elonmusk').
             response: Unused for Nitter (URL-only validation).
 
         Returns:
@@ -324,7 +324,7 @@ class NitterProvider:
             # Return invalid feed with helpful message in title
             return DiscoveredFeed(
                 url=url,
-                title=f"Use 'nitter:{self._extract_twitter_username(url)}' instead of '{url}'",
+                title=f"Use 'x:{self._extract_twitter_username(url)}' instead of '{url}'",
                 feed_type="rss",
                 source=f"provider_{self.__class__.__name__}",
                 page_url=url,
@@ -342,8 +342,11 @@ class NitterProvider:
                 valid=False,
             )
 
+        # Normalize to x: format for storage
+        normalized_url = f"x:{username}"
+
         return DiscoveredFeed(
-            url=url,
+            url=normalized_url,
             title=f"Nitter: {username}",
             feed_type="rss",
             source=f"provider_{self.__class__.__name__}",
