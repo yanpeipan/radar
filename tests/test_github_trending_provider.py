@@ -130,21 +130,7 @@ class TestGitHubTrendingProvider:
         """Verify fetch_articles fetches daily, weekly, and monthly periods."""
         from src.providers.github_trending_provider import GitHubTrendingProvider
 
-        # Mock Fetcher.fetch to return HTML with one repo
-        mock_html = b"""
-        <html>
-        <body>
-            <article class="Box-row">
-                <h2><a href="/owner/repo">owner/repo</a></h2>
-                <p>A great repository</p>
-                <span itemprop="programmingLanguage">Python</span>
-                <a href="/owner/repo/stargazers">1,500 stars today</a>
-                <a href="/owner/repo/network/members">200 forks</a>
-            </article>
-        </body>
-        </html>
-        """
-
+        # Mock Fetcher.fetch to return empty results (just tracking URLs)
         mock_fetcher = MagicMock()
         mock_fetcher.css.return_value.all.return_value = []
 
@@ -168,7 +154,7 @@ class TestGitHubTrendingProvider:
                 url="https://github.com/trending",
                 created_at="2024-01-01T00:00:00",
             )
-            result = provider.fetch_articles(feed)
+            provider.fetch_articles(feed)
 
             # Should have fetched all 3 periods
             assert len(fetched_urls) == 3
@@ -237,6 +223,7 @@ class TestGitHubTrendingProvider:
     def test_metadata_json(self):
         """Verify metadata JSON contains stars, forks, language, rank, period."""
         import json
+
         from src.providers.github_trending_provider import GitHubTrendingProvider
 
         mock_entry = MagicMock()
