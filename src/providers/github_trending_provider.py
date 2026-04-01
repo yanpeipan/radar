@@ -137,13 +137,13 @@ class GitHubTrendingProvider:
         articles = []
         rank = 0
 
-        # Find all repo entries
-        repo_entries = fetcher.css(TRENDING_SELECTORS["article"]).getall()
-        if not repo_entries:
+        # Find all repo entries - iterate directly to get Selector objects
+        article_selectors = fetcher.css(TRENDING_SELECTORS["article"])
+        if not article_selectors:
             logger.warning("No trending repos found at %s", url)
             return []
 
-        for entry in repo_entries:
+        for entry in article_selectors:
             rank += 1
             try:
                 article = self._parse_repo_entry(entry, period, rank)
@@ -167,11 +167,11 @@ class GitHubTrendingProvider:
             Article dict or None if parsing failed.
         """
         # Extract repo link
-        repo_link_el = entry.css_first(TRENDING_SELECTORS["repo_link"])
+        repo_link_el = entry.css(TRENDING_SELECTORS["repo_link"]).first
         if not repo_link_el:
             return None
 
-        repo_path = repo_link_el.css_first("::attr(href)").strip()
+        repo_path = repo_link_el.css("::attr(href)").get().strip()
         repo_url = f"https://github.com{repo_path}"
         # Extract user/repo from path
         parts = repo_path.strip("/").split("/")
@@ -180,22 +180,22 @@ class GitHubTrendingProvider:
         user_repo = f"{parts[0]}/{parts[1]}"
 
         # Extract description
-        desc_el = entry.css_first(TRENDING_SELECTORS["description"])
+        desc_el = entry.css(TRENDING_SELECTORS["description"]).first
         description = desc_el.text.strip() if desc_el else ""
 
         # Extract language
-        lang_el = entry.css_first(TRENDING_SELECTORS["language"])
+        lang_el = entry.css(TRENDING_SELECTORS["language"]).first
         language = lang_el.text.strip() if lang_el else ""
 
         # Extract stars - text is like "15,000 stars today"
-        stars_el = entry.css_first(TRENDING_SELECTORS["stars"])
+        stars_el = entry.css(TRENDING_SELECTORS["stars"]).first
         stars_text = stars_el.text.strip() if stars_el else "0"
         # Parse number from text (remove commas and non-digits)
         stars_str = "".join(c for c in stars_text if c.isdigit() or c == ",")
         stars = int(stars_str.replace(",", "")) if stars_str else 0
 
         # Extract forks
-        forks_el = entry.css_first(TRENDING_SELECTORS["forks"])
+        forks_el = entry.css(TRENDING_SELECTORS["forks"]).first
         forks_text = forks_el.text.strip() if forks_el else "0"
         forks_str = "".join(c for c in forks_text if c.isdigit() or c == ",")
         forks = int(forks_str.replace(",", "")) if forks_str else 0

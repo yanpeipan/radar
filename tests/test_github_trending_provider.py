@@ -163,32 +163,42 @@ class TestGitHubTrendingProvider:
         """Verify GUID format is 'github-trending:{period}:{repo_url}'."""
         from src.providers.github_trending_provider import GitHubTrendingProvider
 
-        # Mock Fetcher response
+        # Mock entry with new scrapling 0.4.x API
         mock_entry = MagicMock()
-        mock_entry.css_first.side_effect = lambda selector: {
-            "h2 a": MagicMock(css_first=MagicMock(return_value="/owner/repo"), text="/owner/repo"),
-            "p": MagicMock(text="Description"),
-            "span[itemprop='programmingLanguage']": MagicMock(text="Python"),
-            "a.Link--muted:nth-of-type(2)": MagicMock(text="1,500 stars today"),
-            "a.Link--muted:nth-of-type(3)": MagicMock(text="200 forks"),
-        }.get(selector, MagicMock(return_value=None))()
-
-        # Create mock article by calling _parse_repo_entry
-        provider = GitHubTrendingProvider()
-
-        # We need to mock the entry's methods properly
         mock_h2_a = MagicMock()
-        mock_h2_a.css_first = MagicMock(return_value="/owner/repo")
         mock_h2_a.text = "/owner/repo"
+        # For .css("::attr(href)").get().strip()
+        mock_h2_a.css.return_value.get.return_value.strip.return_value = "/owner/repo"
 
-        mock_entry.css_first = MagicMock(side_effect=lambda sel: {
-            "h2 a": mock_h2_a,
-            "p": MagicMock(text="Description"),
-            "span[itemprop='programmingLanguage']": MagicMock(text="Python"),
-            "a.Link--muted:nth-of-type(2)": MagicMock(text="1,500 stars today"),
-            "a.Link--muted:nth-of-type(3)": MagicMock(text="200 forks"),
-        }.get(sel))
+        def make_selector_mock(text):
+            mock_el = MagicMock()
+            mock_el.text = text
+            return mock_el
 
+        mock_p = make_selector_mock("Description")
+        mock_lang = make_selector_mock("Python")
+        mock_stars = make_selector_mock("1,500 stars today")
+        mock_forks = make_selector_mock("200 forks")
+
+        def entry_css(selector):
+            mock_result = MagicMock()
+            if selector == "h2 a":
+                mock_result.first = mock_h2_a
+            elif selector == "p":
+                mock_result.first = mock_p
+            elif selector == "span[itemprop='programmingLanguage']":
+                mock_result.first = mock_lang
+            elif selector == "a.Link--muted:nth-of-type(2)":
+                mock_result.first = mock_stars
+            elif selector == "a.Link--muted:nth-of-type(3)":
+                mock_result.first = mock_forks
+            else:
+                mock_result.first = None
+            return mock_result
+
+        mock_entry.css = entry_css
+
+        provider = GitHubTrendingProvider()
         result = provider._parse_repo_entry(mock_entry, "weekly", 1)
 
         assert result is not None
@@ -200,16 +210,36 @@ class TestGitHubTrendingProvider:
 
         mock_entry = MagicMock()
         mock_h2_a = MagicMock()
-        mock_h2_a.css_first = MagicMock(return_value="/owner/repo")
         mock_h2_a.text = "/owner/repo"
+        mock_h2_a.css.return_value.get.return_value.strip.return_value = "/owner/repo"
 
-        mock_entry.css_first = MagicMock(side_effect=lambda sel: {
-            "h2 a": mock_h2_a,
-            "p": MagicMock(text="A great library"),
-            "span[itemprop='programmingLanguage']": MagicMock(text="Python"),
-            "a.Link--muted:nth-of-type(2)": MagicMock(text="15,000 stars today"),
-            "a.Link--muted:nth-of-type(3)": MagicMock(text="1,200 forks"),
-        }.get(sel))
+        def make_selector_mock(text):
+            mock_el = MagicMock()
+            mock_el.text = text
+            return mock_el
+
+        mock_p = make_selector_mock("A great library")
+        mock_lang = make_selector_mock("Python")
+        mock_stars = make_selector_mock("15,000 stars today")
+        mock_forks = make_selector_mock("1,200 forks")
+
+        def entry_css(selector):
+            mock_result = MagicMock()
+            if selector == "h2 a":
+                mock_result.first = mock_h2_a
+            elif selector == "p":
+                mock_result.first = mock_p
+            elif selector == "span[itemprop='programmingLanguage']":
+                mock_result.first = mock_lang
+            elif selector == "a.Link--muted:nth-of-type(2)":
+                mock_result.first = mock_stars
+            elif selector == "a.Link--muted:nth-of-type(3)":
+                mock_result.first = mock_forks
+            else:
+                mock_result.first = None
+            return mock_result
+
+        mock_entry.css = entry_css
 
         provider = GitHubTrendingProvider()
         result = provider._parse_repo_entry(mock_entry, "daily", 1)
@@ -225,16 +255,36 @@ class TestGitHubTrendingProvider:
 
         mock_entry = MagicMock()
         mock_h2_a = MagicMock()
-        mock_h2_a.css_first = MagicMock(return_value="/owner/repo")
         mock_h2_a.text = "/owner/repo"
+        mock_h2_a.css.return_value.get.return_value.strip.return_value = "/owner/repo"
 
-        mock_entry.css_first = MagicMock(side_effect=lambda sel: {
-            "h2 a": mock_h2_a,
-            "p": MagicMock(text="Description"),
-            "span[itemprop='programmingLanguage']": MagicMock(text="Rust"),
-            "a.Link--muted:nth-of-type(2)": MagicMock(text="8,000 stars today"),
-            "a.Link--muted:nth-of-type(3)": MagicMock(text="400 forks"),
-        }.get(sel))
+        def make_selector_mock(text):
+            mock_el = MagicMock()
+            mock_el.text = text
+            return mock_el
+
+        mock_p = make_selector_mock("Description")
+        mock_lang = make_selector_mock("Rust")
+        mock_stars = make_selector_mock("8,000 stars today")
+        mock_forks = make_selector_mock("400 forks")
+
+        def entry_css(selector):
+            mock_result = MagicMock()
+            if selector == "h2 a":
+                mock_result.first = mock_h2_a
+            elif selector == "p":
+                mock_result.first = mock_p
+            elif selector == "span[itemprop='programmingLanguage']":
+                mock_result.first = mock_lang
+            elif selector == "a.Link--muted:nth-of-type(2)":
+                mock_result.first = mock_stars
+            elif selector == "a.Link--muted:nth-of-type(3)":
+                mock_result.first = mock_forks
+            else:
+                mock_result.first = None
+            return mock_result
+
+        mock_entry.css = entry_css
 
         provider = GitHubTrendingProvider()
         result = provider._parse_repo_entry(mock_entry, "monthly", 5)
@@ -254,16 +304,36 @@ class TestGitHubTrendingProvider:
 
         mock_entry = MagicMock()
         mock_h2_a = MagicMock()
-        mock_h2_a.css_first = MagicMock(return_value="/test/repo")
         mock_h2_a.text = "/test/repo"
+        mock_h2_a.css.return_value.get.return_value.strip.return_value = "/test/repo"
 
-        mock_entry.css_first = MagicMock(side_effect=lambda sel: {
-            "h2 a": mock_h2_a,
-            "p": MagicMock(text="Desc"),
-            "span[itemprop='programmingLanguage']": MagicMock(text="JavaScript"),
-            "a.Link--muted:nth-of-type(2)": MagicMock(text="500 stars today"),
-            "a.Link--muted:nth-of-type(3)": MagicMock(text="50 forks"),
-        }.get(sel))
+        def make_selector_mock(text):
+            mock_el = MagicMock()
+            mock_el.text = text
+            return mock_el
+
+        mock_p = make_selector_mock("Desc")
+        mock_lang = make_selector_mock("JavaScript")
+        mock_stars = make_selector_mock("500 stars today")
+        mock_forks = make_selector_mock("50 forks")
+
+        def entry_css(selector):
+            mock_result = MagicMock()
+            if selector == "h2 a":
+                mock_result.first = mock_h2_a
+            elif selector == "p":
+                mock_result.first = mock_p
+            elif selector == "span[itemprop='programmingLanguage']":
+                mock_result.first = mock_lang
+            elif selector == "a.Link--muted:nth-of-type(2)":
+                mock_result.first = mock_stars
+            elif selector == "a.Link--muted:nth-of-type(3)":
+                mock_result.first = mock_forks
+            else:
+                mock_result.first = None
+            return mock_result
+
+        mock_entry.css = entry_css
 
         provider = GitHubTrendingProvider()
         result = provider._parse_repo_entry(mock_entry, "daily", 1)

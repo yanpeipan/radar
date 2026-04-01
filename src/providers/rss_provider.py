@@ -171,9 +171,10 @@ class RSSProvider:
         content = response.body
         feed = feedparser.parse(content)
 
-        # Log bozo (malformed feed) warnings
+        # Log bozo (malformed feed) warnings with feed URL for debugging
         if feed.bozo:
-            logger.warning("Malformed feed detected: %s", feed.bozo_exception)
+            feed_url = getattr(feed.feed, "href", None) or getattr(feed, "url", "unknown")
+            logger.warning("Malformed feed detected: %s (feed: %s)", feed.bozo_exception, feed_url)
 
         articles = []
         for raw in feed.entries:
