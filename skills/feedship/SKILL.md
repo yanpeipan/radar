@@ -1,7 +1,7 @@
 ---
 name: feedship
 description: Manage RSS/Atom feeds, subscribe to websites, search and read articles. Use when working with feeds, RSS, Atom, subscribing to content sources, managing an information pipeline, or fetching articles from subscribed feeds. Commands: feed add|list|remove, fetch, article list|view|open|related, search, discover.
-compatibility: Install with pipx (recommended): `pipx install feedship` or uv: `uv pip install feedship`
+compatibility: Install with pipx (recommended): `pipx install 'feedship[cloudflare,ml]'` or uv: `uv pip install 'feedship[cloudflare,ml]'`
 metadata:
   openclaw:
     requires:
@@ -17,15 +17,18 @@ metadata:
 
 ## Setup
 
-Before using this skill, install feedship:
+Before using this skill, install feedship with ML and cloud extras:
 
 ```bash
 # Recommended: pipx (isolated, managed)
-pipx install feedship
+pipx install 'feedship[cloudflare,ml]'
 
 # Alternative: uv
-uv pip install feedship
+uv pip install 'feedship[cloudflare,ml]'
 ```
+
+> **Note:** `cloudflare` extra provides scrapling (HTML fetching); `ml` extra provides
+> sentence-transformers + chromadb (semantic search). Both are required for full functionality.
 
 After installation, verify with: `feedship --version`
 
