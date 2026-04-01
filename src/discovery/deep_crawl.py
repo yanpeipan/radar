@@ -75,7 +75,9 @@ async def deep_crawl(
     if max_depth <= 1:
         # Use providers.discover() for feed discovery - validation is delegated to providers
         try:
-            response = await async_fetch_with_fallback(start_url, headers=BROWSER_HEADERS)
+            response = await async_fetch_with_fallback(
+                start_url, headers=BROWSER_HEADERS
+            )
             if response.status == 200:
                 # providers_discover returns only valid=True feeds
                 feeds = providers_discover(
@@ -154,7 +156,12 @@ async def deep_crawl(
                 response = await async_fetch_with_fallback(url, headers=BROWSER_HEADERS)
                 if response is None or response.status != 200:
                     return None, url, None
-                return getattr(response, "text", None) or getattr(response, "html_content", ""), response.url, response
+                return (
+                    getattr(response, "text", None)
+                    or getattr(response, "html_content", ""),
+                    response.url,
+                    response,
+                )
             except Exception:
                 return None, url, None
 

@@ -101,7 +101,10 @@ class TestTavilyProvider:
         }.get(key, default)
 
         with (
-            patch("src.providers.tavily_provider._get_settings", return_value=mock_settings),
+            patch(
+                "src.providers.tavily_provider._get_settings",
+                return_value=mock_settings,
+            ),
             patch("tavily.TavilyClient") as mock_tavily_class,
         ):
             # Setup mock client
@@ -185,7 +188,10 @@ class TestTavilyProvider:
         }.get(key, default)
 
         with (
-            patch("src.providers.tavily_provider._get_settings", return_value=mock_settings),
+            patch(
+                "src.providers.tavily_provider._get_settings",
+                return_value=mock_settings,
+            ),
             patch("tavily.TavilyClient") as mock_tavily_class,
         ):
             # Setup mock client to raise exception

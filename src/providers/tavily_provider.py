@@ -99,9 +99,7 @@ class TavilyProvider:
             articles = self._sync_search(api_key, keyword, search_depth, max_results)
             return FetchedResult(articles=articles)
         except Exception as e:
-            logger.error(
-                "TavilyProvider.fetch_articles(%s) failed: %s", feed.url, e
-            )
+            logger.error("TavilyProvider.fetch_articles(%s) failed: %s", feed.url, e)
             return FetchedResult(articles=[])
 
     def _sync_search(
@@ -134,7 +132,9 @@ class TavilyProvider:
                 published_at=None,  # Search results don't have published dates
                 description=result.get("description"),
                 content=result.get("content"),
-                tags=",".join(result.get("categories", [])) if result.get("categories") else "",
+                tags=",".join(result.get("categories", []))
+                if result.get("categories")
+                else "",
                 category="",
             )
             articles.append(article)

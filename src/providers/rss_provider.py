@@ -173,8 +173,12 @@ class RSSProvider:
 
         # Log bozo (malformed feed) warnings with feed URL for debugging
         if feed.bozo:
-            feed_url = getattr(feed.feed, "href", None) or getattr(feed, "url", "unknown")
-            logger.warning("Malformed feed detected: %s (feed: %s)", feed.bozo_exception, feed_url)
+            feed_url = getattr(feed.feed, "href", None) or getattr(
+                feed, "url", "unknown"
+            )
+            logger.warning(
+                "Malformed feed detected: %s (feed: %s)", feed.bozo_exception, feed_url
+            )
 
         articles = []
         for raw in feed.entries:
@@ -291,7 +295,11 @@ class RSSProvider:
                 )
 
             # Parse feed content
-            raw_content = response.body if hasattr(response, "body") else getattr(response, "html_content", "")
+            raw_content = (
+                response.body
+                if hasattr(response, "body")
+                else getattr(response, "html_content", "")
+            )
             parsed = feedparser.parse(raw_content)
 
             # A valid RSS/Atom feed must have entries (otherwise it's just a website)
@@ -365,8 +373,10 @@ class RSSProvider:
 
         # Phase 5: Probe well-known paths (only at depth 1)
         if depth == 1:
+
             async def _discover_parallel():
                 return await probe_feed_paths_parallel(url, html)
+
             feeds.extend(asyncio.run(_discover_parallel()))
 
         return feeds

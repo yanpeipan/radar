@@ -102,7 +102,11 @@ async def _validate_feed(url: str, response: Response) -> DiscoveredFeed | None:
         DiscoveredFeed if valid feed, None otherwise.
     """
     try:
-        raw_content = response.body if hasattr(response, "body") else getattr(response, "html_content", "")
+        raw_content = (
+            response.body
+            if hasattr(response, "body")
+            else getattr(response, "html_content", "")
+        )
         if isinstance(raw_content, bytes):
             raw_content = raw_content.decode("utf-8", errors="replace")
         parsed = feedparser.parse(raw_content)
@@ -186,7 +190,9 @@ async def probe_feed_paths_parallel(
     else:
         # No root feeds, probe subdirectory paths (12 paths)
         subdir_candidates = _build_subdir_candidates(url)
-        subdir_results = await asyncio.gather(*[_probe_one(u) for u in subdir_candidates])
+        subdir_results = await asyncio.gather(
+            *[_probe_one(u) for u in subdir_candidates]
+        )
         all_valid = [r for r in subdir_results if r is not None]
 
     # If no valid feeds found, return empty

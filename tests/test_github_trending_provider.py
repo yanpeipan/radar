@@ -61,7 +61,12 @@ class TestGitHubTrendingProvider:
         from src.providers.github_trending_provider import GitHubTrendingProvider
 
         provider = GitHubTrendingProvider()
-        assert provider.match("https://github.com/trending?since=daily&spoken_language_code=Python") is True
+        assert (
+            provider.match(
+                "https://github.com/trending?since=daily&spoken_language_code=Python"
+            )
+            is True
+        )
 
     def test_match_non_trending(self):
         """Verify match('https://github.com/owner/repo') returns False."""
@@ -123,7 +128,9 @@ class TestGitHubTrendingProvider:
 
         provider = GitHubTrendingProvider()
         mock_response = MagicMock()
-        result = provider.discover("https://github.com/trending", mock_response, depth=1)
+        result = provider.discover(
+            "https://github.com/trending", mock_response, depth=1
+        )
         assert result == []
 
     def test_fetch_articles_single_feed_fetches_three_periods(self):
@@ -141,7 +148,9 @@ class TestGitHubTrendingProvider:
             fetched_urls.append(url)
             return mock_fetcher_instance
 
-        with patch("src.providers.github_trending_provider.fetch_selector") as mock_fetch:
+        with patch(
+            "src.providers.github_trending_provider.fetch_selector"
+        ) as mock_fetch:
             mock_fetch.side_effect = mock_fetch_selector
 
             provider = GitHubTrendingProvider()
@@ -346,7 +355,9 @@ class TestGitHubTrendingProvider:
         from src.providers.github_trending_provider import GitHubTrendingProvider
 
         # Mock fetch_selector to raise exception (simulating rate limit)
-        with patch("src.providers.github_trending_provider.fetch_selector") as mock_fetch:
+        with patch(
+            "src.providers.github_trending_provider.fetch_selector"
+        ) as mock_fetch:
             mock_fetch.side_effect = Exception("429 Too Many Requests")
 
             provider = GitHubTrendingProvider()
@@ -369,7 +380,9 @@ class TestGitHubTrendingProvider:
         mock_fetcher_instance = MagicMock()
         mock_fetcher_instance.css.return_value.all.return_value = []
 
-        with patch("src.providers.github_trending_provider.fetch_selector") as mock_fetch:
+        with patch(
+            "src.providers.github_trending_provider.fetch_selector"
+        ) as mock_fetch:
             mock_fetch.return_value = mock_fetcher_instance
 
             provider = GitHubTrendingProvider()
