@@ -17,7 +17,12 @@ from rich.console import Console  # noqa: E402
 from rich.table import Table  # noqa: E402
 from rich.text import Text  # noqa: E402
 
-from src.cli.ui import DiscoverProgress  # noqa: E402
+from src.cli.ui import (  # noqa: E402
+    DiscoverProgress,
+    format_discover_feeds,
+    print_json,
+    print_json_error,
+)
 from src.discovery import DiscoveredFeed, discover_feeds  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -86,8 +91,11 @@ from src.cli import cli  # noqa: E402
     type=click.IntRange(1, 10),
     help="Crawl depth for feed discovery (default: 1)",
 )
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
-def discover(ctx: click.Context, url: str, discover_depth: int) -> None:
+def discover(
+    ctx: click.Context, url: str, discover_depth: int, json_output: bool
+) -> None:
     """Discover RSS/Atom/RDF feeds from a website URL without subscribing.
 
     Examples:
@@ -102,11 +110,18 @@ def discover(ctx: click.Context, url: str, discover_depth: int) -> None:
             for feed in feeds:
                 dp.update(feed)
         elapsed = time.time() - start_time
+
+        if json_output:
+            print_json(format_discover_feeds(feeds, elapsed))
+            return
+
         _display_feeds(feeds)
         if feeds:
             click.secho(
                 f"Discovered {len(feeds)} feed(s) in {elapsed:.1f}s", fg="green"
             )
     except Exception as e:
+        if json_output:
+            print_json_error(f"Discovery error: {e}", "discover_error")
         click.secho(f"Error: {e}", err=True, fg="red")
         sys.exit(1)
