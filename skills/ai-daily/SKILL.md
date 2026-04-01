@@ -1,6 +1,6 @@
 ---
 name: feedship-ai-daily
-description: Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, or periodic news recap. Reads existing feedship subscriptions, fetches latest articles, and generates a 3-section digest: (A) Today's new articles with summaries, (B) Hot topics clustering, (C) Featured picks by feed weight. Requires feedship skill.
+description: Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, AI 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 3-section digest: (A) Today's new articles with summaries, (B) Hot topics clustering, (C) Featured picks by feed weight. Requires feedship skill.
 compatibility: Requires uv and feedship CLI. Install with: uv pip install feedship
 metadata:
   openclaw:
