@@ -11,7 +11,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -24,6 +23,8 @@ if TYPE_CHECKING:
     from scrapling.engines.toolbelt.custom import Response
 
     from src.models import Feed, FeedType
+
+import tavily  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +75,7 @@ class TavilyProvider:
         Returns:
             FetchedResult with articles list.
         """
-        import tavily
-
-        # Extract keyword from URL
+        # Extract keyword from URL first (no import needed)
         keyword = self._extract_keyword(feed.url)
         if not keyword:
             logger.error("TavilyProvider: No keyword found in URL %s", feed.url)
@@ -96,10 +95,8 @@ class TavilyProvider:
         max_results = settings.get("tavily.default_max_results", 10)
 
         try:
-            # Use asyncio.to_thread to run sync Tavily SDK in thread pool
-            articles = asyncio.to_thread(
-                self._sync_search, api_key, keyword, search_depth, max_results
-            )
+            # Call sync function directly - caller wraps with asyncio.to_thread()
+            articles = self._sync_search(api_key, keyword, search_depth, max_results)
             return FetchedResult(articles=articles)
         except Exception as e:
             logger.error(
@@ -121,8 +118,6 @@ class TavilyProvider:
         Returns:
             List of Article dicts.
         """
-        import tavily
-
         client = tavily.TavilyClient(api_key=api_key)
         response = client.search(
             query=keyword,
