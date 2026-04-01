@@ -47,11 +47,13 @@ pipx install 'feedship[cloudflare,ml]'
 ### Upgrade
 
 ```bash
-# Upgrade to latest version
+# From PyPI (if accessible)
 pipx upgrade feedship
 
-# Or reinstall
-pipx install 'feedship[cloudflare,ml]' --force
+# From GitHub (latest commits)
+pipx install 'feedship @ git+https://github.com/yanpeipan/feedship.git' \
+  --pip-args='-i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com' \
+  --include-deps --force
 ```
 
 After installation, verify with: `feedship --version`
