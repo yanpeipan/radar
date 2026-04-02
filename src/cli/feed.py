@@ -222,6 +222,7 @@ def feed_add(
         except Exception as e:
             if json_output:
                 print_json_error(f"Discovery error: {e}", "discovery_error")
+                return
             click.secho(f"Discovery error: {e}", err=True, fg="red")
             sys.exit(1)
 
@@ -388,6 +389,7 @@ def feed_list(ctx: click.Context, verbose: bool, json_output: bool) -> None:
     except Exception as e:
         if json_output:
             print_json_error(f"Failed to list feeds: {e}", "list_error")
+            return
         click.secho(f"Error: Failed to list feeds: {e}", err=True, fg="red")
         logger.exception("Failed to list feeds")
         sys.exit(1)
@@ -414,6 +416,7 @@ def feed_remove(ctx: click.Context, feed_id: str, json_output: bool) -> None:
     except Exception as e:
         if json_output:
             print_json_error(f"Failed to remove feed: {e}", "remove_error")
+            return
         click.secho(f"Error: Failed to remove feed: {e}", err=True, fg="red")
         logger.exception("Failed to remove feed")
         sys.exit(1)
@@ -555,6 +558,7 @@ def fetch(
         except Exception as e:
             if json_output:
                 print_json_error(f"Failed to fetch feeds: {e}", "fetch_error")
+                return
             click.secho(f"Error: Failed to fetch feeds: {e}", err=True, fg="red")
             logger.exception("Failed to fetch feeds")
             sys.exit(1)
@@ -639,6 +643,7 @@ def fetch(
         except Exception as e:
             if json_output:
                 print_json_error(f"Failed to fetch feeds: {e}", "fetch_error")
+                return
             click.secho(f"Error: Failed to fetch feeds: {e}", err=True, fg="red")
             logger.exception("Failed to fetch feeds")
             sys.exit(1)

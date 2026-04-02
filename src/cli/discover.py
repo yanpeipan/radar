@@ -104,16 +104,20 @@ def discover(
       feedship discover example.com --discover-depth 1
     """
     try:
+        if json_output:
+            # JSON mode: skip progress bar
+            start_time = time.time()
+            feeds = uvloop.run(_discover_async(url, discover_depth))
+            elapsed = time.time() - start_time
+            print_json(format_discover_feeds(feeds, elapsed))
+            return
+
         start_time = time.time()
         with DiscoverProgress(f"[cyan]Discovering feeds from {url}...") as dp:
             feeds = uvloop.run(_discover_async(url, discover_depth))
             for feed in feeds:
                 dp.update(feed)
         elapsed = time.time() - start_time
-
-        if json_output:
-            print_json(format_discover_feeds(feeds, elapsed))
-            return
 
         _display_feeds(feeds)
         if feeds:
@@ -123,5 +127,6 @@ def discover(
     except Exception as e:
         if json_output:
             print_json_error(f"Discovery error: {e}", "discover_error")
+            return
         click.secho(f"Error: {e}", err=True, fg="red")
         sys.exit(1)

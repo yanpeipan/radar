@@ -137,6 +137,7 @@ def article_list(
     except Exception as e:
         if json_output:
             print_json_error(f"Failed to list articles: {e}", "list_error")
+            return
         click.secho(f"Error: Failed to list articles: {e}", err=True, fg="red")
         logger.exception("Failed to list articles")
         sys.exit(1)
@@ -188,6 +189,7 @@ def article_view(ctx: click.Context, article_id: str, json_output: bool) -> None
     except Exception as e:
         if json_output:
             print_json_error(f"Failed to view article: {e}", "view_error")
+            return
         click.secho(f"Error: Failed to view article: {e}", err=True, fg="red")
         logger.exception("Failed to view article")
         sys.exit(1)
@@ -306,6 +308,7 @@ def article_search(
     except Exception as e:
         if json_output:
             print_json_error(f"Search unavailable: {e}", "search_error")
+            return
         click.secho(f"Search unavailable: {e}.", err=True, fg="yellow")
         logger.exception("Failed to search articles")
         sys.exit(1)
@@ -331,6 +334,7 @@ def article_related(
     except Exception as e:
         if json_output:
             print_json_error(f"Failed to find related articles: {e}", "related_error")
+            return
         click.secho(f"Error: Failed to find related articles: {e}", err=True, fg="red")
         logger.exception("Failed to find related articles")
         sys.exit(1)
