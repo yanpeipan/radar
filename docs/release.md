@@ -41,15 +41,18 @@ unzip -p dist/*.whl '*.dist-info/METADATA' 2>/dev/null | grep '^Version:'
 version = "X.Y.Z"  # <- change to your release version
 ```
 
-### 2. Commit
+### 2. Commit and Push
 
 ```bash
+# Push the commit FIRST (so the tag points to a pushed commit)
 git add -A && git commit -m "Release vX.Y.Z"
+git push
 ```
 
 ### 3. Create GitHub Release
 
 ```bash
+# gh release create handles the tag — DO NOT run git push --tags separately
 gh release create vX.Y.Z \
   --title "vX.Y.Z" \
   --notes "## Changes\n- ..."
@@ -77,29 +80,42 @@ print('Latest:', d['info']['version'])
 **Trigger**: GitHub release *published* (draft releases do NOT trigger CI)
 
 **Workflow** (`.github/workflows/release.yml`):
-1. `actions/checkout@v4` with `ref: ${{ github.ref }}` — checks out the tag
-2. `python -m build` — builds sdist + wheel
-3. `pypa/gh-action-pypi-publish@release/v1` — publishes via OIDC trusted publishing
 
-**Key requirement**: `ref: ${{ github.ref }}` ensures CI builds from the tag, not master.
+1. `actions/checkout@v4` with `ref: ${{ github.ref }}` — checks out the tag
+2. **Version validation** — verifies pyproject.toml version matches tag (fails fast)
+3. `python -m build` — builds sdist + wheel
+4. `pypa/gh-action-pypi-publish@release/v1` — publishes via OIDC trusted publishing (with 30s retry)
+5. **Concurrency control** — `cancel-in-progress: true` prevents double-release races
+
+**Key safety features:**
+- `concurrency` block prevents parallel release runs
+- Version pre-flight check prevents HTTP 400 from mismatch
+- Built-in retry (30s) handles transient PyPI failures
+- `timeout-minutes: 10` prevents infinite hangs
 
 ## Common Failures
 
 ### "HTTP 400 Bad Request" on PyPI upload
-- **Cause**: pyproject.toml version didn't match the tag version (e.g., released v1.2.2 but pyproject.toml still had v1.2.1)
-- **Prevention**: Always verify version in pyproject.toml matches expected release version before step 3
+- **Cause**: pyproject.toml version didn't match the tag version
+- **Prevention**: The CI now validates this before building
 
 ### Release workflow didn't trigger
 - **Cause**: Used `git tag && git push --tags` instead of `gh release create`
 - **Prevention**: Always use `gh release create` — it creates both tag AND GitHub Release
 
 ### Lint fails on GitHub but passes locally
-- **Cause**: pre-commit ruff version (v0.6.4) differs from `uv run ruff` version (v0.15.8)
-- **Prevention**: Keep `.pre-commit-config.yaml` ruff rev synchronized with `pyproject.toml` dependencies
+- **Cause**: pre-commit ruff version differs from `uv run ruff` version
+- **Prevention**: Keep `.pre-commit-config.yaml` ruff rev synchronized
 
 ### "File already exists" on PyPI
-- **Cause**: Version was already published to PyPI
+- **Cause**: Released the same version twice (or a retry raced with the original)
 - **Fix**: Bump version in pyproject.toml, then re-release
+- **Prevention**: `concurrency` block now cancels in-progress runs
+
+### Build succeeds but PyPI publish fails transiently
+- **Cause**: Network hiccup or PyPI temporary overload
+- **Fix**: Re-trigger the workflow from GitHub Actions UI — the build is already done and PyPI will accept the same file
+- **Prevention**: `retry-time-seconds: 30` handles most transient failures
 
 ## Rollback
 

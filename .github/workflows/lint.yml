@@ -1,6 +1,11 @@
 name: Lint
 
-on: [push, pull_request]
+# Only run on master pushes and pull requests — skip tag pushes
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   lint:

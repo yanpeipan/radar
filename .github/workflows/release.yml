@@ -4,9 +4,15 @@ on:
   release:
     types: [published]
 
+# Prevent concurrent releases of the same tag
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: pypi
       url: https://pypi.org/project/feedship
@@ -21,6 +27,19 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+
+      - name: Validate version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          TOML_VERSION=$(grep '^version = ' pyproject.toml | sed 's/.*"//' | sed 's/"//')
+          echo "Tag version: $TAG_VERSION"
+          echo "pyproject.toml version: $TOML_VERSION"
+          if [[ "$TOML_VERSION" != "$TAG_VERSION" ]]; then
+            echo "ERROR: pyproject.toml ($TOML_VERSION) != tag ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "Version OK"
 
       - name: Install build dependencies
         run: pip install build
@@ -30,3 +49,5 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          retry-time-seconds: 30
