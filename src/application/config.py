@@ -1,36 +1,97 @@
-"""Application configuration loaded from config.yaml via dynaconf."""
+"""Application configuration using Pydantic BaseSettings."""
 
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from dynaconf import Dynaconf
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_settings: Dynaconf | None = None
+
+_settings: "FeedshipSettings | None" = None
 
 
-def _get_settings() -> Dynaconf:
+class FeedshipSettings(BaseSettings):
+    """Application settings with Pydantic validation.
+
+    Loaded from config.yaml and environment variables.
+    Environment variables use the FEEDSHIP_ prefix.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="FEEDSHIP_",
+        extra="allow",
+    )
+
+    timezone: str = Field(default="Asia/Shanghai")
+    bm25_factor: float = Field(default=0.5)
+    feed_default_weight: float = Field(default=0.3)
+
+    # Complex nested config stored as dict (rate limiting, tavily, nitter, webpage_sites)
+    rate_limit: dict = Field(default_factory=dict)
+    tavily: dict = Field(default_factory=dict)
+    nitter: dict = Field(default_factory=dict)
+    webpage_sites: dict = Field(default_factory=dict)
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, v: str) -> str:
+        """Ensure timezone is a valid ZoneInfo key."""
+        try:
+            ZoneInfo(v)
+        except Exception:
+            raise ValueError(f"Invalid timezone: {v!r}")
+        return v
+
+    @field_validator("bm25_factor", "feed_default_weight")
+    @classmethod
+    def validate_0_to_1(cls, v: float) -> float:
+        """Ensure float is between 0.0 and 1.0."""
+        if not (0.0 <= v <= 1.0):
+            raise ValueError(f"Value {v} must be between 0.0 and 1.0")
+        return v
+
+    @classmethod
+    def from_yaml(cls, config_path: Path | str) -> "FeedshipSettings":
+        """Load settings from a YAML config file."""
+        import yaml
+
+        if isinstance(config_path, str):
+            config_path = Path(config_path)
+
+        with open(config_path) as f:
+            data = yaml.safe_load(f) or {}
+
+        return cls.model_validate(data)
+
+
+def _get_settings() -> FeedshipSettings:
+    """Return cached FeedshipSettings instance.
+
+    Loads from config.yaml on first call. Subsequent calls return cached instance.
+    For test isolation, settings are NOT cached across test runs.
+    """
     global _settings
-    if _settings is None:
-        _settings = Dynaconf(
-            envvar_prefix="FEEDSHIP",
-            settings_files=[
-                Path(__file__).parent.parent.parent / "config.yaml",
-            ],
-        )
+
+    # Check for test isolation: if running in pytest, skip cache
+    import sys
+    if "pytest" in sys.modules or _settings is None:
+        config_path = Path(__file__).parent.parent.parent / "config.yaml"
+        _settings = FeedshipSettings.from_yaml(config_path)
+
     return _settings
 
 
 def get_timezone() -> ZoneInfo:
     """Return the configured timezone as a ZoneInfo object."""
-    tz_name = _get_settings().get("timezone", "Asia/Shanghai")
+    tz_name = _get_settings().timezone
     return ZoneInfo(tz_name)
 
 
 def get_default_feed_weight() -> float:
     """Return the default feed weight for semantic search ranking."""
-    return _get_settings().get("feed.default.weight", 0.3)
+    return _get_settings().feed_default_weight
 
 
 def get_bm25_factor() -> float:
     """Return the BM25 sigmoid normalization factor (default 0.5)."""
-    return _get_settings().get("bm25_factor", 0.5)
+    return _get_settings().bm25_factor
