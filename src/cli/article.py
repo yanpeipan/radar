@@ -113,6 +113,7 @@ def article(ctx: click.Context) -> None:
 @click.option("--since", default=None, help="Start date (YYYY-MM-DD)")
 @click.option("--until", default=None, help="End date (YYYY-MM-DD)")
 @click.option("--on", multiple=True, help="Specific date (YYYY-MM-DD), can repeat")
+@click.option("--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def article_list(
@@ -122,13 +123,15 @@ def article_list(
     since: str | None,
     until: str | None,
     on: tuple,
+    groups: str | None,
     json_output: bool,
 ) -> None:
     """List recent articles from all feeds or a specific feed."""
     try:
         on_list = list(on) if on else None
+        groups_list = groups.split(",") if groups else None
         articles = list_articles(
-            limit=limit, feed_id=feed_id, since=since, until=until, on=on_list
+            limit=limit, feed_id=feed_id, since=since, until=until, on=on_list, groups=groups_list
         )
         if json_output:
             print_json(format_article_list(articles, limit))
@@ -230,6 +233,7 @@ def article_open(ctx: click.Context, article_id: str) -> None:
 @click.option("--since", default=None, help="Start date (YYYY-MM-DD)")
 @click.option("--until", default=None, help="End date (YYYY-MM-DD)")
 @click.option("--on", multiple=True, help="Specific date (YYYY-MM-DD), can repeat")
+@click.option("--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def article_search(
@@ -242,6 +246,7 @@ def article_search(
     since: str | None,
     until: str | None,
     on: tuple,
+    groups: str | None,
     json_output: bool,
 ) -> None:
     try:
@@ -250,6 +255,7 @@ def article_search(
         from src.application.combine import combine_scores
 
         on_list = list(on) if on else None
+        groups_list = groups.split(",") if groups else None
 
         # RERANK_FACTOR: when reranking, fetch 3x candidates so reranker has
         # enough context to pick the globally-best results (BM25/semantic are
@@ -267,6 +273,7 @@ def article_search(
                 since=since,
                 until=until,
                 on=on_list,
+                groups=groups_list,
             )
 
             if rerank:
@@ -289,6 +296,7 @@ def article_search(
                 since=since,
                 until=until,
                 on=on_list,
+                groups=groups_list,
             )
 
             if rerank:

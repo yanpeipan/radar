@@ -59,6 +59,7 @@ def list_articles(
     since: str | None = None,
     until: str | None = None,
     on: list[str] | None = None,
+    groups: list[str] | None = None,
 ) -> list[ArticleListItem]:
     """List articles ordered by publication date.
 
@@ -68,12 +69,13 @@ def list_articles(
         since: Optional start date (inclusive), format YYYY-MM-DD.
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
+        groups: Optional list of feed groups to filter by (OR semantics).
 
     Returns:
         List of ArticleListItem objects.
     """
     return storage_list_articles(
-        limit=limit, feed_id=feed_id, since=since, until=until, on=on
+        limit=limit, feed_id=feed_id, since=since, until=until, on=on, groups=groups
     )
 
 
@@ -109,6 +111,7 @@ def search_articles_fts(
     since: str | None = None,
     until: str | None = None,
     on: list[str] | None = None,
+    groups: list[str] | None = None,
 ) -> list[ArticleListItem]:
     """Search articles using FTS5 full-text search.
 
@@ -119,10 +122,11 @@ def search_articles_fts(
         since: Optional start date (inclusive), format YYYY-MM-DD.
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
+        groups: Optional list of feed groups to filter by (OR semantics).
 
     Returns:
         List of ArticleListItem objects.
     """
     return storage_search_articles_fts(
-        query=query, limit=limit, feed_id=feed_id, since=since, until=until, on=on
+        query=query, limit=limit, feed_id=feed_id, since=since, until=until, on=on, groups=groups
     )
