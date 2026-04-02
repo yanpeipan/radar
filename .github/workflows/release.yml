@@ -33,18 +33,8 @@ jobs:
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
           echo "Tag version: $TAG_VERSION"
-          echo "--- pyproject.toml first 3 lines ---"
-          head -3 pyproject.toml
-          echo "--- grep output ---"
-          grep_output=$(grep '^version = ' pyproject.toml)
-          echo "grep result: '$grep_output'"
-          if [[ -z "$grep_output" ]]; then
-            echo "ERROR: grep returned empty - no version line found!"
-            echo "--- full file ---"
-            cat pyproject.toml
-            exit 1
-          fi
-          TOML_VERSION=$(echo "$grep_output" | sed 's/.*"//' | sed 's/"//')
+          # Extract version from pyproject.toml using awk (more portable than complex sed)
+          TOML_VERSION=$(awk -F'"' '/^version = / {print $2}' pyproject.toml)
           echo "pyproject.toml version: $TOML_VERSION"
           if [[ "$TOML_VERSION" != "$TAG_VERSION" ]]; then
             echo "ERROR: pyproject.toml ($TOML_VERSION) != tag ($TAG_VERSION)"
