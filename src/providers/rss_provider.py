@@ -39,6 +39,47 @@ class FeedSizeLimitError(Exception):
     pass
 
 
+# XML entity depth limit to prevent billion-laughs attacks
+MAX_ENTITY_DEPTH = 100
+
+
+def _parse_feed_with_depth_limit(content: str | bytes) -> feedparser.FeedParserDict:
+    """Parse feed content with entity expansion depth limit.
+
+    Args:
+        content: Raw feed content (XML).
+
+    Returns:
+        Parsed feed result.
+
+    Raises:
+        ValueError: If entity expansion depth or suspicious patterns detected.
+    """
+    import re
+
+    # Convert bytes to string if needed
+    if isinstance(content, bytes):
+        content_str = content.decode("utf-8", errors="replace")
+    else:
+        content_str = content
+
+    # Check for entity expansion patterns (e.g., <!ENTITY ...>)
+    # Suspicious: many entity definitions suggest potential attack
+    entity_pattern = r"<!ENTITY\s+\w+\s+"
+    entity_matches = re.findall(entity_pattern, content_str)
+    if entity_matches and len(entity_matches) > 10:
+        raise ValueError(
+            f"Feed contains suspicious number of entity definitions: {len(entity_matches)}"
+        )
+
+    # Check total content size as a proxy for expansion depth
+    # A small XML file with deep entity expansion can expand to enormous size
+    if len(content_str) > 50 * 1024 * 1024:  # 50MB of XML is suspicious
+        raise ValueError(f"Feed content too large ({len(content_str)} bytes), possible entity expansion attack")
+
+    return feedparser.parse(content_str)
+
+
 # Browser-like User-Agent header to avoid 403 bot blocks
 from src.constants import BROWSER_HEADERS  # noqa: E402
 
@@ -118,7 +159,11 @@ class RSSProvider:
                     else getattr(response, "html_content", "")
                 )
                 if raw_content:
-                    parsed = feedparser.parse(raw_content)
+                    try:
+                        parsed = _parse_feed_with_depth_limit(raw_content)
+                    except ValueError:
+                        # Entity depth limit exceeded or suspicious patterns
+                        return False
                     # Valid feed must have entries and not be bozo (parsing error)
                     return bool(parsed.entries and not parsed.bozo)
                 return False
@@ -216,7 +261,11 @@ class RSSProvider:
         from src.utils import generate_article_id
 
         content = response.body
-        feed = feedparser.parse(content)
+        try:
+            feed = _parse_feed_with_depth_limit(content)
+        except ValueError as e:
+            logger.warning("Feed parsing rejected due to security check: %s", e)
+            return []
 
         # Log bozo (malformed feed) warnings with feed URL for debugging
         if feed.bozo:
@@ -347,7 +396,7 @@ class RSSProvider:
                 if hasattr(response, "body")
                 else getattr(response, "html_content", "")
             )
-            parsed = feedparser.parse(raw_content)
+            parsed = _parse_feed_with_depth_limit(raw_content)
 
             # A valid RSS/Atom feed must have entries (otherwise it's just a website)
             if not parsed.entries:
