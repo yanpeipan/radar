@@ -461,7 +461,7 @@ def get_feed(feed_id: str) -> Feed | None:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, \"group\" FROM feeds WHERE id = ?",
+            'SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, "group" FROM feeds WHERE id = ?',
             (feed_id,),
         )
         row = cursor.fetchone()
@@ -497,7 +497,7 @@ def get_feeds_by_ids(ids: list[str]) -> dict[str, Feed]:
         cursor = conn.cursor()
         placeholders = ",".join("?" * len(ids))
         cursor.execute(
-            f"SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, \"group\" FROM feeds WHERE id IN ({placeholders})",
+            f'SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, "group" FROM feeds WHERE id IN ({placeholders})',
             ids,
         )
         return {

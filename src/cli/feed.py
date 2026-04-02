@@ -147,7 +147,9 @@ def feed_add(
       feedship feed add search:AI news
     """
     if group and len(group) > 100:
-        click.secho("Error: Group name must be 100 characters or less", err=True, fg="red")
+        click.secho(
+            "Error: Group name must be 100 characters or less", err=True, fg="red"
+        )
         sys.exit(1)
 
     feeds: list = []
@@ -286,7 +288,9 @@ def feed_add(
     help="Filter feeds by group (exact match)",
 )
 @click.pass_context
-def feed_list(ctx: click.Context, verbose: bool, json_output: bool, group: str | None) -> None:
+def feed_list(
+    ctx: click.Context, verbose: bool, json_output: bool, group: str | None
+) -> None:
     """List all subscribed feeds with provider type."""
     try:
         feeds = list_feeds()
