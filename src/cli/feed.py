@@ -293,7 +293,9 @@ def feed_add(
     for idx in selected:
         feed = feeds[idx]
         feed_meta = FeedMetaData(
-            feed_type=feed.feed_type,
+            feed_type=feed.feed_type.value
+            if hasattr(feed.feed_type, "value")
+            else feed.feed_type,
             selectors=feed.metadata.selectors if feed.metadata else None,
         )
         _, is_new = register_feed(feed.url, feed.title, weight, feed_meta)
