@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 _settings: "FeedshipSettings | None" = None
 
 
@@ -39,7 +38,7 @@ class FeedshipSettings(BaseSettings):
         try:
             ZoneInfo(v)
         except Exception:
-            raise ValueError(f"Invalid timezone: {v!r}")
+            raise ValueError(f"Invalid timezone: {v!r}") from None
         return v
 
     @field_validator("bm25_factor", "feed_default_weight")
@@ -74,6 +73,7 @@ def _get_settings() -> FeedshipSettings:
 
     # Check for test isolation: if running in pytest, skip cache
     import sys
+
     if "pytest" in sys.modules or _settings is None:
         config_path = Path(__file__).parent.parent.parent / "config.yaml"
         _settings = FeedshipSettings.from_yaml(config_path)

@@ -307,22 +307,26 @@ def _batch_upsert_articles(articles: list[dict]) -> list[tuple[str, str]]:
         batch_values = []
         for i, article in enumerate(articles):
             article_id = article_ids[i]
-            normalized_published_at = _normalize_published_at(article.get("published_at"), tz)
-            batch_values.append((
-                article_id,
-                article.get("feed_id") or "",
-                article["title"],
-                article["link"],
-                article["guid"],
-                normalized_published_at,
-                article["content"],
-                article.get("description"),
-                now,  # created_at
-                now,  # modified_at
-                article.get("author"),
-                article.get("tags"),
-                article.get("category"),
-            ))
+            normalized_published_at = _normalize_published_at(
+                article.get("published_at"), tz
+            )
+            batch_values.append(
+                (
+                    article_id,
+                    article.get("feed_id") or "",
+                    article["title"],
+                    article["link"],
+                    article["guid"],
+                    normalized_published_at,
+                    article["content"],
+                    article.get("description"),
+                    now,  # created_at
+                    now,  # modified_at
+                    article.get("author"),
+                    article.get("tags"),
+                    article.get("category"),
+                )
+            )
 
         # Batch UPSERT with executemany - single transaction
         cursor.executemany(

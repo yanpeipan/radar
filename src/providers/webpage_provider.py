@@ -253,12 +253,18 @@ class WebpageProvider:
             raw_results, new_etag, new_modified = self._crawl_discovery(
                 feed.url, etag=feed.etag, modified_at=feed.modified_at
             )
-            return FetchedResult(articles=self.parse_articles(raw_results), etag=new_etag, modified_at=new_modified)
+            return FetchedResult(
+                articles=self.parse_articles(raw_results),
+                etag=new_etag,
+                modified_at=new_modified,
+            )
         except Exception as e:
             logger.error("WebpageProvider.fetch_articles(%s) failed: %s", feed.url, e)
             return FetchedResult(articles=[])
 
-    def _crawl_discovery(self, url: str, etag: str | None = None, modified_at: str | None = None) -> tuple[list[Raw], str | None, str | None]:
+    def _crawl_discovery(
+        self, url: str, etag: str | None = None, modified_at: str | None = None
+    ) -> tuple[list[Raw], str | None, str | None]:
         """Generic fallback: discover article links → Trafilatura on each.
 
         Args:
@@ -305,8 +311,14 @@ class WebpageProvider:
         root = Selector(body)
 
         # Extract etag and modified_at from response for next conditional request
-        new_etag = getattr(r, 'headers', {}).get("etag") if hasattr(r, 'headers') else None
-        new_modified = getattr(r, 'headers', {}).get("last-modified") if hasattr(r, 'headers') else None
+        new_etag = (
+            getattr(r, "headers", {}).get("etag") if hasattr(r, "headers") else None
+        )
+        new_modified = (
+            getattr(r, "headers", {}).get("last-modified")
+            if hasattr(r, "headers")
+            else None
+        )
 
         scored_links = _discover_links(root, url)
         if not scored_links:

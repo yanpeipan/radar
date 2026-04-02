@@ -15,12 +15,9 @@ from urllib.parse import urljoin, urlparse
 
 import feedparser
 
-# Feed size limits - duplicated from fetch.py to avoid circular imports
-_MAX_FEED_SIZE = 10 * 1024 * 1024  # 10MB in bytes
-_MAX_FEED_ENTRIES = 1000  # Maximum entries per feed
-
 from src.discovery.models import DiscoveredFeed
 from src.discovery.parallel_probe import probe_feed_paths_parallel
+from src.models import Feed, FeedType
 from src.providers import PROVIDERS
 from src.providers.base import Article, FetchedResult
 
@@ -28,7 +25,9 @@ if TYPE_CHECKING:
     from scrapling import Selector
     from scrapling.engines.toolbelt.custom import Response
 
-from src.models import Feed, FeedType
+# Feed size limits - duplicated from fetch.py to avoid circular imports
+_MAX_FEED_SIZE = 10 * 1024 * 1024  # 10MB in bytes
+_MAX_FEED_ENTRIES = 1000  # Maximum entries per feed
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,9 @@ def _parse_feed_with_depth_limit(content: str | bytes) -> feedparser.FeedParserD
     # Check total content size as a proxy for expansion depth
     # A small XML file with deep entity expansion can expand to enormous size
     if len(content_str) > 50 * 1024 * 1024:  # 50MB of XML is suspicious
-        raise ValueError(f"Feed content too large ({len(content_str)} bytes), possible entity expansion attack")
+        raise ValueError(
+            f"Feed content too large ({len(content_str)} bytes), possible entity expansion attack"
+        )
 
     return feedparser.parse(content_str)
 
@@ -233,7 +234,7 @@ class RSSProvider:
                     len(articles),
                     _MAX_FEED_ENTRIES,
                 )
-                articles = articles[: _MAX_FEED_ENTRIES]
+                articles = articles[:_MAX_FEED_ENTRIES]
 
             logger.debug(
                 "RSSProvider.fetch_articles(%s) returned %d entries",

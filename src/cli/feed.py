@@ -469,7 +469,9 @@ def fetch(
                         feed_results = uvloop.run(_collect_json())
                         elapsed = time.time() - start_time
                         total_new = sum(r.get("new_articles", 0) for r in feed_results)
-                        success_count = sum(1 for r in feed_results if not r.get("error"))
+                        success_count = sum(
+                            1 for r in feed_results if not r.get("error")
+                        )
                         error_count = sum(1 for r in feed_results if r.get("error"))
                         serialized_feeds = []
                         for result in feed_results:
@@ -567,7 +569,11 @@ def fetch(
                         )
                     print_json(
                         format_fetch_results(
-                            serialized_feeds, total_new, success_count, error_count, elapsed
+                            serialized_feeds,
+                            total_new,
+                            success_count,
+                            error_count,
+                            elapsed,
                         )
                     )
                 else:
@@ -612,7 +618,9 @@ def fetch(
 
         # Case 3: No arguments
         click.secho("Use --all to fetch all feeds: feedship fetch --all")
-        click.secho("Or specify feed IDs to fetch: feedship fetch <feed_id> [<feed_id>...]")
+        click.secho(
+            "Or specify feed IDs to fetch: feedship fetch <feed_id> [<feed_id>...]"
+        )
 
     if profile:
         profiles_dir = Path("profiles")

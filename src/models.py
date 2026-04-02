@@ -8,9 +8,15 @@ from __future__ import annotations
 
 import json
 import re
+from contextlib import suppress
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+)
 
 
 class FeedType(Enum):
@@ -69,7 +75,9 @@ class Feed(BaseModel):
         weight: Feed weight for semantic search ranking (default 0.3, range 0-1).
     """
 
-    model_config = ConfigDict(extra="allow")  # Allow dynamic attributes like articles_count
+    model_config = ConfigDict(
+        extra="allow"
+    )  # Allow dynamic attributes like articles_count
 
     id: str
     name: str = Field(max_length=200)
@@ -97,11 +105,8 @@ class Feed(BaseModel):
             return v
         if isinstance(v, str):
             # Try to validate as FeedMetaData JSON
-            try:
+            with suppress(Exception):
                 FeedMetaData.model_validate_json(v)
-            except Exception:
-                # If not valid FeedMetaData JSON, accept anyway (legacy data)
-                pass
         elif isinstance(v, FeedMetaData):
             # Convert FeedMetaData to JSON string
             return v.to_json()
