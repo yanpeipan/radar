@@ -24,6 +24,7 @@ dependencies = [
     "scrapling>=0.4.0",  # CSS-selector HTML parsing
     "msgspec>=0.20.0",  # Required by scrapling browser engine
     "tavily-python>=0.3.0",  # Tavily AI search SDK
+    "questionary>=2.1.0,<3.0.0",  # Interactive CLI prompts (multi-select, confirm, etc.)
 ]
 
 [project.optional-dependencies]

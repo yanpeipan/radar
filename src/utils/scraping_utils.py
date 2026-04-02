@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections import deque
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -54,10 +53,17 @@ _url_cache: TTLCache = TTLCache(maxsize=1000, ttl=300)
 _url_locks: dict[str, asyncio.Lock] = {}
 _locks_lock = asyncio.Lock()  # Protects _url_locks dict creation
 
+# Per-host semaphore for concurrency control (limits concurrent requests per host)
+_host_semaphores: dict[str, asyncio.Semaphore] = {}
+_semaphore_lock = asyncio.Lock()  # Only protects _host_semaphores dict
+
 # Per-host sliding window rate limiter: max 1 req/sec per host by default
-_host_rate_limits: dict[str, deque] = {}
+_host_rate_limits: dict[str, float] = {}
 _rate_limit_lock = asyncio.Lock()
 _DEFAULT_RATE_LIMIT = 1.0  # seconds between requests per host
+
+# Default max concurrent requests per host
+_DEFAULT_MAX_CONCURRENT = 5
 
 # ============================================================================
 # Block Detection
@@ -312,7 +318,9 @@ def fetch_selector(url: str, headers: dict | None = None) -> Selector | None:
         html = response.html_content
         if isinstance(html, bytes):
             html = html.decode("utf-8", errors="replace")
-        return Selector(html)
+        selector = Selector(html)
+        _logger.debug(f"Successfully parsed HTML selector for {url}")
+        return selector
     except Exception as e:
         _logger.warning(f"Failed to parse HTML from response for {url}: {e}")
         return None
@@ -323,45 +331,40 @@ def fetch_selector(url: str, headers: dict | None = None) -> Selector | None:
 # ============================================================================
 
 
-async def _rate_limit_host(url: str, rate_limit: float = _DEFAULT_RATE_LIMIT) -> None:
-    """Enforce per-host rate limit using sliding window.
+async def _rate_limit_host(
+    url: str, rate_limit: float | None = None
+) -> asyncio.Semaphore:
+    """Enforce per-host rate limit using semaphore concurrency control.
 
-    Prevents hitting rate limits by ensuring only 1 request per second
-    per host by default.
+    Uses a per-host semaphore to limit concurrent requests (default: 5).
+    This allows multiple requests to be in-flight simultaneously without
+    convoying through a global lock.
 
     Args:
         url: URL to extract host from for rate limiting.
-        rate_limit: Minimum seconds between requests to same host.
+        rate_limit: Ignored (semaphore provides concurrency control).
+
+    Returns:
+        The acquired semaphore. Caller MUST call sem.release() after fetch.
     """
     parsed = urlparse(url)
     host = parsed.netloc.lower()
     if not host:
-        return
+        return None
 
-    now = asyncio.get_event_loop().time()
+    # Get or create per-host semaphore
+    async with _semaphore_lock:
+        if host not in _host_semaphores:
+            _host_semaphores[host] = asyncio.Semaphore(_DEFAULT_MAX_CONCURRENT)
+        sem = _host_semaphores[host]
 
-    async with _rate_limit_lock:
-        if host not in _host_rate_limits:
-            _host_rate_limits[host] = deque()
-
-        window = _host_rate_limits[host]
-
-        # Remove timestamps outside the sliding window
-        while window and now - window[0] >= rate_limit:
-            window.popleft()
-
-        # If window is full, sleep until oldest entry expires
-        if len(window) >= 1:
-            sleep_time = rate_limit - (now - window[0])
-            if sleep_time > 0:
-                await asyncio.sleep(sleep_time)
-                # Clean up again after sleep
-                now = asyncio.get_event_loop().time()
-                while window and now - window[0] >= rate_limit:
-                    window.popleft()
-
-        # Add current timestamp
-        window.append(now)
+    # Acquire semaphore (blocks if max concurrent requests reached)
+    _logger.debug(
+        f"Rate limiting {host}: acquiring semaphore (max {_DEFAULT_MAX_CONCURRENT} concurrent)"
+    )
+    await sem.acquire()
+    _logger.debug(f"Rate limiting {host}: semaphore acquired")
+    return sem
 
 
 async def _fetch_with_fallback_async(
@@ -389,6 +392,8 @@ async def _fetch_with_fallback_async(
     if cached is not None:
         _logger.debug(f"Cache hit for {url}")
         return cached
+
+    _logger.debug(f"Cache miss for {url}, fetching...")
 
     # Get or create per-URL lock
     async with _locks_lock:
@@ -419,6 +424,7 @@ async def async_fetch_with_fallback(
     url: str,
     headers: dict | None = None,
     timeout: int = 10,
+    rate_limit: float | None = None,
 ) -> Response | None:
     """Async fetch with caching and rate limiting.
 
@@ -431,6 +437,8 @@ async def async_fetch_with_fallback(
         url: URL to fetch.
         headers: Optional HTTP headers (uses BROWSER_HEADERS if None).
         timeout: Request timeout in seconds.
+        rate_limit: Override default rate limit (1.0 sec) for this call.
+            Use higher values (e.g., 5.0) for parallel probing of feed paths.
 
     Returns:
         Response object with .html_content, .status, etc., or None on failure.
@@ -440,10 +448,17 @@ async def async_fetch_with_fallback(
     if headers is None:
         headers = BROWSER_HEADERS
 
-    # Rate limit per host before fetch
-    await _rate_limit_host(url)
+    # Rate limit per host before fetch (semaphore controls concurrency)
+    sem = await _rate_limit_host(url, rate_limit=rate_limit)
 
-    return await _fetch_with_fallback_async(url, headers, timeout)
+    try:
+        _logger.debug(f"Fetching {url} with timeout={timeout}s")
+        return await _fetch_with_fallback_async(url, headers, timeout)
+    finally:
+        # Release semaphore after fetch completes
+        if sem is not None:
+            sem.release()
+            _logger.debug(f"Rate limit released for {urlparse(url).netloc.lower()}")
 
 
 # ============================================================================

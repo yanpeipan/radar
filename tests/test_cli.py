@@ -314,11 +314,11 @@ class TestFeedDiscovery:
         monkeypatch.setattr("src.cli.feed.discover_feeds", mock_discover_feeds)
 
         result = cli_runner.invoke(
-            cli, ["feed", "add", "https://openai.com"], input="c\n"
+            cli, ["feed", "add", "https://openai.com", "--automatic", "on"]
         )
         assert result.exit_code == 0
-        assert "news/rss.xml" in result.output
         assert "Discovered 2 feed" in result.output
+        assert "Added 2 feed" in result.output
 
     def test_feed_add_github_cli_discovers_release_feed(
         self, cli_runner, initialized_db, monkeypatch
@@ -348,12 +348,10 @@ class TestFeedDiscovery:
 
         monkeypatch.setattr("src.cli.feed.discover_feeds", mock_discover_feeds)
 
-        result = cli_runner.invoke(
-            cli, ["feed", "add", "https://github.com/cli/cli"], input="c\n"
-        )
+        result = cli_runner.invoke(cli, ["feed", "add", "https://github.com/cli/cli"])
         assert result.exit_code == 0
-        assert "github.com/cli/cli" in result.output
         assert "Discovered 1 feed" in result.output
+        assert "github.com/cli/cli" in result.output
 
     def test_feed_add_twitter_url_discovers_nitter(
         self, cli_runner, initialized_db, monkeypatch
@@ -379,12 +377,9 @@ class TestFeedDiscovery:
 
         monkeypatch.setattr("src.providers.discover", mock_providers_discover)
 
-        result = cli_runner.invoke(
-            cli, ["feed", "add", "https://twitter.com/elonmusk"], input="c\n"
-        )
+        result = cli_runner.invoke(cli, ["feed", "add", "https://twitter.com/elonmusk"])
         assert result.exit_code == 0
         assert "x:elonmusk" in result.output
-        assert "NITTER" in result.output
         assert "Discovered 1 feed" in result.output
 
 

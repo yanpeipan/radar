@@ -21,11 +21,21 @@ FEEDSHIP_VERSION = get_version("feedship")
 @click.group()
 @click.version_option(version=FEEDSHIP_VERSION)
 @click.option("-v", "--verbose", is_flag=True, help="Enable verbose output")
+@click.option("--debug", is_flag=True, help="Enable debug logging")
 @click.pass_context
-def cli(ctx: click.Context, verbose: bool) -> None:
+def cli(ctx: click.Context, verbose: bool, debug: bool) -> None:
     """Feedship CLI - manage information feeds and articles."""
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
+    ctx.obj["debug"] = debug
+
+    # Configure logging
+    import logging
+
+    if debug:
+        logging.basicConfig(level=logging.DEBUG, format="%(name)s: %(message)s")
+    elif verbose:
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     # Initialize uvloop (graceful fallback on Windows)
     from src.utils.asyncio_utils import install_uvloop

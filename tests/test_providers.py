@@ -33,10 +33,22 @@ class TestRSSProvider:
         """RSS content-type in response.headers, verify match() returns True."""
         from src.providers.rss_provider import RSSProvider
 
-        # Mock response with RSS content-type
+        # Mock response with RSS content-type and valid feed body
+        rss_xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+        <channel>
+            <title>Test Feed</title>
+            <link>https://example.com</link>
+            <item>
+                <title>Test Item</title>
+                <link>https://example.com/item1</link>
+            </item>
+        </channel>
+        </rss>"""
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.headers = {"content-type": "application/rss+xml"}
+        mock_response.body = rss_xml
 
         provider = RSSProvider()
         result = provider.match("https://example.com/feed.xml", mock_response)
@@ -46,9 +58,18 @@ class TestRSSProvider:
         """Atom content-type in response.headers, verify match() returns True."""
         from src.providers.rss_provider import RSSProvider
 
+        atom_xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <feed xmlns="http://www.w3.org/2005/Atom">
+            <title>Test Atom Feed</title>
+            <entry>
+                <title>Test Entry</title>
+                <link href="https://example.com/entry1"/>
+            </entry>
+        </feed>"""
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.headers = {"content-type": "application/atom+xml"}
+        mock_response.body = atom_xml
 
         provider = RSSProvider()
         result = provider.match("https://example.com/feed.atom", mock_response)
@@ -58,9 +79,20 @@ class TestRSSProvider:
         """Generic XML content-type in response.headers, verify match() returns True."""
         from src.providers.rss_provider import RSSProvider
 
+        rss_xml = b"""<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+        <channel>
+            <title>Test Feed</title>
+            <item>
+                <title>Test Item</title>
+                <link>https://example.com/item1</link>
+            </item>
+        </channel>
+        </rss>"""
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.headers = {"content-type": "application/xml"}
+        mock_response.body = rss_xml
 
         provider = RSSProvider()
         result = provider.match("https://example.com/feed.xml", mock_response)
@@ -230,6 +262,7 @@ class TestRSSProvider:
     def test_rss_provider_parse_feed(self):
         """Mock Fetcher.get to return 200 with sample RSS XML bytes containing feed title, verify parse_feed() returns DiscoveredFeed with correct fields."""
         from src.discovery.models import DiscoveredFeed
+        from src.models import FeedType
         from src.providers.rss_provider import RSSProvider
 
         rss_xml = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -260,7 +293,7 @@ class TestRSSProvider:
             assert isinstance(result, DiscoveredFeed)
             assert result.title == "Test Feed"
             assert result.url == "https://example.com/feed.xml"
-            assert result.feed_type == "rss"
+            assert result.feed_type == FeedType.RSS
             assert result.valid is True
 
 

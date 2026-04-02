@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
@@ -96,18 +97,22 @@ class RSSProvider:
             return False
 
         if response:
-            # Use feedparser to validate actual feed content (more reliable than content-type)
-            raw_content = (
-                response.body
-                if hasattr(response, "body")
-                else getattr(response, "html_content", "")
-            )
-            if raw_content:
-                parsed = feedparser.parse(raw_content)
-                # Valid feed must have entries and not be bozo (parsing error)
-                return bool(parsed.entries and not parsed.bozo)
-
-            return False
+            # Check Content-Type header first - only validate as feed if it looks like one
+            content_type = response.headers.get("content-type", "") or ""
+            if any(ft in content_type.lower() for ft in ("rss", "atom", "rdf", "xml")):
+                # Content-Type indicates a feed - validate with feedparser
+                raw_content = (
+                    response.body
+                    if hasattr(response, "body")
+                    else getattr(response, "html_content", "")
+                )
+                if raw_content:
+                    parsed = feedparser.parse(raw_content)
+                    # Valid feed must have entries and not be bozo (parsing error)
+                    return bool(parsed.entries and not parsed.bozo)
+                return False
+            # Content-Type doesn't indicate a feed (e.g., HTML page) - fall through
+            # to URL-only matching below to allow feed discovery on any webpage
 
         # When response is None, match HTTP URLs to allow feed discovery on any page
         # This enables RSSProvider to discover feeds on webpages like openai.com
@@ -381,24 +386,16 @@ class RSSProvider:
 
         # Phase 5: Probe well-known paths (only at depth 1)
         if depth == 1:
+            # Use ThreadPoolExecutor to run async probe without nested asyncio issues
+            import concurrent.futures
 
-            async def _discover_parallel():
-                return await probe_feed_paths_parallel(url, html)
+            def _sync_probe():
+                return asyncio.run(probe_feed_paths_parallel(url, html))
 
-            # Use existing event loop if available (nested async context),
-            # otherwise create a new one with asyncio.run()
-            try:
-                asyncio.get_running_loop()
-            except RuntimeError:
-                # No running loop - safe to use asyncio.run()
-                feeds.extend(asyncio.run(_discover_parallel()))
-            else:
-                # Already in async context - create a new task and wait for it
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(asyncio.run, _discover_parallel())
-                    feeds.extend(future.result())
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_sync_probe)
+                with suppress(Exception):
+                    feeds.extend(future.result(timeout=30))
 
         return feeds
 

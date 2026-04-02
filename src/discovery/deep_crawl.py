@@ -17,6 +17,8 @@ from src.constants import BROWSER_HEADERS
 from src.discovery.models import DiscoveredFeed, DiscoveredResult
 from src.utils.scraping_utils import async_fetch_with_fallback
 
+logger = logging.getLogger(__name__)
+
 # Suppress scrapling 0.4.x deprecation warning (after imports to avoid E402)
 _scrapling_logger = logging.getLogger("scrapling")
 _scrapling_logger.disabled = True
@@ -75,14 +77,22 @@ async def deep_crawl(
     if max_depth <= 1:
         # Use providers.discover() for feed discovery - validation is delegated to providers
         try:
+            logger.debug("Fetching start_url: %s", start_url)
             response = await async_fetch_with_fallback(
                 start_url, headers=BROWSER_HEADERS
             )
+            logger.debug(
+                "Response status: %s, content-type: %s",
+                response.status,
+                response.headers.get("content-type", ""),
+            )
             if response.status == 200:
                 # providers_discover returns only valid=True feeds
+                logger.debug("Calling providers_discover for: %s", start_url)
                 feeds = providers_discover(
                     start_url, response, depth=1, discover=auto_discover
                 )
+                logger.debug("providers_discover completed, got %d feeds", len(feeds))
                 if feeds:
                     # Normalize URLs and deduplicate
                     seen: set[str] = set()
@@ -111,6 +121,7 @@ async def deep_crawl(
             pass
 
         # max_depth <= 1 must return here - never fall through to BFS
+        logger.debug("No feeds found for: %s", start_url)
         return DiscoveredResult(
             url=start_url, max_depth=max_depth, feeds=[], selectors=selectors
         )

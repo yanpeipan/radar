@@ -23,7 +23,6 @@ from src.application.feed import (  # noqa: E402
     register_feed,
     remove_feed,
 )
-from src.cli.discover import _display_feeds  # noqa: E402
 from src.cli.ui import (  # noqa: E402
     FetchProgress,
     format_discover_feeds,
@@ -56,52 +55,29 @@ def _get_provider_type(url: str) -> str:
 
 def _prompt_selection(feeds: list[DiscoveredFeed]) -> list[int]:
     """Prompt user to select feeds. Returns list of selected indices."""
+    import questionary
+
     # Auto-select single feed - no prompt needed for common case
     if len(feeds) == 1:
         return [0]
 
-    console = Console()
-    click.secho("")
-    click.secho("Select feeds to add:")
-    click.secho("  a - Add all feeds")
-    if len(feeds) > 1:
-        click.secho("  s - Select individually")
-    click.secho("  c - Cancel")
-    click.secho("")
-
-    choice = console.input("[cyan]Enter choice (a/s/c): [/cyan] ").strip().lower()
-
-    if choice == "a":
-        return list(range(len(feeds)))
-    elif choice == "s":
-        click.secho("Enter feed numbers (e.g., 1,3,5-7) or 'c' to cancel: ", fg="cyan")
-        selection = console.input().strip()
-        if selection.lower() == "c":
-            return []
-        return _parse_selection(selection, len(feeds))
-    else:
+    # Build feed choices for checkbox - use URL as unique identifier
+    feed_choices = [feed.url for feed in feeds]
+    selected = questionary.checkbox(
+        "Select feeds to add (space to toggle):",
+        choices=feed_choices,
+        style=questionary.Style(
+            [
+                ("selected", "bold cyan"),
+                ("checkbox", "cyan"),
+            ]
+        ),
+    ).ask()
+    if not selected or selected is None:
         return []
-
-
-def _parse_selection(selection: str, max_idx: int) -> list[int]:
-    """Parse comma-separated numbers and ranges like '1,3,5-7' into indices."""
-    indices = set()
-    try:
-        for part in selection.split(","):
-            part = part.strip()
-            if "-" in part:
-                start, end = part.split("-", 1)
-                start, end = int(start.strip()), int(end.strip())
-                for i in range(start, end + 1):
-                    if 1 <= i <= max_idx:
-                        indices.add(i - 1)
-            else:
-                i = int(part)
-                if 1 <= i <= max_idx:
-                    indices.add(i - 1)
-        return sorted(indices)
-    except ValueError:
-        return []
+    # Map selected URLs back to indices
+    selected_set = set(selected)
+    return [i for i, feed in enumerate(feeds) if feed.url in selected_set]
 
 
 from src.cli import cli  # noqa: E402
@@ -207,6 +183,7 @@ def feed_add(
     if automatic == "on":
         added_count = 0
         updated_count = 0
+        added_urls = []
         for feed in feeds:
             feed_meta = FeedMetaData(
                 feed_type=feed.feed_type.value
@@ -217,6 +194,7 @@ def feed_add(
             _, is_new = register_feed(feed.url, feed.title, weight, feed_meta)
             if is_new:
                 added_count += 1
+                added_urls.append(feed.url)
             else:
                 updated_count += 1
         if json_output:
@@ -233,7 +211,13 @@ def feed_add(
                 f"Added {added_count}, updated {updated_count} feed(s).", fg="green"
             )
         else:
-            click.secho(f"Added {added_count} feed(s) automatically.", fg="green")
+            if added_count == 1:
+                click.secho(
+                    f"Added {added_count} feed(s) automatically: {added_urls[0]}",
+                    fg="green",
+                )
+            else:
+                click.secho(f"Added {added_count} feed(s) automatically.", fg="green")
         return
 
     # JSON mode with discovered feeds but not automatic
@@ -242,7 +226,6 @@ def feed_add(
         return
 
     # Show feed list and prompt for selection
-    _display_feeds(feeds, numbered=True)
     selected = _prompt_selection(feeds)
     if not selected:
         click.secho("No feeds selected. Feed not added.", fg="yellow")
@@ -269,7 +252,13 @@ def feed_add(
             f"Added {added_count}, updated {updated_count} feed(s).", fg="green"
         )
     else:
-        click.secho(f"Added {added_count} feed(s).", fg="green")
+        if added_count == 1 and len(selected) == 1:
+            # Show URL for single feed add
+            click.secho(
+                f"Added {added_count} feed(s): {feeds[selected[0]].url}", fg="green"
+            )
+        else:
+            click.secho(f"Added {added_count} feed(s).", fg="green")
 
 
 @feed.command("list")

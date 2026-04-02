@@ -58,23 +58,20 @@ class DatabaseInitializer:
                 )
             """)
 
-            # Migrate pub_date to published_at TEXT (SQLite supports ALTER COLUMN in 3.25.0+)
-            # Using try/except because column type change only applies if column was previously TEXT
-            try:
-                cursor.execute("ALTER TABLE articles ALTER COLUMN published_at TEXT")
-                logger.info("Migrated published_at column")
-            except Exception as e:
-                # Column may already be INTEGER or other error - safe to ignore
-                logger.debug(f"pub_date column migration skipped: {e}")
-
-            # Migrate author, tags, category columns
-            for col in [("author", "TEXT"), ("tags", "TEXT"), ("category", "TEXT")]:
-                try:
-                    cursor.execute(f"ALTER TABLE articles ADD COLUMN {col[0]} {col[1]}")
-                    logger.info(f"Migrated {col[0]} column")
-                except Exception as e:
-                    # Column may already exist or other error - safe to ignore
-                    logger.debug(f"{col[0]} column migration skipped: {e}")
+            # SQLite doesn't support ALTER COLUMN to change types, so skip the published_at migration
+            # Check if author, tags, category columns exist before adding
+            cursor.execute("PRAGMA table_info(articles)")
+            existing_columns = {row[1] for row in cursor.fetchall()}
+            for col_name, col_type in [
+                ("author", "TEXT"),
+                ("tags", "TEXT"),
+                ("category", "TEXT"),
+            ]:
+                if col_name not in existing_columns:
+                    cursor.execute(
+                        f"ALTER TABLE articles ADD COLUMN {col_name} {col_type}"
+                    )
+                    logger.info(f"Migrated {col_name} column")
 
             # Indexes for common query patterns
             cursor.execute(
