@@ -119,6 +119,12 @@ def feed(ctx: click.Context) -> None:
     type=float,
     help="Feed weight for semantic search (default: 0.3)",
 )
+@click.option(
+    "--group",
+    default=None,
+    type=str,
+    help="Group name for organizing feeds (max 100 chars)",
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def feed_add(
@@ -128,6 +134,7 @@ def feed_add(
     automatic: str,
     discover_depth: int,
     weight: float | None,
+    group: str | None,
     json_output: bool,
 ) -> None:
     """Add a new feed by URL (auto-detects provider type).
@@ -139,6 +146,10 @@ def feed_add(
       feedship feed add nitter:elonmusk
       feedship feed add search:AI news
     """
+    if group and len(group) > 100:
+        click.secho("Error: Group name must be 100 characters or less", err=True, fg="red")
+        sys.exit(1)
+
     feeds: list = []
     result = None
     elapsed = 0.0
@@ -195,7 +206,7 @@ def feed_add(
                 else feed.feed_type,
                 selectors=feed.metadata.selectors if feed.metadata else None,
             )
-            _, is_new = register_feed(feed.url, feed.title, weight, feed_meta)
+            _, is_new = register_feed(feed.url, feed.title, weight, feed_meta, group)
             if is_new:
                 added_count += 1
                 added_urls.append(feed.url)
@@ -246,7 +257,7 @@ def feed_add(
             else feed.feed_type,
             selectors=feed.metadata.selectors if feed.metadata else None,
         )
-        _, is_new = register_feed(feed.url, feed.title, weight, feed_meta)
+        _, is_new = register_feed(feed.url, feed.title, weight, feed_meta, group)
         if is_new:
             added_count += 1
         else:
