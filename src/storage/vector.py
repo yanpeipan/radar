@@ -13,12 +13,14 @@ import os
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
+import logging
 import threading
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import TYPE_CHECKING
 
 import platformdirs
+import psutil
 from chromadb import PersistentClient
 from chromadb.config import Settings
 
@@ -31,6 +33,28 @@ if TYPE_CHECKING:
 _chroma_client: PersistentClient | None = None
 _embedding_function: SentenceTransformer | None = None
 _chroma_lock = threading.Lock()
+
+# Memory guard threshold
+MEMORY_THRESHOLD_PERCENT = 80  # Skip embeddings when memory usage exceeds 80%
+
+logger = logging.getLogger(__name__)
+
+
+def _check_memory_guard() -> bool:
+    """Check if memory usage is below threshold for embedding generation.
+
+    Returns:
+        True if memory is OK (below threshold), False if should skip.
+    """
+    memory = psutil.virtual_memory()
+    if memory.percent > MEMORY_THRESHOLD_PERCENT:
+        logger.warning(
+            "Memory usage is at %.1f%% (threshold: %d%%), skipping embedding generation",
+            memory.percent,
+            MEMORY_THRESHOLD_PERCENT,
+        )
+        return False
+    return True
 
 
 def _published_at_to_timestamp(published_at: str | int | float | None) -> int | None:
@@ -178,6 +202,10 @@ def add_article_embedding(
 
     logger = logging.getLogger(__name__)
 
+    # Memory guard - skip embedding generation if memory is high
+    if not _check_memory_guard():
+        return
+
     # Serialize all encoding + ChromaDB operations to avoid concurrency issues
     with _chroma_lock:
         collection = get_chroma_collection()
@@ -240,6 +268,10 @@ def add_article_embeddings(articles: list[dict]) -> None:
     logger = logging.getLogger(__name__)
 
     if not articles:
+        return
+
+    # Memory guard - skip embedding generation if memory is high
+    if not _check_memory_guard():
         return
 
     # Prepare embedding texts and metadata
