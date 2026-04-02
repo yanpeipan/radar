@@ -17,6 +17,7 @@ from src.providers import match_first
 from src.storage import list_feeds as storage_list_feeds
 from src.storage import update_feed as storage_update_feed
 from src.utils import generate_article_id
+from src.utils.scraping_utils import _provider_circuits, _circuit_lock
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +48,25 @@ async def fetch_one_async(feed: Feed) -> dict:
     if not provider:
         return {"new_articles": 0, "error": f"No provider for {feed.url}"}
 
+    # Get or create circuit breaker for this provider
+    provider_name = provider.__class__.__name__
+    async with _circuit_lock:
+        if provider_name not in _provider_circuits:
+            from src.utils.scraping_utils import CircuitBreakerState
+            _provider_circuits[provider_name] = CircuitBreakerState()
+        circuit = _provider_circuits[provider_name]
+
+    # Check if circuit allows execution
+    if not await asyncio.to_thread(circuit.can_execute):
+        logger.warning("Circuit open for %s, skipping %s", provider_name, feed.url)
+        return {"new_articles": 0, "error": f"Circuit open for {provider_name}"}
+
     # Crawl using the discovered provider's async method
     try:
         result = await asyncio.to_thread(provider.fetch_articles, feed)
+        await circuit.record_success()
     except Exception as e:
+        await circuit.record_failure()
         logger.error("Failed to fetch_articles %s: %s", feed.url, e)
         return {"new_articles": 0, "error": str(e)}
 
