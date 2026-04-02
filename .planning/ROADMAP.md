@@ -29,6 +29,10 @@
 | SEC-02 | Feed Size Limits Before Parsing | 6 |
 | SEC-03 | Memory Guard for Embedding Generation | 6 |
 | SEC-04 | XML Entity Depth Validation | 6 |
+| GROUP-01 | Add group field to Feed model | 7 |
+| GROUP-02 | Add group column to feeds table | 7 |
+| GROUP-03 | CLI --group option on feed add | 7 |
+| GROUP-04 | CLI --group filter on feed list | 7 |
 
 ---
 
@@ -38,6 +42,7 @@
 - [ ] **Phase 4: HTTP Resilience & Rate Limiting** — Prevent IP bans, enable graceful degradation
 - [x] **Phase 5: Type Safety & Configuration Validation** — Catch config errors at startup, prevent data corruption (completed 2026-04-02)
 - [x] **Phase 6: Security Hardening & Graceful Degradation** — Protect against malicious feeds, automated vulnerability detection (completed 2026-04-02)
+- [ ] **Phase 7: Feed Grouping** — Add group/labels to feeds for organization
 
 ---
 
@@ -121,13 +126,21 @@
 
 ### Phase 7: feed增加分组（group）功能，可以在add的时候指定，并保存到feeds表中
 
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 6
-**Plans:** 0 plans
+**Goal:** Add group/labels to feeds so users can organize feeds into categories. Users can specify a group when adding a feed via `--group` flag, and filter feeds by group in `feed list`.
 
-Plans:
-- [ ] TBD (run /gsd:plan-phase 7 to break down)
+**Depends on:** Phase 6
+
+**Requirements:** GROUP-01, GROUP-02, GROUP-03, GROUP-04
+
+**Success Criteria** (what must be TRUE):
+1. User can add a feed with `--group` flag to specify group
+2. User can list feeds filtered by `--group` exact match
+3. User can see group column in feed list output
+4. Existing feeds without group have NULL group
+5. Group names are free-form text up to 100 characters
+
+**Plans:** 1/1
+- [x] 07-PLAN.md — Add group functionality (6 tasks: DB migration, model, storage, business logic, CLI add, CLI list)
 
 ---
 
@@ -139,3 +152,4 @@ Plans:
 | 4. HTTP Resilience & Rate Limiting | 1/2 | In Progress|  |
 | 5. Type Safety & Configuration Validation | 1/1 | Complete   | 2026-04-02 |
 | 6. Security Hardening & Graceful Degradation | 1/1 | Complete   | 2026-04-02 |
+| 7. Feed Grouping | 1/1 | Ready to Execute |  |
