@@ -25,6 +25,7 @@ dependencies = [
     "msgspec>=0.20.0",  # Required by scrapling browser engine
     "tavily-python>=0.3.0",  # Tavily AI search SDK
     "questionary>=2.1.0,<3.0.0",  # Interactive CLI prompts (multi-select, confirm, etc.)
+    "psutil>=5.9.0",  # System memory monitoring for memory guard
 ]
 
 [project.optional-dependencies]
