@@ -111,6 +111,14 @@ class RSSProvider:
 
         # When response is None, match HTTP URLs to allow feed discovery on any page
         # This enables RSSProvider to discover feeds on webpages like openai.com
+        # Exclude social media hosts that have dedicated providers (NitterProvider)
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        excluded_hosts = ("x.com", "twitter.com", "www.x.com", "www.twitter.com")
+        if parsed.hostname and parsed.hostname.lower() in excluded_hosts:
+            return False
+
         return url.startswith("http")
 
     def priority(self) -> int:
