@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 from src.cli import cli
 from src.models import Feed
-from src.storage.sqlite import add_feed, init_db, store_article
+from src.storage.sqlite import add_feed, init_db, store_article, upsert_feed
 
 
 class TestFeedCommands:
@@ -171,6 +171,142 @@ class TestFeedCommands:
         result = cli_runner.invoke(cli, ["feed", "remove", "non-existent-id"])
         assert result.exit_code == 1
         assert "not found" in result.output.lower()
+
+
+class TestFeedGroupCommands:
+    """Tests for feed group functionality: feed list --group filter."""
+
+    def test_feed_list_filter_by_group(self, cli_runner, initialized_db):
+        """feed list --group <name> filters feeds to exact group match."""
+        # Add feeds with different groups
+        feed_ai = Feed(
+            id="group-filter-ai",
+            name="AI News",
+            url="https://example.com/ai.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            group="AI",
+        )
+        feed_llm = Feed(
+            id="group-filter-llm",
+            name="LLM News",
+            url="https://example.com/llm.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-02T00:00:00+00:00",
+            group="LLM",
+        )
+        feed_tech = Feed(
+            id="group-filter-tech",
+            name="Tech News",
+            url="https://example.com/tech.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-03T00:00:00+00:00",
+            group="Tech",
+        )
+        upsert_feed(feed_ai)
+        upsert_feed(feed_llm)
+        upsert_feed(feed_tech)
+
+        # Filter by AI group
+        result = cli_runner.invoke(cli, ["feed", "list", "--group", "AI"])
+        assert result.exit_code == 0
+        assert "AI News" in result.output
+        assert "LLM News" not in result.output
+        assert "Tech News" not in result.output
+
+    def test_feed_list_filter_ungrouped(self, cli_runner, initialized_db):
+        """feed list --group "" and --group none shows ungrouped feeds."""
+        # Add grouped and ungrouped feeds
+        feed_grouped = Feed(
+            id="grouped-feed",
+            name="Grouped Feed",
+            url="https://example.com/grouped.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            group="AI",
+        )
+        feed_ungrouped = Feed(
+            id="ungrouped-feed",
+            name="Ungrouped Feed",
+            url="https://example.com/ungrouped.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-02T00:00:00+00:00",
+            group=None,
+        )
+        upsert_feed(feed_grouped)
+        upsert_feed(feed_ungrouped)
+
+        # Filter by empty string
+        result = cli_runner.invoke(cli, ["feed", "list", "--group", ""])
+        assert result.exit_code == 0
+        assert "Ungrouped" in result.output
+        assert "Grouped Feed" not in result.output
+
+        # Filter by "none"
+        result = cli_runner.invoke(cli, ["feed", "list", "--group", "none"])
+        assert result.exit_code == 0
+        assert "Ungrouped" in result.output
+        assert "Grouped Feed" not in result.output
+
+    def test_feed_list_multiple_groups_all_shown(self, cli_runner, initialized_db):
+        """feed list shows all groups when no filter applied."""
+        feed1 = Feed(
+            id="multi-group-1",
+            name="Group 1 Feed",
+            url="https://example.com/mg1.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            group="Group1",
+        )
+        feed2 = Feed(
+            id="multi-group-2",
+            name="Group 2 Feed",
+            url="https://example.com/mg2.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-02T00:00:00+00:00",
+            group="Group2",
+        )
+        upsert_feed(feed1)
+        upsert_feed(feed2)
+
+        # No filter - all feeds shown
+        result = cli_runner.invoke(cli, ["feed", "list"])
+        assert result.exit_code == 0
+        assert "Group 1" in result.output
+        assert "Group 2" in result.output
+
+    def test_feed_list_group_verbose(self, cli_runner, initialized_db):
+        """feed list --verbose shows group column."""
+        feed = Feed(
+            id="verbose-group-feed",
+            name="Verbose Feed",
+            url="https://example.com/verbose.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            group="VerboseGroup",
+        )
+        upsert_feed(feed)
+
+        result = cli_runner.invoke(cli, ["feed", "list", "--verbose"])
+        assert result.exit_code == 0
+        assert "VerboseGroup" in result.output
+        assert "Verbose Feed" in result.output
 
 
 class TestArticleCommands:
