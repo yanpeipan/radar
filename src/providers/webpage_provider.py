@@ -250,14 +250,25 @@ class WebpageProvider:
     def fetch_articles(self, feed: Feed) -> FetchedResult:
         """Fetch articles using generic link discovery + Trafilatura extraction."""
         try:
-            raw_results = self._crawl_discovery(feed.url)
-            return FetchedResult(articles=self.parse_articles(raw_results))
+            raw_results, new_etag, new_modified = self._crawl_discovery(
+                feed.url, etag=feed.etag, modified_at=feed.modified_at
+            )
+            return FetchedResult(articles=self.parse_articles(raw_results), etag=new_etag, modified_at=new_modified)
         except Exception as e:
             logger.error("WebpageProvider.fetch_articles(%s) failed: %s", feed.url, e)
             return FetchedResult(articles=[])
 
-    def _crawl_discovery(self, url: str) -> list[Raw]:
-        """Generic fallback: discover article links → Trafilatura on each."""
+    def _crawl_discovery(self, url: str, etag: str | None = None, modified_at: str | None = None) -> tuple[list[Raw], str | None, str | None]:
+        """Generic fallback: discover article links → Trafilatura on each.
+
+        Args:
+            url: Page URL to crawl.
+            etag: Optional ETag for conditional request.
+            modified_at: Optional Last-Modified for conditional request.
+
+        Returns:
+            Tuple of (list of Raw article dicts, etag | None, modified_at | None).
+        """
         from urllib.parse import urljoin
 
         from scrapling import Selector
@@ -266,10 +277,25 @@ class WebpageProvider:
         Fetcher = self._df()
         fetcher = Fetcher()
 
+        # Build headers for conditional request
+        headers = {}
+        if etag:
+            headers["If-None-Match"] = etag
+        if modified_at:
+            headers["If-Modified-Since"] = modified_at
+
         try:
-            r = fetcher.fetch(url, timeout=30000)
+            if headers:
+                r = fetcher.fetch(url, timeout=30000, headers=headers)
+            else:
+                r = fetcher.fetch(url, timeout=30000)
         except Exception:
-            return []
+            return [], None, None
+
+        # Handle 304 Not Modified
+        if r.status == 304:
+            logger.info("WebpageProvider: %s returned 304 Not Modified", url)
+            return [], etag, modified_at
 
         body = (
             r.body.decode("utf-8", errors="replace")
@@ -277,6 +303,10 @@ class WebpageProvider:
             else str(r.body)
         )
         root = Selector(body)
+
+        # Extract etag and modified_at from response for next conditional request
+        new_etag = getattr(r, 'headers', {}).get("etag") if hasattr(r, 'headers') else None
+        new_modified = getattr(r, 'headers', {}).get("last-modified") if hasattr(r, 'headers') else None
 
         scored_links = _discover_links(root, url)
         if not scored_links:
@@ -340,7 +370,7 @@ class WebpageProvider:
                 }
             )
 
-        return results
+        return results, new_etag, new_modified
 
     def _fetch_page(self, url: str) -> str | None:
         Fetcher = self._df()
