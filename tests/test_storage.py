@@ -860,3 +860,197 @@ class TestFeedGroupOperations:
 
         feeds = list_feeds()
         assert len(feeds) == 6  # All feeds returned
+
+
+class TestArticleGroupOperations:
+    """Tests for article filtering by feed groups in list_articles and search_articles_fts.
+
+    Uses upsert_feed (not add_feed) because add_feed doesn't include group column in INSERT.
+    """
+
+    def _create_feeds_with_groups(self, initialized_db):
+        """Helper to create feeds with different groups for article filtering tests."""
+        from src.models import Feed
+        from src.storage.sqlite import upsert_feed
+
+        feeds_data = [
+            (
+                "article-group-feed-1",
+                "AI Article Feed",
+                "https://ai.example.com/feed.xml",
+                "AI",
+            ),
+            (
+                "article-group-feed-2",
+                "LLM Article Feed",
+                "https://llm.example.com/feed.xml",
+                "LLM",
+            ),
+            (
+                "article-group-feed-3",
+                "Tech Article Feed",
+                "https://tech.example.com/feed.xml",
+                "Tech",
+            ),
+            (
+                "article-group-feed-4",
+                "Ungrouped Feed",
+                "https://none.example.com/feed.xml",
+                None,
+            ),
+        ]
+        for feed_id, name, url, group in feeds_data:
+            feed = Feed(
+                id=feed_id,
+                name=name,
+                url=url,
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-01T00:00:00+00:00",
+                group=group,
+            )
+            upsert_feed(feed)
+        return [
+            "article-group-feed-1",
+            "article-group-feed-2",
+            "article-group-feed-3",
+            "article-group-feed-4",
+        ]
+
+    def _create_articles_for_feeds(self, initialized_db, feed_ids):
+        """Helper to create articles for test feeds."""
+        from src.storage.sqlite import store_article
+
+        articles = [
+            (
+                f"{feed_ids[0]}-article-1",
+                feed_ids[0],
+                "AI in Machine Learning",
+                "AI article about ML",
+            ),
+            (
+                f"{feed_ids[0]}-article-2",
+                feed_ids[0],
+                "Deep Learning Advances",
+                "DL article content",
+            ),
+            (
+                f"{feed_ids[1]}-article-1",
+                feed_ids[1],
+                "LLM like GPT-4",
+                "LLM article about GPT",
+            ),
+            (
+                f"{feed_ids[2]}-article-1",
+                feed_ids[2],
+                "Python Tech News",
+                "Tech article about Python",
+            ),
+            (
+                f"{feed_ids[3]}-article-1",
+                feed_ids[3],
+                "Random Article",
+                "Ungrouped content",
+            ),
+        ]
+        for article_id, feed_id, title, desc in articles:
+            store_article(
+                guid=article_id,
+                title=title,
+                content=f"<p>{desc}</p>",
+                link=f"https://{feed_id}.com/article",
+                feed_id=feed_id,
+                published_at="2024-01-15T10:00:00+00:00",
+            )
+
+    def test_list_articles_with_groups_filter(self, initialized_db):
+        """list_articles() with groups filter returns only articles from those groups."""
+        from src.storage.sqlite import list_articles
+
+        feed_ids = self._create_feeds_with_groups(initialized_db)
+        self._create_articles_for_feeds(initialized_db, feed_ids)
+
+        # Filter by AI group only
+        articles = list_articles(groups=["AI"])
+        assert len(articles) == 2  # 2 AI articles
+        for article in articles:
+            assert article.feed_id == "article-group-feed-1"
+
+    def test_list_articles_with_multiple_groups(self, initialized_db):
+        """list_articles() with multiple groups (OR semantics) returns articles from any of those groups."""
+        from src.storage.sqlite import list_articles
+
+        feed_ids = self._create_feeds_with_groups(initialized_db)
+        self._create_articles_for_feeds(initialized_db, feed_ids)
+
+        # Filter by AI and LLM groups (OR semantics)
+        articles = list_articles(groups=["AI", "LLM"])
+        feed_ids_returned = {a.feed_id for a in articles}
+        assert "article-group-feed-1" in feed_ids_returned  # AI
+        assert "article-group-feed-2" in feed_ids_returned  # LLM
+        assert "article-group-feed-3" not in feed_ids_returned  # Tech
+        assert "article-group-feed-4" not in feed_ids_returned  # Ungrouped
+
+    def test_list_articles_groups_exclude_ungrouped(self, initialized_db):
+        """list_articles() with groups filter excludes feeds with NULL group."""
+        from src.storage.sqlite import list_articles
+
+        feed_ids = self._create_feeds_with_groups(initialized_db)
+        self._create_articles_for_feeds(initialized_db, feed_ids)
+
+        # Filter by AI - should not include ungrouped
+        articles = list_articles(groups=["AI"])
+        for article in articles:
+            assert article.feed_id != "article-group-feed-4"  # Ungrouped feed excluded
+
+    def test_list_articles_with_feed_id_and_groups(self, initialized_db):
+        """list_articles() combines feed_id and groups filters (AND logic)."""
+        from src.storage.sqlite import list_articles
+
+        feed_ids = self._create_feeds_with_groups(initialized_db)
+        self._create_articles_for_feeds(initialized_db, feed_ids)
+
+        # Filter by AI group AND feed-id = article-group-feed-1
+        articles = list_articles(feed_id="article-group-feed-1", groups=["AI"])
+        assert len(articles) == 2  # Both articles from feed-1
+        for article in articles:
+            assert article.feed_id == "article-group-feed-1"
+
+    def test_list_articles_no_groups_returns_all(self, initialized_db):
+        """list_articles() without groups filter returns all articles."""
+        from src.storage.sqlite import list_articles
+
+        feed_ids = self._create_feeds_with_groups(initialized_db)
+        self._create_articles_for_feeds(initialized_db, feed_ids)
+
+        # No groups filter - should return all
+        articles = list_articles()
+        assert len(articles) == 5  # All 5 articles
+
+    def test_search_articles_fts_with_groups(self, initialized_db):
+        """search_articles_fts() with groups filter returns only matching articles from those groups."""
+        from src.storage.sqlite import search_articles_fts
+
+        feed_ids = self._create_feeds_with_groups(initialized_db)
+        self._create_articles_for_feeds(initialized_db, feed_ids)
+
+        # Search for "AI" in AI group only
+        articles = search_articles_fts(query="AI", groups=["AI"])
+        assert len(articles) >= 1  # At least one AI article
+        for article in articles:
+            assert article.feed_id == "article-group-feed-1"  # Only AI group
+
+    def test_search_articles_fts_groups_and_feed_id(self, initialized_db):
+        """search_articles_fts() combines feed_id and groups filters."""
+        from src.storage.sqlite import search_articles_fts
+
+        feed_ids = self._create_feeds_with_groups(initialized_db)
+        self._create_articles_for_feeds(initialized_db, feed_ids)
+
+        # Search for "article" in AI group with specific feed
+        articles = search_articles_fts(
+            query="article", feed_id="article-group-feed-1", groups=["AI"]
+        )
+        for article in articles:
+            assert article.feed_id == "article-group-feed-1"

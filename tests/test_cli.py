@@ -410,6 +410,124 @@ class TestArticleCommands:
         assert "No articles found" in result.output
 
 
+class TestArticleGroupCommands:
+    """Tests for article commands with --groups filter."""
+
+    def _create_grouped_feeds_with_articles(self, initialized_db):
+        """Helper to create feeds with groups and articles."""
+        feeds = [
+            Feed(
+                id="article-group-ai",
+                name="AI News",
+                url="https://ai.example.com/feed.xml",
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-01T00:00:00+00:00",
+                group="AI",
+            ),
+            Feed(
+                id="article-group-llm",
+                name="LLM News",
+                url="https://llm.example.com/feed.xml",
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-02T00:00:00+00:00",
+                group="LLM",
+            ),
+            Feed(
+                id="article-group-tech",
+                name="Tech News",
+                url="https://tech.example.com/feed.xml",
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-03T00:00:00+00:00",
+                group="Tech",
+            ),
+            Feed(
+                id="article-group-none",
+                name="Ungrouped News",
+                url="https://none.example.com/feed.xml",
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-04T00:00:00+00:00",
+                group=None,
+            ),
+        ]
+        for feed in feeds:
+            upsert_feed(feed)
+
+        # Add articles
+        articles = [
+            (
+                "ai-article-1",
+                "article-group-ai",
+                "AI and Machine Learning",
+                "AI content",
+            ),
+            ("ai-article-2", "article-group-ai", "Deep Learning News", "DL content"),
+            ("llm-article-1", "article-group-llm", "LLM like GPT-4", "LLM content"),
+            ("tech-article-1", "article-group-tech", "Python Tutorial", "Tech content"),
+            (
+                "none-article-1",
+                "article-group-none",
+                "Random Article",
+                "Ungrouped content",
+            ),
+        ]
+        for article_id, feed_id, title, desc in articles:
+            store_article(
+                guid=article_id,
+                title=title,
+                content=f"<p>{desc}</p>",
+                link=f"https://{feed_id}.com/article",
+                feed_id=feed_id,
+                published_at="2024-01-15T10:00:00+00:00",
+            )
+
+    def test_article_list_with_groups(self, cli_runner, initialized_db):
+        """article list --groups AI filters to only AI group articles."""
+        self._create_grouped_feeds_with_articles(initialized_db)
+
+        result = cli_runner.invoke(cli, ["article", "list", "--groups", "AI"])
+        assert result.exit_code == 0
+        # Should show AI articles
+        assert "AI" in result.output
+        # Should not show LLM or Tech articles (table may wrap names)
+        # The ungrouped article should not appear
+        assert "LLM" not in result.output
+        assert "Tech" not in result.output
+
+    def test_article_list_with_multiple_groups(self, cli_runner, initialized_db):
+        """article list --groups AI,LLM shows articles from either group."""
+        self._create_grouped_feeds_with_articles(initialized_db)
+
+        result = cli_runner.invoke(cli, ["article", "list", "--groups", "AI,LLM"])
+        assert result.exit_code == 0
+        assert "AI" in result.output
+        assert "LLM" in result.output
+        assert "Tech" not in result.output
+
+    def test_article_list_groups_excludes_ungrouped(self, cli_runner, initialized_db):
+        """article list --groups AI excludes articles from ungrouped feeds."""
+        self._create_grouped_feeds_with_articles(initialized_db)
+
+        result = cli_runner.invoke(cli, ["article", "list", "--groups", "AI"])
+        assert result.exit_code == 0
+        assert "Random" not in result.output  # Ungrouped article excluded
+
+    def test_article_search_with_groups(self, cli_runner, initialized_db):
+        """search AI --groups AI filters FTS results to AI group."""
+        self._create_grouped_feeds_with_articles(initialized_db)
+
+        result = cli_runner.invoke(cli, ["search", "AI", "--groups", "AI"])
+        assert result.exit_code == 0
+        assert "AI" in result.output
+
+
 class TestFeedDiscovery:
     """Tests for feed discovery functionality."""
 
