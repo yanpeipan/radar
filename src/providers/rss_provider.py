@@ -99,15 +99,23 @@ class RSSProvider:
             # 403 triggers Cloudflare fallback - allow crawl
             if response.status == 403:
                 return True
-            # Use response content-type directly (discovery already fetched)
-            content_type = response.headers.get("content-type", "") or ""
-            if "application/rss" in content_type or "application/atom" in content_type:
-                return True
-            if "application/xml" in content_type or "text/xml" in content_type:
-                return True
-            # Also match HTML pages to enable feed discovery on webpages
-            # This allows RSSProvider to discover feeds on pages like openai.com
-            return "text/html" in content_type
+
+            # Use feedparser to validate actual feed content (more reliable than content-type)
+            raw_content = (
+                response.body
+                if hasattr(response, "body")
+                else getattr(response, "html_content", "")
+            )
+            if raw_content:
+                parsed = feedparser.parse(raw_content)
+                # Valid feed must have entries and not be bozo (parsing error)
+                if parsed.entries and not parsed.bozo:
+                    return True
+                # Not a valid feed, but could be HTML page for discover phase
+                content_type = response.headers.get("content-type", "") or ""
+                return "text/html" in content_type
+
+            return False
 
         # When response is None, match HTTP URLs to allow feed discovery on any page
         # This enables RSSProvider to discover feeds on webpages like openai.com
