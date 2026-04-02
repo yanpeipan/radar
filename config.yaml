@@ -2,6 +2,10 @@
 timezone: Asia/Shanghai
 bm25_factor: 0.5
 
+# Rate limiting configuration
+rate_limit:
+  requests_per_minute: 10  # Per-domain default
+
 # Tavily search provider configuration
 tavily:
   api_key: ${TAVILY_API_KEY}  # Env var reference
