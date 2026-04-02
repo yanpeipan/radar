@@ -119,6 +119,16 @@
 **Plans:** 1/1 plans complete
 - [x] 06-PLAN.md — Security hardening (SEC-01, SEC-02, SEC-03, SEC-04)
 
+### Phase 7: feed增加分组（group）功能，可以在add的时候指定，并保存到feeds表中
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 7 to break down)
+
 ---
 
 ## Progress
