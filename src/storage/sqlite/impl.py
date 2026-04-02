@@ -428,7 +428,7 @@ def list_feeds() -> list:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT f.id, f.name, f.url, f.etag, f.modified_at, f.fetched_at, f.created_at, f.weight, f.group,
+            SELECT f.id, f.name, f.url, f.etag, f.modified_at, f.fetched_at, f.created_at, f.weight, f."group",
                    COUNT(a.id) as articles_count
             FROM feeds f
             LEFT JOIN articles a ON f.id = a.feed_id
@@ -461,7 +461,7 @@ def get_feed(feed_id: str) -> Feed | None:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, group FROM feeds WHERE id = ?",
+            "SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, \"group\" FROM feeds WHERE id = ?",
             (feed_id,),
         )
         row = cursor.fetchone()
@@ -497,7 +497,7 @@ def get_feeds_by_ids(ids: list[str]) -> dict[str, Feed]:
         cursor = conn.cursor()
         placeholders = ",".join("?" * len(ids))
         cursor.execute(
-            f"SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, group FROM feeds WHERE id IN ({placeholders})",
+            f"SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, \"group\" FROM feeds WHERE id IN ({placeholders})",
             ids,
         )
         return {
@@ -546,7 +546,7 @@ def upsert_feed(feed) -> tuple[Feed, bool]:
         if existing:
             # UPDATE existing feed, preserving original id
             cursor.execute(
-                """UPDATE feeds SET name = ?, etag = ?, modified_at = ?, fetched_at = ?, weight = ?, metadata = ?, group = ?
+                """UPDATE feeds SET name = ?, etag = ?, modified_at = ?, fetched_at = ?, weight = ?, metadata = ?, "group" = ?
                    WHERE url = ?""",
                 (
                     feed.name,
@@ -579,7 +579,7 @@ def upsert_feed(feed) -> tuple[Feed, bool]:
         else:
             # INSERT new feed
             cursor.execute(
-                """INSERT INTO feeds (id, name, url, etag, modified_at, fetched_at, created_at, weight, metadata, group)
+                """INSERT INTO feeds (id, name, url, etag, modified_at, fetched_at, created_at, weight, metadata, "group")
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     feed.id,

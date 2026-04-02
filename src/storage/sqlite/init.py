@@ -36,7 +36,7 @@ class DatabaseInitializer:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     metadata TEXT,
                     weight REAL DEFAULT 0.3,
-                    group TEXT
+                    "group" TEXT
                 )
             """)
 
@@ -44,7 +44,7 @@ class DatabaseInitializer:
             cursor.execute("PRAGMA table_info(feeds)")
             existing_columns = {row[1] for row in cursor.fetchall()}
             if "group" not in existing_columns:
-                cursor.execute("ALTER TABLE feeds ADD COLUMN group TEXT")
+                cursor.execute("ALTER TABLE feeds ADD COLUMN \"group\" TEXT")
                 logger.info("Migrated group column")
 
             # Articles table: stores individual feed items
