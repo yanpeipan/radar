@@ -35,9 +35,17 @@ class DatabaseInitializer:
                     fetched_at TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     metadata TEXT,
-                    weight REAL DEFAULT 0.3
+                    weight REAL DEFAULT 0.3,
+                    group TEXT
                 )
             """)
+
+            # Migration: add group column to existing feeds table
+            cursor.execute("PRAGMA table_info(feeds)")
+            existing_columns = {row[1] for row in cursor.fetchall()}
+            if "group" not in existing_columns:
+                cursor.execute("ALTER TABLE feeds ADD COLUMN group TEXT")
+                logger.info("Migrated group column")
 
             # Articles table: stores individual feed items
             # Note: id is NOT PRIMARY KEY - same article can exist in multiple feeds
