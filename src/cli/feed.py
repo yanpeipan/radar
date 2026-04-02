@@ -104,50 +104,6 @@ def _parse_selection(selection: str, max_idx: int) -> list[int]:
         return []
 
 
-def _get_webpage_selectors(url: str) -> list[str] | None:
-    """Analyze page links and prompt user to select path patterns for filtering.
-
-    Returns list of selected path prefixes, or None if questionary is not available.
-    """
-    from src.providers.webpage_provider import _analyze_link_paths
-
-    try:
-        import questionary
-    except ModuleNotFoundError as e:
-        click.secho(f"Error: Missing dependency - {e}", fg="red")
-        click.secho("Install patchright: uv pip install patchright", fg="yellow")
-        return None  # None means skip selector filtering entirely
-
-    try:
-        path_counts = _analyze_link_paths(url)
-    except ModuleNotFoundError as e:
-        click.secho(f"Error: Missing dependency - {e}", fg="red")
-        click.secho("Install patchright: uv pip install patchright", fg="yellow")
-        return None
-    except Exception as e:
-        click.secho(f"Warning: Could not analyze links: {e}", fg="yellow")
-        return []
-
-    if not path_counts:
-        return []
-
-    choices = [f"{path} ({count} links)" for path, count in path_counts.items()]
-    selected = questionary.checkbox(
-        "Select path patterns to filter (articles only):",
-        choices=choices,
-    ).ask()
-
-    if not selected:
-        return []
-
-    # Extract path from "path (N links)" format
-    result = []
-    for choice in selected:
-        path = choice.rsplit(" (", 1)[0]
-        result.append(path)
-    return result
-
-
 from src.cli import cli  # noqa: E402
 
 
