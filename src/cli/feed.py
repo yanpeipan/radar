@@ -279,11 +279,27 @@ def feed_add(
 @feed.command("list")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed output")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.option(
+    "--group",
+    default=None,
+    type=str,
+    help="Filter feeds by group (exact match)",
+)
 @click.pass_context
-def feed_list(ctx: click.Context, verbose: bool, json_output: bool) -> None:
+def feed_list(ctx: click.Context, verbose: bool, json_output: bool, group: str | None) -> None:
     """List all subscribed feeds with provider type."""
     try:
         feeds = list_feeds()
+
+        # Filter by group if specified
+        if group is not None:
+            if group == "" or group.lower() == "none":
+                # Show ungrouped feeds
+                feeds = [f for f in feeds if f.group is None]
+            else:
+                # Exact match filter
+                feeds = [f for f in feeds if f.group == group]
+
         if not feeds:
             if json_output:
                 print_json(format_feed_list([]))
@@ -315,6 +331,7 @@ def feed_list(ctx: click.Context, verbose: bool, json_output: bool) -> None:
                 table.add_row("Type", provider_type)
                 table.add_row("Articles", str(articles_count))
                 table.add_row("Weight", f"{weight:.1f}")
+                table.add_row("Group", f.group or "Ungrouped")
                 table.add_row("Last Fetched", last_fetched)
                 console.print(table)
                 console.print()
@@ -330,6 +347,7 @@ def feed_list(ctx: click.Context, verbose: bool, json_output: bool) -> None:
             table.add_column("Type", style="yellow", no_wrap=True)
             table.add_column("Articles", justify="right", no_wrap=True)
             table.add_column("Weight", justify="right", no_wrap=True)
+            table.add_column("Group", style="dim", no_wrap=True)
             table.add_column("Last Fetched", style="dim", no_wrap=True)
 
             for _i, f in enumerate(feeds, 1):
@@ -346,6 +364,7 @@ def feed_list(ctx: click.Context, verbose: bool, json_output: bool) -> None:
                     provider_type,
                     str(articles_count),
                     f"{weight:.1f}",
+                    f.group or "",
                     last_fetched,
                 )
 
