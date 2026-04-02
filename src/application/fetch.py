@@ -12,6 +12,16 @@ import logging
 import time
 
 from src.application.feed import FeedNotFoundError, fetch_one, get_feed
+
+# Constants for feed size limits to prevent memory exhaustion
+MAX_FEED_SIZE = 10 * 1024 * 1024  # 10MB in bytes
+MAX_FEED_ENTRIES = 1000  # Maximum entries per feed
+
+
+class FeedSizeLimitError(Exception):
+    """Raised when feed exceeds size or entry limits."""
+
+    pass
 from src.models import Feed, FeedType
 from src.providers import match_first
 from src.storage import list_feeds as storage_list_feeds

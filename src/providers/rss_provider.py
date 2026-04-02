@@ -15,6 +15,10 @@ from urllib.parse import urljoin, urlparse
 
 import feedparser
 
+# Feed size limits - duplicated from fetch.py to avoid circular imports
+_MAX_FEED_SIZE = 10 * 1024 * 1024  # 10MB in bytes
+_MAX_FEED_ENTRIES = 1000  # Maximum entries per feed
+
 from src.discovery.models import DiscoveredFeed
 from src.discovery.parallel_probe import probe_feed_paths_parallel
 from src.providers import PROVIDERS
@@ -27,6 +31,13 @@ if TYPE_CHECKING:
 from src.models import Feed, FeedType
 
 logger = logging.getLogger(__name__)
+
+
+class FeedSizeLimitError(Exception):
+    """Raised when feed exceeds size or entry limits."""
+
+    pass
+
 
 # Browser-like User-Agent header to avoid 403 bot blocks
 from src.constants import BROWSER_HEADERS  # noqa: E402
@@ -149,6 +160,18 @@ class RSSProvider:
             response = self._fetch_feed_content_sync(
                 feed.url, feed.etag, feed.modified_at
             )
+
+            # Check Content-Length header against size limit
+            content_length = response.headers.get("content-length")
+            if content_length:
+                try:
+                    if int(content_length) > _MAX_FEED_SIZE:
+                        raise FeedSizeLimitError(
+                            f"Feed exceeds 10MB size limit: {content_length} bytes"
+                        )
+                except ValueError:
+                    pass  # Invalid content-length, proceed
+
             if response.status == 304:
                 logger.info("RSS feed %s returned 304 Not Modified", feed.url)
                 return FetchedResult(
@@ -156,6 +179,17 @@ class RSSProvider:
                 )
 
             articles = self.parse_articles(response)
+
+            # Truncate if too many entries
+            if len(articles) > _MAX_FEED_ENTRIES:
+                logger.warning(
+                    "Feed %s has %d entries, truncating to %d",
+                    feed.url,
+                    len(articles),
+                    _MAX_FEED_ENTRIES,
+                )
+                articles = articles[: _MAX_FEED_ENTRIES]
+
             logger.debug(
                 "RSSProvider.fetch_articles(%s) returned %d entries",
                 feed.url,
