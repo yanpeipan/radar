@@ -128,5 +128,11 @@ def search_articles_fts(
         List of ArticleListItem objects.
     """
     return storage_search_articles_fts(
-        query=query, limit=limit, feed_id=feed_id, since=since, until=until, on=on, groups=groups
+        query=query,
+        limit=limit,
+        feed_id=feed_id,
+        since=since,
+        until=until,
+        on=on,
+        groups=groups,
     )

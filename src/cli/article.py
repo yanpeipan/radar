@@ -113,7 +113,9 @@ def article(ctx: click.Context) -> None:
 @click.option("--since", default=None, help="Start date (YYYY-MM-DD)")
 @click.option("--until", default=None, help="End date (YYYY-MM-DD)")
 @click.option("--on", multiple=True, help="Specific date (YYYY-MM-DD), can repeat")
-@click.option("--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)")
+@click.option(
+    "--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)"
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def article_list(
@@ -131,7 +133,12 @@ def article_list(
         on_list = list(on) if on else None
         groups_list = groups.split(",") if groups else None
         articles = list_articles(
-            limit=limit, feed_id=feed_id, since=since, until=until, on=on_list, groups=groups_list
+            limit=limit,
+            feed_id=feed_id,
+            since=since,
+            until=until,
+            on=on_list,
+            groups=groups_list,
         )
         if json_output:
             print_json(format_article_list(articles, limit))
@@ -233,7 +240,9 @@ def article_open(ctx: click.Context, article_id: str) -> None:
 @click.option("--since", default=None, help="Start date (YYYY-MM-DD)")
 @click.option("--until", default=None, help="End date (YYYY-MM-DD)")
 @click.option("--on", multiple=True, help="Specific date (YYYY-MM-DD), can repeat")
-@click.option("--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)")
+@click.option(
+    "--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)"
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def article_search(

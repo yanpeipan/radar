@@ -485,10 +485,7 @@ def search_articles_semantic(
     # ChromaDB returns results ordered by similarity - no additional sort needed
     # Post-fetch group filtering (ChromaDB doesn't store group metadata)
     if groups:
-        ranked_results = [
-            r for r in ranked_results
-            if r.get("feed_group") in groups
-        ]
+        ranked_results = [r for r in ranked_results if r.get("feed_group") in groups]
     ranked_results = ranked_results[:limit]
 
     # Convert to ArticleListItem
