@@ -320,13 +320,25 @@ def add_article_embeddings(articles: list[dict]) -> None:
         return
 
     # Serialize all encoding + ChromaDB operations to avoid concurrency issues
+    import time
+
     with _chroma_lock:
         collection = get_chroma_collection()
         embedding_fn = get_embedding_function()
 
+        t0 = time.monotonic()
+        total_chars = sum(len(t) for t in embedding_texts)
         try:
             emb = embedding_fn.encode(
                 embedding_texts, convert_to_numpy=True, normalize_embeddings=True
+            )
+            encode_time = time.monotonic() - t0
+            logger.debug(
+                "Embedding encode: %d articles, %d chars, %.3fs (%.0f chars/s)",
+                len(embedding_texts),
+                total_chars,
+                encode_time,
+                total_chars / encode_time if encode_time > 0 else 0,
             )
         except Exception as e:
             logger.error(
@@ -338,12 +350,19 @@ def add_article_embeddings(articles: list[dict]) -> None:
 
         embedding_vectors = emb.tolist()
 
+        t1 = time.monotonic()
         try:
             collection.add(
                 ids=ids,
                 documents=embedding_texts,
                 embeddings=embedding_vectors,
                 metadatas=metadatas,
+            )
+            add_time = time.monotonic() - t1
+            logger.debug(
+                "ChromaDB add: %d articles, %.3fs",
+                len(ids),
+                add_time,
             )
         except Exception as e:
             logger.error("ChromaDB batch add failed: error=%s", e)
