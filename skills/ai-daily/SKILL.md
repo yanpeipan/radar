@@ -30,6 +30,24 @@ Verify installation: `feedship --version`
 
 ---
 
+## Before You Begin
+
+Before scheduling automated reports, verify the following:
+
+- [ ] **OpenClaw gateway is running**: `openclaw gateway status`
+  - Must show: `Runtime: running`
+  - If stopped: `openclaw gateway start`
+- [ ] **A delivery channel is configured**: `openclaw channels list`
+  - Must show at least one channel (e.g., telegram, whatsapp, feishu)
+  - If no channel: `openclaw channels add --channel <type>`
+- [ ] **feedship is installed with required extras**: `feedship info --json | jq '.extras'`
+  - Must include: `ml` and `cloudflare` for full functionality
+  - If missing: `uv tool install 'feedship[ml,cloudflare]' --python 3.12 --force`
+- [ ] **OpenClaw CLI is available**: `openclaw --version`
+  - Must print: `OpenClaw 2026.4.2` or similar
+
+---
+
 ## Usage
 
 ### On-Demand
