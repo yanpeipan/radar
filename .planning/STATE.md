@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: OpenClaw Skills
-status: defining
-last_updated: "2026-04-03T09:20:00.000Z"
-last_activity: 2026-04-03
+status: roadmap_created
+last_updated: "2026-04-03T09:25:00.000Z"
+last_activity: 2026-04-03 — Roadmap created for v1.6
 progress:
-  total_phases: 0
+  total_phases: 1
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,10 +21,10 @@ progress:
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-03 — Milestone v1.6 started
+Phase: 10 of 1 (Skill Enhancement and Publishing)
+Plan: 0 of 1
+Status: Ready to plan
+Last activity: 2026-04-03 — Roadmap created for v1.6 OpenClaw Skills
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -44,7 +44,9 @@ Progress: [░░░░░░░░░░] 0%
 
 Recent decisions affecting current work:
 
-- v1.5: Single-phase feature — all 7 requirements (INFO-01 through INFO-07) delivered in one phase
+- v1.6: Single-phase approach — all 13 requirements delivered in Phase 10
+- v1.6: Phase numbering continues from v1.5 (Phase 09 → Phase 10)
+- v1.6: Phase named "Skill Enhancement and Publishing" based on research recommendations
 
 ### Pending Todos
 
