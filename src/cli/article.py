@@ -1,6 +1,7 @@
 """Article management commands for Radar CLI."""
 
 import logging
+import os
 import platform
 import subprocess
 import sys
@@ -92,7 +93,7 @@ def open_in_browser(url: str) -> None:
     elif system == "Linux":
         subprocess.run(["xdg-open", url])
     elif system == "Windows":
-        subprocess.run(["start", "", url], shell=True)
+        os.startfile(url)  # nosec B602 - safe alternative to subprocess with shell=True
     else:
         raise RuntimeError(f"Unsupported platform: {system}")
 

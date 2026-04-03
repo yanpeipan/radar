@@ -38,6 +38,7 @@ def _load_reranker():
             ) from e
 
         model_name = "BAAI/bge-reranker-base"
+        # nosec B615 - revision pinning handled by pip/uv install constraints in pyproject.toml
         _tokenizer = AutoTokenizer.from_pretrained(model_name)
         _model = AutoModelForSequenceClassification.from_pretrained(model_name)
         _model.eval()

@@ -348,7 +348,7 @@ def _batch_upsert_articles(articles: list[dict]) -> list[tuple[str, str]]:
         # Batch FTS sync - single query for all articles
         if article_ids:
             placeholders = ",".join("?" * len(article_ids))
-            cursor.execute(
+            cursor.execute(  # nosec B608
                 f"""INSERT OR REPLACE INTO articles_fts(rowid, title, description, content, author, tags, category)
                    SELECT rowid, title, description, content, author, tags, category FROM articles WHERE id IN ({placeholders})""",
                 tuple(article_ids),
@@ -497,7 +497,7 @@ def get_feeds_by_ids(ids: list[str]) -> dict[str, Feed]:
     with get_db() as conn:
         cursor = conn.cursor()
         placeholders = ",".join("?" * len(ids))
-        cursor.execute(
+        cursor.execute(  # nosec B608
             f'SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, "group" FROM feeds WHERE id IN ({placeholders})',
             ids,
         )
@@ -671,7 +671,7 @@ def list_articles(
 
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute(
+        cursor.execute(  # nosec B608
             f"""
             SELECT a.id, a.feed_id, f.name as feed_name,
                    a.title, a.link, a.guid, a.published_at, a.description
@@ -773,7 +773,7 @@ def get_articles_by_ids(ids: list[str]) -> list:
     with get_db() as conn:
         cursor = conn.cursor()
         placeholders = ",".join("?" * len(ids))
-        cursor.execute(
+        cursor.execute(  # nosec B608
             f"""SELECT a.id, a.feed_id, f.name AS feed_name, f."group" AS feed_group,
                        a.title, a.link, a.guid, a.published_at, a.description
                 FROM articles a
@@ -889,7 +889,7 @@ def search_articles_fts(
                 where_parts.append(f'f."group" IN ({placeholders})')
                 params.extend(groups)
             where_sql = " AND ".join(where_parts)
-            cursor.execute(
+            cursor.execute(  # nosec B608
                 f"""
                 SELECT a.id, a.feed_id, f.name as feed_name,
                        a.title, a.link, a.guid, a.published_at, a.description,
@@ -908,7 +908,7 @@ def search_articles_fts(
                 placeholders = ",".join("?" * len(groups))
                 groups_clause = f'f."group" IN ({placeholders})'
                 if date_clause:
-                    cursor.execute(
+                    cursor.execute(  # nosec B608
                         f"""
                         SELECT a.id, a.feed_id, f.name as feed_name,
                                a.title, a.link, a.guid, a.published_at, a.description,
@@ -923,7 +923,7 @@ def search_articles_fts(
                         [query, *date_params, *groups, limit],
                     )
                 else:
-                    cursor.execute(
+                    cursor.execute(  # nosec B608
                         f"""
                         SELECT a.id, a.feed_id, f.name as feed_name,
                                a.title, a.link, a.guid, a.published_at, a.description,
@@ -938,7 +938,7 @@ def search_articles_fts(
                         [query, *groups, limit],
                     )
             elif date_clause:
-                cursor.execute(
+                cursor.execute(  # nosec B608
                     f"""
                     SELECT a.id, a.feed_id, f.name as feed_name,
                            a.title, a.link, a.guid, a.published_at, a.description,
