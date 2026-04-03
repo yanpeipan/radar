@@ -47,11 +47,14 @@ def _check_memory_guard() -> bool:
         True if memory is OK (below threshold), False if should skip.
     """
     memory = psutil.virtual_memory()
-    if memory.percent > MEMORY_THRESHOLD_PERCENT:
+    available_gb = memory.available / (1024**3)
+    threshold_gb = 0.10 * memory.total / (1024**3)  # 10% of total
+    min_gb = 1.0  # Minimum 1GB available
+    if available_gb < threshold_gb and available_gb < min_gb:
         logger.warning(
-            "Memory usage is at %.1f%% (threshold: %d%%), skipping embedding generation",
-            memory.percent,
-            MEMORY_THRESHOLD_PERCENT,
+            "Memory available: %.1f GB (threshold: %.1f GB or 10%% total), skipping embedding generation",
+            available_gb,
+            min_gb,
         )
         return False
     return True

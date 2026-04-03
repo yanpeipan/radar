@@ -56,7 +56,7 @@
 **Plans:** 1 plan
 
 Plans:
-- [ ] 09-01-PLAN.md — Create `feedship info` CLI command with --version, --config, --storage, --json flags
+- [x] 09-01-PLAN.md — Create `feedship info` CLI command with --version, --config, --storage, --json flags
 
 ---
 
