@@ -58,13 +58,57 @@ Agent activates this skill and runs the Generate Daily Report flow.
 
 ### Automatic (Cron)
 
-Configure in OpenClaw agent with cron trigger:
+Schedule daily reports to run automatically at 8:00 AM using OpenClaw cron.
 
-```
-cron: 0 8 * * *
+#### Step 1: Verify Your Delivery Channel
+
+List available channels and note your configured channel type and destination:
+
+```bash
+openclaw channels list
 ```
 
-This runs daily at 8:00 AM. The agent activates this skill automatically.
+#### Step 2: Add the Cron Job
+
+Run this command with your channel configuration:
+
+```bash
+openclaw cron add \
+  --name "feedship-ai-daily" \
+  --agent feedship-ai-daily \
+  --cron "0 8 * * *" \
+  --tz Asia/Shanghai \
+  --session isolated \
+  --announce \
+  --channel <your-channel> \
+  --to <your-destination> \
+  --timeout-seconds 600
+```
+
+Replace:
+- `<your-channel>` with your channel type (e.g., `telegram`, `whatsapp`, `feishu`)
+- `<your-destination>` with your delivery target (e.g., `+15555550123` for WhatsApp, `@your_bot` for Telegram)
+
+#### Step 3: Verify the Cron Job
+
+```bash
+openclaw cron list
+```
+
+Confirm the job shows:
+- `name: feedship-ai-daily`
+- `session: isolated`
+- `announce: true`
+
+#### Step 4: Test Immediately (Optional)
+
+To run the job right now instead of waiting:
+
+```bash
+openclaw cron run <job-id>
+```
+
+Find `<job-id>` from the `openclaw cron list` output.
 
 ---
 
