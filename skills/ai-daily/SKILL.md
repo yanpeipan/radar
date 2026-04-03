@@ -1,7 +1,6 @@
 ---
 name: feedship-ai-daily
-description: Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 3-section digest: (A) Today's new articles with summaries, (B) Hot topics clustering, (C) Featured picks by feed weight. Requires feedship skill.
-compatibility: Requires feedship[cloudflare,ml]. Install with: pipx install 'feedship[cloudflare,ml]' (recommended) or uv pip install 'feedship[cloudflare,ml]'
+description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 3-section digest: (A) Today's new articles with summaries, (B) Hot topics clustering, (C) Featured picks by feed weight. Requires feedship skill."
 metadata:
   openclaw:
     requires:
@@ -15,7 +14,7 @@ metadata:
 
 # AI 日报 (Feedship AI Daily)
 
-**Version:** 1.0
+**Version:** 1.1
 **For:** OpenClaw compatible agents
 **Description:** Generate daily AI news digest from feedship subscriptions
 
