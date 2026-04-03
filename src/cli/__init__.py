@@ -53,6 +53,7 @@ from src.cli import (
     article,  # noqa: F401, E402
     discover,  # noqa: F401, E402
     feed,  # noqa: F401, E402
+    info,  # noqa: F401, E402
 )
 
 if __name__ == "__main__":
