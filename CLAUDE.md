@@ -75,37 +75,3 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 > Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
 > This section is managed by `generate-claude-profile` -- do not edit manually.
 <!-- GSD:profile-end -->
-
-<!-- Agency:agents-routing -->
-## Agency Agents 路由规则
-
-本项目使用 agency-agents (~/.claude/agents/) 作为专家角色池。
-
-### 自动路由规则
-
-当检测到以下关键词时，自动使用对应专家角色：
-
-| 触发条件 | 激活的 Agency Agent | 用途 |
-|---------|-------------------|------|
-| **安全、漏洞、威胁、审计** | `security-engineer` | 安全审查、威胁建模 |
-| **数据库、查询、索引、SQL** | `database-optimizer` | Schema设计、查询优化 |
-| **前端、React、Vue、UI、组件** | `frontend-developer` | UI实现、组件开发 |
-| **后端、API、微服务、架构** | `backend-architect` | API设计、系统架构 |
-| **性能、benchmark、优化** | `performance-benchmarker` | 性能测试与优化 |
-| **测试、覆盖率、验证** | `code-reviewer` | 测试策略、代码审查 |
-| **CI/CD、DevOps、部署** | `devops-automator` | 流水线、自动化 |
-| **移动端、iOS、Android、React Native** | `mobile-app-builder` | 跨平台移动开发 |
-| **AI、ML、模型、嵌入** | `ai-engineer` | 机器学习集成 |
-| **代码审查、PR review** | `code-reviewer` | PR审查、质量把控 |
-| **数据管道、ETL、数据仓库** | `data-engineer` | 数据基础设施 |
-
-### 使用方式
-
-在当前会话中直接说：
-- "用 Security Engineer 视角审查这个 PR"
-- "让 Database Optimizer 看看这个慢查询"
-- "请 Backend Architect 评审这个 API 设计"
-
-### GSD 集成
-
-在 `/gsd:execute-phase` 执行期间，对应的 wave plan 会自动路由到专项专家。
