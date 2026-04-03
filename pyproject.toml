@@ -1,6 +1,6 @@
 [project]
 name = "feedship"
-version = "1.4.0"
+version = "1.4.1"
 description = "A personal information delivery system - collect, subscribe to, and organize information sources from the internet"
 requires-python = ">=3.10, <3.13"
 dependencies = [
@@ -49,6 +49,7 @@ ml = [
 ]
 cloudflare = [
     "scrapling>=0.4.0",
+    "patchright>=1.0.0",  # Required by scrapling StealthyFetcher
     "playwright>=1.49.0",
     "curl-cffi>=0.14.0",
     "socksio>=1.0.0",
