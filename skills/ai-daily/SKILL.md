@@ -224,7 +224,7 @@ Wait for fetch to complete before proceeding.
 Get today's date in YYYY-MM-DD format.
 
 ```bash
-feedship article list --limit 100 --since YYYY-MM-DD
+feedship article list --limit 333 --since YYYY-MM-DD
 ```
 
 Filter to articles actually published today (check the date column in output).
