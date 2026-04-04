@@ -1,5 +1,5 @@
 ---
-version: 1.7.0
+version: 1.8.0
 name: feedship-ai-daily
 description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 4-section digest: (A) AI五层蛋糕, (B) 精选推荐 (featured picks + hot topics merged), (C) 创业信号, (D) 创作点. Requires feedship skill."
 metadata:

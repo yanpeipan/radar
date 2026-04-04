@@ -38,6 +38,7 @@ Categorize articles into the five-layer framework: AI应用 → AI模型 → AI�
 - Classify each article into one of the five layers
 - Within each layer, further group semantically similar articles together
 - Each sub-group: header with layer name, then numbered topic themes with count + linked sources
+- **MANDATORY: Every numbered item MUST have "[n]篇来源" prefix, even when n=1**
 - Order sub-groups by feed weight (评分), highest first
 
 ---
