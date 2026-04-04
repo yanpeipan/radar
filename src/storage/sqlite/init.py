@@ -74,6 +74,7 @@ class DatabaseInitializer:
                 ("author", "TEXT"),
                 ("tags", "TEXT"),
                 ("category", "TEXT"),
+                ("meta", "TEXT"),
             ]:
                 if col_name not in existing_columns:
                     cursor.execute(

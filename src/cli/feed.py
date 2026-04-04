@@ -443,6 +443,8 @@ def fetch(
       feedship fetch <feed_id> [<feed_id>...]  Fetch specific feeds by ID
     """
     # Lazy import to avoid torch dependency for non-fetch commands
+    from dataclasses import asdict
+
     from src.application.fetch import (
         fetch_all_async,
         fetch_ids_async,
@@ -486,7 +488,7 @@ def fetch(
                 if json_output:
                     print_json(
                         {
-                            "articles": articles,
+                            "articles": [asdict(a) for a in articles],
                             "count": len(articles),
                         }
                     )

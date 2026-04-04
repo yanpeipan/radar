@@ -6,6 +6,7 @@ Provides SQLite database connection with WAL mode and schema initialization.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import sqlite3
 import time
@@ -279,11 +280,20 @@ async def store_article_async(
         )
 
 
-def _batch_upsert_articles(articles: list[dict]) -> list[tuple[str, str]]:
+def _get_article_field(article, field: str, default=None):
+    """Get article field, handling both dict and dataclass Article."""
+    if hasattr(article, field):
+        return getattr(article, field)
+    return article.get(field, default) if isinstance(article, dict) else default
+
+
+def _batch_upsert_articles(articles: list) -> list[tuple[str, str]]:
     """Batch upsert articles using single transaction with UPSERT.
 
     Args:
-        articles: List of article dicts with keys: guid, title, content, link, feed_id, published_at, description, author, tags, category
+        articles: List of Article dataclass or dict objects with fields:
+            guid, title, content, link, feed_id, published_at, description,
+            author, tags, category, meta
 
     Returns:
         List of (article_id, guid) tuples for each article.
@@ -307,31 +317,34 @@ def _batch_upsert_articles(articles: list[dict]) -> list[tuple[str, str]]:
         batch_values = []
         for i, article in enumerate(articles):
             article_id = article_ids[i]
+            meta = _get_article_field(article, "meta", {})
+            meta_json = json.dumps(meta) if meta else None
             normalized_published_at = _normalize_published_at(
-                article.get("published_at"), tz
+                _get_article_field(article, "published_at"), tz
             )
             batch_values.append(
                 (
                     article_id,
-                    article.get("feed_id") or "",
-                    article["title"],
-                    article["link"],
-                    article["guid"],
+                    _get_article_field(article, "feed_id") or "",
+                    _get_article_field(article, "title") or "",
+                    _get_article_field(article, "link") or "",
+                    _get_article_field(article, "guid"),
                     normalized_published_at,
-                    article["content"],
-                    article.get("description"),
+                    _get_article_field(article, "content"),
+                    _get_article_field(article, "description"),
                     now,  # created_at
                     now,  # modified_at
-                    article.get("author"),
-                    article.get("tags"),
-                    article.get("category"),
+                    _get_article_field(article, "author"),
+                    _get_article_field(article, "tags"),
+                    _get_article_field(article, "category"),
+                    meta_json,
                 )
             )
 
         # Batch UPSERT with executemany - single transaction
         cursor.executemany(
-            """INSERT INTO articles (id, feed_id, title, link, guid, published_at, content, description, created_at, modified_at, author, tags, category)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """INSERT INTO articles (id, feed_id, title, link, guid, published_at, content, description, created_at, modified_at, author, tags, category, meta)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(feed_id, id) DO UPDATE SET
                    title = excluded.title,
                    link = excluded.link,
@@ -341,7 +354,8 @@ def _batch_upsert_articles(articles: list[dict]) -> list[tuple[str, str]]:
                    modified_at = excluded.modified_at,
                    author = excluded.author,
                    tags = excluded.tags,
-                   category = excluded.category""",
+                   category = excluded.category,
+                   meta = excluded.meta""",
             batch_values,
         )
 
@@ -358,7 +372,7 @@ def _batch_upsert_articles(articles: list[dict]) -> list[tuple[str, str]]:
 
         # Build results
         for i, article in enumerate(articles):
-            results.append((article_ids[i], article["guid"]))
+            results.append((article_ids[i], _get_article_field(article, "guid")))
 
         return results
 

@@ -14,10 +14,29 @@ if TYPE_CHECKING:
     from src.discovery.models import DiscoveredFeed
     from src.models import Feed, FeedType
 
-# Forward declarations for Article and Raw types
+# Article dataclass - represents a fetched article
 # Raw will be defined by concrete providers based on their crawl() return type
-Article = dict  # Using dict for flexibility; concrete providers define structure
 Raw = dict  # Raw crawl result
+
+
+@dataclass
+class Article:
+    """Represents a fetched article with optional metadata."""
+
+    title: str | None
+    link: str | None
+    guid: str
+    published_at: str | None
+    description: str | None
+    content: str | None
+    author: str | None = None
+    tags: str | None = None
+    category: str | None = None
+    meta: dict = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.meta is None:
+            self.meta = {}
 
 
 @dataclass

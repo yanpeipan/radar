@@ -127,8 +127,8 @@ class GitHubTrendingProvider:
                 )
                 # Deduplicate by GUID within this period
                 for article in period_articles:
-                    if article["guid"] not in seen_guids:
-                        seen_guids.add(article["guid"])
+                    if article.guid not in seen_guids:
+                        seen_guids.add(article.guid)
                         articles.append(article)
             except Exception as e:
                 logger.error(
@@ -258,11 +258,13 @@ class GitHubTrendingProvider:
             content=description,
             tags=tags,
             category="",
-            stars=stars,
-            forks=forks,
-            language=language,
-            rank=rank,
-            period=period,
+            meta={
+                "stars": stars,
+                "forks": forks,
+                "language": language,
+                "rank": rank,
+                "period": period,
+            },
         )
 
     def parse_feed(self, url: str, response: Response = None) -> DiscoveredFeed:
