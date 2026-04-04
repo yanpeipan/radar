@@ -82,7 +82,7 @@ Detect funding news, acquisitions, and trend opportunities from existing article
 **Format:**
 
 ```
-## E. 创业信号
+## C. 创业信号
 
 ### 融资动态
 - [n] 篇相关
@@ -113,7 +113,7 @@ Extract story angles and trending topics for content creation from existing arti
 **Format:**
 
 ```
-## E. 创作点
+## D. 创作点
 
 ### 可写主题
 - [n] 篇相关
@@ -180,21 +180,7 @@ Extract story angles and trending topics for content creation from existing arti
    来源: AI Weekly | 权重: 0.4 | 阅读量: 980
    推荐理由: 多模态技术成熟，应用场景扩展
 
-## D. 热点话题
-
-### LLM 新模型发布
-- [4] 篇相关
-- 多家机构本周发布新模型，竞争激烈
-
-### AI 安全与对齐
-- [3] 篇相关
-- 新研究关注长上下文安全性问题
-
-### 模型效率优化
-- [2] 篇相关
-- 新技术降低推理成本，提升效率
-
-## D. 创业信号
+## C. 创业信号
 
 ### 融资动态
 - [1] 篇相关
@@ -208,7 +194,7 @@ Extract story angles and trending topics for content creation from existing arti
 - [2] 篇相关
 - [Google AI Blog] New Model Achieves SOTA — 新兴趋势：小型化模型进入移动端
 
-## E. 创作点
+## D. 创作点
 
 ### 可写主题
 - [2] 篇相关
