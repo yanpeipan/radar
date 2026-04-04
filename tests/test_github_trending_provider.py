@@ -182,6 +182,7 @@ class TestGitHubTrendingProvider:
         def make_selector_mock(text):
             mock_el = MagicMock()
             mock_el.text = text
+            mock_el.css.return_value.get.return_value.strip.return_value = text
             return mock_el
 
         mock_p = make_selector_mock("Description")
@@ -197,9 +198,9 @@ class TestGitHubTrendingProvider:
                 mock_result.first = mock_p
             elif selector == "span[itemprop='programmingLanguage']":
                 mock_result.first = mock_lang
-            elif selector == "a.Link--muted:nth-of-type(2)":
+            elif selector == "a.Link--muted:nth-of-type(1)":
                 mock_result.first = mock_stars
-            elif selector == "a.Link--muted:nth-of-type(3)":
+            elif selector == "a.Link--muted:nth-of-type(2)":
                 mock_result.first = mock_forks
             else:
                 mock_result.first = None
@@ -211,7 +212,7 @@ class TestGitHubTrendingProvider:
         result = provider._parse_repo_entry(mock_entry, "weekly", 1)
 
         assert result is not None
-        assert result["guid"] == "github-trending:weekly:https://github.com/owner/repo"
+        assert result.guid == "github-trending:weekly:https://github.com/owner/repo"
 
     def test_title_format(self):
         """Verify title format is '[stars★] user/repo: description'."""
@@ -225,6 +226,7 @@ class TestGitHubTrendingProvider:
         def make_selector_mock(text):
             mock_el = MagicMock()
             mock_el.text = text
+            mock_el.css.return_value.get.return_value.strip.return_value = text
             return mock_el
 
         mock_p = make_selector_mock("A great library")
@@ -240,9 +242,9 @@ class TestGitHubTrendingProvider:
                 mock_result.first = mock_p
             elif selector == "span[itemprop='programmingLanguage']":
                 mock_result.first = mock_lang
-            elif selector == "a.Link--muted:nth-of-type(2)":
+            elif selector == "a.Link--muted:nth-of-type(1)":
                 mock_result.first = mock_stars
-            elif selector == "a.Link--muted:nth-of-type(3)":
+            elif selector == "a.Link--muted:nth-of-type(2)":
                 mock_result.first = mock_forks
             else:
                 mock_result.first = None
@@ -254,7 +256,7 @@ class TestGitHubTrendingProvider:
         result = provider._parse_repo_entry(mock_entry, "daily", 1)
 
         assert result is not None
-        assert result["title"] == "[15000★] owner/repo: A great library"
+        assert result.title == "[15000★] owner/repo: A great library"
 
     def test_metadata_json(self):
         """Verify metadata JSON contains stars, forks, language, rank, period."""
@@ -270,6 +272,7 @@ class TestGitHubTrendingProvider:
         def make_selector_mock(text):
             mock_el = MagicMock()
             mock_el.text = text
+            mock_el.css.return_value.get.return_value.strip.return_value = text
             return mock_el
 
         mock_p = make_selector_mock("Description")
@@ -285,9 +288,9 @@ class TestGitHubTrendingProvider:
                 mock_result.first = mock_p
             elif selector == "span[itemprop='programmingLanguage']":
                 mock_result.first = mock_lang
-            elif selector == "a.Link--muted:nth-of-type(2)":
+            elif selector == "a.Link--muted:nth-of-type(1)":
                 mock_result.first = mock_stars
-            elif selector == "a.Link--muted:nth-of-type(3)":
+            elif selector == "a.Link--muted:nth-of-type(2)":
                 mock_result.first = mock_forks
             else:
                 mock_result.first = None
@@ -299,13 +302,12 @@ class TestGitHubTrendingProvider:
         result = provider._parse_repo_entry(mock_entry, "monthly", 5)
 
         assert result is not None
-        # content field should be JSON with metadata
-        metadata = json.loads(result["content"])
-        assert metadata["stars"] == 8000
-        assert metadata["forks"] == 400
-        assert metadata["language"] == "Rust"
-        assert metadata["rank"] == 5
-        assert metadata["period"] == "monthly"
+        # meta field contains stars, forks, language, rank, period
+        assert result.meta["stars"] == 8000
+        assert result.meta["forks"] == 400
+        assert result.meta["language"] == "Rust"
+        assert result.meta["rank"] == 5
+        assert result.meta["period"] == "monthly"
 
     def test_tags_format(self):
         """Verify tags format is 'language:X,stars:Y'."""
@@ -319,6 +321,7 @@ class TestGitHubTrendingProvider:
         def make_selector_mock(text):
             mock_el = MagicMock()
             mock_el.text = text
+            mock_el.css.return_value.get.return_value.strip.return_value = text
             return mock_el
 
         mock_p = make_selector_mock("Desc")
@@ -334,9 +337,9 @@ class TestGitHubTrendingProvider:
                 mock_result.first = mock_p
             elif selector == "span[itemprop='programmingLanguage']":
                 mock_result.first = mock_lang
-            elif selector == "a.Link--muted:nth-of-type(2)":
+            elif selector == "a.Link--muted:nth-of-type(1)":
                 mock_result.first = mock_stars
-            elif selector == "a.Link--muted:nth-of-type(3)":
+            elif selector == "a.Link--muted:nth-of-type(2)":
                 mock_result.first = mock_forks
             else:
                 mock_result.first = None
@@ -348,7 +351,7 @@ class TestGitHubTrendingProvider:
         result = provider._parse_repo_entry(mock_entry, "daily", 1)
 
         assert result is not None
-        assert result["tags"] == "language:JavaScript,stars:500"
+        assert result.tags == "language:JavaScript,stars:500"
 
     def test_rate_limit_handling(self):
         """Verify fetch returns empty articles on rate limit (429)."""

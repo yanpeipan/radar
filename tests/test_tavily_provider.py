@@ -125,18 +125,18 @@ class TestTavilyProvider:
 
             # Verify first article mapping
             article1 = result.articles[0]
-            assert article1["title"] == "Article 1"
-            assert article1["link"] == "https://example.com/article1"
-            assert article1["guid"] == "https://example.com/article1"
-            assert article1["description"] == "Description 1"
-            assert article1["content"] == "Full content 1"
-            assert article1["tags"] == "tech,AI"
+            assert article1.title == "Article 1"
+            assert article1.link == "https://example.com/article1"
+            assert article1.guid == "https://example.com/article1"
+            assert article1.description == "Description 1"
+            assert article1.content == "Full content 1"
+            assert article1.tags == "tech,AI"
 
             # Verify second article (no content, no categories)
             article2 = result.articles[1]
-            assert article2["title"] == "Article 2"
-            assert article2["content"] is None
-            assert article2["tags"] == ""
+            assert article2.title == "Article 2"
+            assert article2.content is None
+            assert article2.tags == ""
 
     def test_fetch_articles_no_keyword(self):
         """Verify fetch returns empty when URL has no keyword."""

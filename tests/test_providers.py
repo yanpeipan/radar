@@ -204,8 +204,8 @@ class TestRSSProvider:
             result = provider.fetch_articles(feed)
 
             assert len(result.articles) == 2
-            assert result.articles[0].get("title") == "Article 1"
-            assert result.articles[1].get("title") == "Article 2"
+            assert result.articles[0].title == "Article 1"
+            assert result.articles[1].title == "Article 2"
 
     def test_rss_provider_parse(self):
         """Create mock response and verify parse() returns Article with correct fields."""
@@ -250,14 +250,13 @@ class TestRSSProvider:
         ):
             result = provider.parse_articles(mock_response)
 
-        # Result is a list of dicts (Article is dict in this codebase)
         assert isinstance(result, list)
         assert len(result) == 1
-        assert result[0]["title"] == "Test Article"
-        assert result[0]["link"] == "http://test.com/article"
-        assert result[0]["published_at"] == "2024-01-01"
-        assert result[0]["description"] == "Test description"
-        assert result[0]["content"] == "Full content here"
+        assert result[0].title == "Test Article"
+        assert result[0].link == "http://test.com/article"
+        assert result[0].published_at == "2024-01-01"
+        assert result[0].description == "Test description"
+        assert result[0].content == "Full content here"
 
     def test_rss_provider_parse_feed(self):
         """Mock Fetcher.get to return 200 with sample RSS XML bytes containing feed title, verify parse_feed() returns DiscoveredFeed with correct fields."""
@@ -380,14 +379,12 @@ class TestGitHubReleaseProvider:
 
             assert len(result.articles) == 1
             article = result.articles[0]
-            assert article["title"] == "v1.0.0"
-            assert (
-                article["link"] == "https://github.com/owner/repo/releases/tag/v1.0.0"
-            )
-            assert article["guid"] == "v1.0.0"
-            assert article["published_at"] == "2024-01-15T10:30:00"
-            assert article["description"] == "Release notes for v1.0.0"
-            assert article["content"] is None
+            assert article.title == "v1.0.0"
+            assert article.link == "https://github.com/owner/repo/releases/tag/v1.0.0"
+            assert article.guid == "v1.0.0"
+            assert article.published_at == "2024-01-15T10:30:00"
+            assert article.description == "Release notes for v1.0.0"
+            assert article.content is None
 
     def test_github_release_provider_parse(self):
         """Create mock raw dict and verify parse() returns Article with correct fields."""
@@ -406,12 +403,12 @@ class TestGitHubReleaseProvider:
 
         assert isinstance(result, list)
         assert len(result) == 1
-        assert result[0]["title"] == "v1.0"
-        assert result[0]["link"] == "https://github.com/owner/repo/releases/tag/v1.0"
-        assert result[0]["guid"] == "v1.0"
-        assert result[0]["published_at"] == "2024-01-01T00:00:00"
-        assert result[0]["description"] == "Release notes"
-        assert result[0]["content"] is None
+        assert result[0].title == "v1.0"
+        assert result[0].link == "https://github.com/owner/repo/releases/tag/v1.0"
+        assert result[0].guid == "v1.0"
+        assert result[0].published_at == "2024-01-01T00:00:00"
+        assert result[0].description == "Release notes"
+        assert result[0].content is None
 
 
 # =============================================================================
