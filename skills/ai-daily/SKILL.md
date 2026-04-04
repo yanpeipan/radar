@@ -1,6 +1,6 @@
 ---
 name: feedship-ai-daily
-description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 3-section digest: (A) Today's new articles with summaries, (B) Hot topics clustering, (C) Featured picks by feed weight. Requires feedship skill."
+description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 4-section digest: (A) Articles grouped by feed, (B) AI summary with 3-5 key points, (C) Featured picks by ranking, (D) Hot topics clustering. Requires feedship skill."
 metadata:
   openclaw:
     requires:
@@ -9,12 +9,12 @@ metadata:
     cron:
       syntax: cron([minute,] [hour,] [day-of-month,] [month,] [day-of-week])
       default: "0 8 * * *"  # Daily at 8:00 AM
-      description: "Generate daily AI news digest every day at 8 AM"
+      description: "Generate daily AI news digest every day at 8 AM
 ---
 
 # AI 日报 (Feedship AI Daily)
 
-**Version:** 1.1
+**Version:** 1.2
 **For:** OpenClaw compatible agents
 **Description:** Generate daily AI news digest from feedship subscriptions
 
@@ -141,7 +141,7 @@ Then use semantic search to focus on current themes:
 feedship search "AI LLM GPT machine learning" --semantic --limit 333 --since YYYY-MM-DD
 ```
 
-### Step 4: Generate 3-Section Report
+### Step 3: Generate 4-Section Report
 
 Read full content for articles you want to summarize:
 
@@ -153,32 +153,83 @@ feedship article view <article-id>
 
 ## Report Format
 
-### Section A: 今日新文 (Today's New Articles)
+### Section A: 按来源分组 (Grouped by Feed)
 
-List all articles published today with 1-2 sentence summary each.
+List articles grouped by feed name. Each group shows feed name, article count, total views.
 
 Format:
 
 ```
-## 今日新文
+## A. 按来源分组
 
-| 来源 | 标题 | 摘要 |
-|------|------|------|
-| Feed Name | Article Title | 1-2 sentence summary |
+### Feed Name
+- [n] 篇 | 总阅读量: xxx
+- [time] [Article Title] — 1-2 sentence summary
+- [time] [Article Title] — 1-2 sentence summary
+
+### Another Feed
+- [n] 篇 | 总阅读量: xxx
+- [time] [Article Title] — 1-2 sentence summary
 ```
 
-- Include all articles from today
-- Summaries should capture the key insight or news
-- Skip articles with no meaningful content
+- Group articles by their feed/source name
+- Each group header shows: feed name, article count, total views (if available)
+- Within each group, list articles with: time, title, 1-2 sentence summary
+- Order groups by total article count or total views (highest first)
 
-### Section B: 热点话题 (Hot Topics)
+### Section B: AI摘要 (AI Summary)
+
+Generate 3-5 bullet point summary of the most important takeaways from today's articles.
+
+Format:
+
+```
+## B. AI摘要
+
+- Major theme or important news point #1 (1-2 sentences)
+- Major theme or important news point #2 (1-2 sentences)
+- Major theme or important news point #3 (1-2 sentences)
+- Actionable insight or notable finding #4
+- Notable trend or development #5 (optional)
+```
+
+- Generated from top articles across all feeds
+- Highlights: major themes, important news, actionable insights
+- Each bullet point should be 1-2 sentences
+- Limit to 3-5 most important points
+
+### Section C: 精选推荐 (Featured Picks)
+
+Select top 5-8 articles ranked by configurable criteria (feed weight default or views).
+
+Format:
+
+```
+## C. 精选推荐
+
+1. **[Article Title]**
+   来源: Feed Name | 权重: 0.5 | 阅读量: 1234
+   推荐理由: Why this is important
+
+2. **[Article Title]**
+   来源: Feed Name | 权重: 0.3 | 阅读量: 890
+   推荐理由: Why this matters
+```
+
+- Default ranking: by feed weight (权重)
+- Alternative: rank by 阅读量 (views) — see Configuration section
+- Prioritize high-weight feeds (check with `feedship feed list -v`)
+- Select diverse topics across selections
+- Include specific recommendation reason
+
+### Section D: 热点话题 (Hot Topics)
 
 Cluster today's articles into 3-5 topic groups based on content similarity.
 
 Format:
 
 ```
-## 热点话题
+## D. 热点话题
 
 ### Topic Name
 - [n] 篇相关
@@ -194,28 +245,6 @@ Format:
 - Count articles per topic
 - Extract the most important insight from each topic
 
-### Section C: 精选推荐 (Featured Picks)
-
-Select top 5-8 articles based on feed weight priority.
-
-Format:
-
-```
-## 精选推荐
-
-1. **[Article Title]**
-   来源: Feed Name | 权重: 0.5
-   推荐理由: Why this is important
-
-2. **[Article Title]**
-   来源: Feed Name | 权重: 0.3
-   推荐理由: Why this matters
-```
-
-- Prioritize high-weight feeds (check with `feedship feed list -v`)
-- Select diverse topics across selections
-- Include specific recommendation reason
-
 ---
 
 ## Complete Example Output
@@ -223,15 +252,45 @@ Format:
 ```
 # AI 日报 — 2026-04-01
 
-## 今日新文
+## A. 按来源分组
 
-| 来源 | 标题 | 摘要 |
-|------|------|------|
-| Google AI Blog | New Model Achieves SOTA | Introduces novel architecture reducing compute by 40% |
-| OpenAI News | GPT-5 Release | New version features extended context and reasoning |
-| ... | ... | ... |
+### Google AI Blog
+- [2] 篇 | 总阅读量: 2456
+- [09:30] New Model Achieves SOTA — Introduces novel architecture reducing compute by 40%
+- [14:15] Scaling Laws Revisited — New study challenges existing scaling assumptions
 
-## 热点话题
+### OpenAI News
+- [1] 篇 | 总阅读量: 1890
+- [10:00] GPT-5 Release — New version features extended context and reasoning
+
+### AI Weekly
+- [3] 篇 | 总阅读量: 3200
+- [08:45] AI Safety Report — Overview of recent alignment research
+- [11:30] LLM Efficiency — New techniques for reducing inference cost
+- [16:20] Multimodal Advances — Vision-language models reach new milestones
+
+## B. AI摘要
+
+- 多家机构本周发布新模型，LLM竞争进入新阶段，计算效率成为焦点
+- AI安全与对齐研究升温，长上下文安全性问题引发广泛关注
+- 多模态模型取得突破，视觉-语言融合技术更加成熟
+- 新研究挑战传统scaling laws，模型训练方式可能需要重新思考
+
+## C. 精选推荐
+
+1. **[Google AI Blog] New Model Achieves SOTA**
+   来源: Google AI Blog | 权重: 0.5 | 阅读量: 1234
+   推荐理由: 技术突破，计算效率提升40%
+
+2. **[OpenAI News] GPT-5 Release**
+   来源: OpenAI News | 权重: 0.5 | 阅读量: 1890
+   推荐理由: 重要版本更新，支持更长上下文
+
+3. **[AI Weekly] Multimodal Advances**
+   来源: AI Weekly | 权重: 0.4 | 阅读量: 980
+   推荐理由: 多模态技术成熟，应用场景扩展
+
+## D. 热点话题
 
 ### LLM 新模型发布
 - [4] 篇相关
@@ -241,17 +300,9 @@ Format:
 - [3] 篇相关
 - 新研究关注长上下文安全性问题
 
-## 精选推荐
-
-1. **[Google AI Blog] New Model Achieves SOTA**
-   来源: Google AI Blog | 权重: 0.5
-   推荐理由: 技术突破，值得关注
-
-2. **[OpenAI News] GPT-5 Release**
-   来源: OpenAI News | 权重: 0.5
-   推荐理由: 重要版本更新
-
-...
+### 模型效率优化
+- [2] 篇相关
+- 新技术降低推理成本，提升效率
 ```
 
 ---
@@ -264,6 +315,33 @@ Format:
 - For long articles, read summary via `feedship article view <id>` then select key points
 - Diversity matters: don't cluster all picks into same topic
 - For diagnostic info, run `feedship info --json` to see version, config, and storage details
+
+---
+
+## Configuration
+
+### Ranking Criteria
+
+By default, articles in Section C are ranked by feed weight (权重).
+
+**Option 1: Rank by feed weight (default)**
+Sort by 权重 from highest to lowest. Check weights with:
+```bash
+feedship feed list -v
+```
+
+**Option 2: Rank by views (阅读量)**
+Sort by 阅读量 from highest to lowest. Articles with more views indicate higher reader interest.
+
+**Option 3: Semantic relevance**
+Use `feedship search` with semantic ranking:
+```bash
+feedship search "your interest keywords" --semantic --limit 10 --since YYYY-MM-DD
+```
+
+### Feed Weight Reference
+
+Weights range from 0.1 to 1.0, with higher weights indicating higher priority sources.
 
 ---
 
