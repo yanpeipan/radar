@@ -71,7 +71,7 @@ openclaw cron add \
   --announce \
   --channel telegram \
   --to <YOUR_CHAT_ID> \
-  --timeout-seconds 600 \
+  --timeout-seconds 900 \
   --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-D 四段式格式生成报告。"
 ```
 
@@ -115,7 +115,7 @@ openclaw cron add \
   --announce \
   --channel feishu \
   --to <YOUR_FEISHU_OPEN_ID> \
-  --timeout-seconds 600 \
+  --timeout-seconds 900 \
   --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-D 四段式格式生成报告。"
 ```
 
@@ -173,7 +173,7 @@ openclaw cron add \
   --announce \
   --channel <your-channel> \
   --to <your-destination> \
-  --timeout-seconds 600 \
+  --timeout-seconds 900 \
   --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-D 四段式格式生成报告。"
 ```
 
