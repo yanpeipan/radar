@@ -418,6 +418,12 @@ def feed_remove(ctx: click.Context, feed_id: str, json_output: bool) -> None:
     is_flag=True,
     help="Enable cProfile profiling, output to profiles/ directory",
 )
+@click.option(
+    "--url",
+    "url_to_fetch",
+    type=str,
+    help="Fetch articles directly from URL without saving to database",
+)
 @click.pass_context
 def fetch(
     ctx: click.Context,
@@ -426,6 +432,7 @@ def fetch(
     ids: tuple,
     json_output: bool,
     profile: bool,
+    url_to_fetch: str | None,
 ) -> None:
     """Fetch new articles from subscribed feeds by ID.
 
@@ -441,9 +448,83 @@ def fetch(
         fetch_ids_async,
         fetch_one_async_by_id,
     )
+    from src.models import Feed
+    from src.providers import match_first
 
     def _do_fetch() -> None:
         """Main fetch logic extracted for profiling support."""
+        # Case 0: --url option (fetch directly without saving to DB)
+        if url_to_fetch:
+            # Mutual exclusivity check: --url and IDs cannot be used together
+            if ids:
+                if json_output:
+                    print_json_error("Cannot use --url with --id", "mutual_exclusion")
+                click.secho("Cannot use --url with --id", fg="red", err=True)
+                sys.exit(1)
+
+            # Find provider for URL
+            provider = match_first(url_to_fetch)
+            if not provider:
+                if json_output:
+                    print_json_error("No provider found for this URL", "no_provider")
+                click.secho("No provider found for this URL", fg="red", err=True)
+                sys.exit(1)
+
+            # Create minimal Feed object for provider
+            feed = Feed(
+                id="__url_fetch__",
+                name=url_to_fetch,
+                url=url_to_fetch,
+                created_at="",
+            )
+
+            # Fetch articles directly from provider
+            try:
+                result = provider.fetch_articles(feed)
+                articles = result.articles
+
+                # Format articles for JSON output
+                formatted_articles = []
+                for article in articles:
+                    formatted_articles.append(
+                        {
+                            "title": article.get("title"),
+                            "link": article.get("link"),
+                            "description": article.get("description"),
+                            "published_at": article.get("published_at"),
+                            "author": article.get("author"),
+                            "tags": article.get("tags"),
+                            "category": article.get("category"),
+                            "guid": article.get("guid"),
+                        }
+                    )
+
+                if json_output:
+                    print_json(
+                        {
+                            "articles": formatted_articles,
+                            "count": len(formatted_articles),
+                        }
+                    )
+                else:
+                    if formatted_articles:
+                        click.secho(
+                            f"Fetched {len(formatted_articles)} articles from {url_to_fetch}",
+                            fg="green",
+                        )
+                    else:
+                        click.secho(
+                            f"No articles found for {url_to_fetch}",
+                            fg="yellow",
+                        )
+                return
+            except Exception as e:
+                if json_output:
+                    print_json_error(f"Failed to fetch from URL: {e}", "fetch_error")
+                click.secho(f"Error: Failed to fetch from URL: {e}", err=True, fg="red")
+                logger.exception("Failed to fetch from URL")
+                sys.exit(1)
+
         # Case 1: ID arguments provided
         if ids:
             try:
