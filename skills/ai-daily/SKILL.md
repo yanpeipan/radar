@@ -1,6 +1,6 @@
 ---
 name: feedship-ai-daily
-description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 4-section digest: (A) Articles grouped by feed, (B) AI summary with 3-5 key points, (C) Featured picks by ranking, (D) Hot topics clustering. Requires feedship skill."
+description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 6-section digest: (A) Articles grouped by feed, (B) AI summary with 3-5 key points, (C) Featured picks by ranking, (D) Hot topics clustering, (E) Startup signals, (F) Content angles. Requires feedship skill."
 metadata:
   openclaw:
     requires:
@@ -14,7 +14,7 @@ metadata:
 
 # AI 日报 (Feedship AI Daily)
 
-**Version:** 1.2
+**Version:** 1.3
 **For:** OpenClaw compatible agents
 **Description:** Generate daily AI news digest from feedship subscriptions
 
@@ -27,6 +27,92 @@ uv pip install feedship
 ```
 
 Verify installation: `feedship --version`
+
+---
+
+## Channel Setup
+
+### Telegram Setup
+
+#### Step 1: Create Your Bot
+1. Open Telegram and search for @BotFather
+2. Send /newbot command
+3. Follow prompts to name your bot and get the bot token
+4. Copy the token (format: `123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ`)
+
+#### Step 2: Add Channel to OpenClaw
+```bash
+openclaw channels add --channel telegram --token <YOUR_BOT_TOKEN>
+```
+
+#### Step 3: Get Your Chat ID
+1. Start a conversation with your bot by sending any message
+2. Send /start to the bot
+3. Get your chat ID:
+```bash
+curl -s https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates | jq .message.chat.id
+```
+4. Note the numeric chat ID (e.g., `123456789`)
+
+#### Step 4: Verify Channel Configuration
+```bash
+openclaw channels list
+```
+Confirm your telegram channel appears in the list.
+
+#### Step 5: Add Cron with Telegram
+```bash
+openclaw cron add \
+  --name "feedship-ai-daily" \
+  --agent feedship-ai-daily \
+  --cron "0 8 * * *" \
+  --session isolated \
+  --announce \
+  --channel telegram \
+  --to <YOUR_CHAT_ID>
+```
+
+### 飞书 Setup
+
+#### Step 1: Create Feishu OAuth App
+1. Go to https://open.feishu.cn/app
+2. Click "Create App" → "Enterprise App"
+3. Set app name and configure the following permissions:
+   - `im:message` — Send messages
+   - `im:message.receive_v1` — Receive messages
+4. From app settings, get:
+   - App ID (e.g., `cli_abc123def456`)
+   - App Secret
+
+#### Step 2: Configure OpenClaw for Feishu
+```bash
+openclaw configure --section channels
+```
+Select "feishu" when prompted and enter:
+- App ID
+- App Secret
+
+#### Step 3: Verify Channel Configuration
+```bash
+openclaw channels list
+```
+Confirm your feishu channel appears in the list.
+
+#### Step 4: Get Your Feishu Open ID
+After configuring, your Open ID will be used as the `--to` destination.
+Use `openclaw channels list` output to identify the correct destination format.
+
+#### Step 5: Add Cron with 飞书
+```bash
+openclaw cron add \
+  --name "feedship-ai-daily" \
+  --agent feedship-ai-daily \
+  --cron "0 8 * * *" \
+  --session isolated \
+  --announce \
+  --channel feishu \
+  --to <YOUR_FEISHU_OPEN_ID>
+```
 
 ---
 
@@ -245,6 +331,64 @@ Format:
 - Count articles per topic
 - Extract the most important insight from each topic
 
+### Section E: 创业信号 (Startup Signals)
+
+Detect funding news, acquisitions, and trend opportunities from existing articles using pattern-based detection.
+
+Format:
+```
+## E. 创业信号
+
+### 融资动态
+- [n] 篇相关
+- [Source] Article Title — X公司完成Y轮融资，金额Z百万美元
+
+### 收购并购
+- [n] 篇相关
+- [Source] Article Title — A公司收购B公司，拓展C市场
+
+### 趋势机会
+- [n] 篇相关
+- [Source] Article Title — 新兴趋势：X技术进入Y行业
+```
+
+Key patterns to detect:
+- Funding: "raised", "Series", "closed round", "million"
+- Acquisitions: "acquired", "acquisition", "acquire"
+- Trends: "launching", "entering", "expanding to", "new capability"
+
+Note: Sections E and F use existing article data from Section A — no new feeds or APIs needed.
+
+### Section F: 创作点 (Content Angles)
+
+Extract story angles and trending topics for content creation from existing articles.
+
+Format:
+```
+## F. 创作点
+
+### 可写主题
+- [n] 篇相关
+- 主题：Why X is reshaping Y industry
+- 来源：Article1, Article2
+
+### 热门角度
+- [n] 篇相关
+- 角度：How to build in X space (step-by-step)
+- 来源：Article3
+
+### 争议性话题
+- [n] 篇相关
+- 话题：X的局限性 — 争议焦点
+- 来源：Article4, Article5
+```
+
+Key patterns to detect:
+- Story angles: "why X matters", "the future of", "how to"
+- Trending: "viral", "trending", "breaking"
+- Controversial: "debate", "critics say", "controversial"
+- Actionable: "X steps to", "lessons from"
+
 ---
 
 ## Complete Example Output
@@ -303,6 +447,37 @@ Format:
 ### 模型效率优化
 - [2] 篇相关
 - 新技术降低推理成本，提升效率
+
+## E. 创业信号
+
+### 融资动态
+- [1] 篇相关
+- [AI Weekly] LLM Efficiency — X公司完成A轮融资，金额50百万美元
+
+### 收购并购
+- [1] 篇相关
+- [AI Weekly] Multimodal Advances — Y公司收购Z公司，拓展视觉市场
+
+### 趋势机会
+- [2] 篇相关
+- [Google AI Blog] New Model Achieves SOTA — 新兴趋势：小型化模型进入移动端
+
+## F. 创作点
+
+### 可写主题
+- [2] 篇相关
+- 主题：Why small models are the future of edge AI
+- 来源：Google AI Blog, AI Weekly
+
+### 热门角度
+- [1] 篇相关
+- 角度：How to fine-tune models on limited hardware
+- 来源：AI Weekly
+
+### 争议性话题
+- [1] 篇相关
+- 话题：GPT-5的长上下文是否值得额外成本 — 争议焦点
+- 来源：OpenAI News
 ```
 
 ---
