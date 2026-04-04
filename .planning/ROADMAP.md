@@ -21,7 +21,7 @@
 ---
 
 - [ ] **Phase 11: OpenClaw Cron Integration** — Configure daily report scheduling via openclaw cron
-- [ ] **Phase 12: Daily Report Template** — Grouped articles, AI summary, ranking, configurable template
+- [x] **Phase 12: Daily Report Template** — Grouped articles, AI summary, ranking, configurable template (completed 2026-04-04)
 - [ ] **Phase 13: AI Mining and Multi-Channel Delivery** — Startup signals, content ideas, Telegram/飞书 channels
 
 ### Phase Details
@@ -63,7 +63,7 @@
 **Plans**: 1 plan
 
 **Plan list**:
-- [ ] 12-01-PLAN.md — Update SKILL.md with 4-section format (grouped, AI summary, ranking, config)
+- [x] 12-01-PLAN.md — Update SKILL.md with 4-section format (grouped, AI summary, ranking, config)
 
 ---
 
@@ -84,7 +84,10 @@
 6. ai-daily SKILL.md contains complete channel setup guides (Telegram + 飞书)
 7. Channel selection is flexible via OpenClaw config without code changes
 
-**Plans**: TBD
+**Plans**: 1
+
+**Plan list**:
+- [x] 13-01-PLAN.md — Update SKILL.md to v1.3 with 6-section format, Telegram/飞书 guides
 
 ---
 
@@ -93,8 +96,8 @@
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 11. OpenClaw Cron Integration | v1.7 | 1/2 | In Progress|  |
-| 12. Daily Report Template | v1.7 | 1/1 | Planned | - |
-| 13. AI Mining and Multi-Channel Delivery | v1.7 | 0/1 | Not started | - |
+| 12. Daily Report Template | v1.7 | 1/1 | Complete    | 2026-04-04 |
+| 13. AI Mining and Multi-Channel Delivery | v1.7 | 1/1 | Ready to execute | - |
 
 ---
 
