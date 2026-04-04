@@ -2,6 +2,8 @@
 
 ## Milestones
 
+- 🟡 **v1.8 OpenClaw 本地测试与 Skill 迭代** — Phases 14-17 (in progress)
+- ✅ **v1.7 OpenClaw AI Daily Report** — Phases 11-13 (shipped 2026-04-04)
 - ✅ **v1.6 OpenClaw Skills** — Phase 10 (shipped 2026-04-03)
 - ✅ **v1.5 Info Command** — SHIPPED 2026-04-03
 - **v1.4 Patch Releases** — Complete (v1.4.4)
@@ -12,82 +14,83 @@
 
 ## Phases
 
-### v1.7 OpenClaw AI Daily Report (Planning)
+### v1.8 (Current)
 
-**Goal:** Integrate feedship with OpenClaw cron and multi-channel delivery for automated AI-powered daily reports
-
-**Requirements:** DAILY-01~04, REPORT-01~04, MINE-01~03, CHANNEL-01~04 (15 total)
+**Goal:** 在本地 OpenClaw 环境测验 feedship-ai-daily，基于测试结果持续优化 skill 文档
 
 ---
 
-- [ ] **Phase 11: OpenClaw Cron Integration** — Configure daily report scheduling via openclaw cron
-- [x] **Phase 12: Daily Report Template** — Grouped articles, AI summary, ranking, configurable template (completed 2026-04-04)
-- [x] **Phase 13: AI Mining and Multi-Channel Delivery** — Startup signals, content ideas, Telegram/飞书 channels (completed 2026-04-04)
+### Phase 14: 基础流程测试
 
-### Phase Details
+**Goal:** 验证 feedship-ai-daily skill 在 OpenClaw 中的基础运行流程
 
-### Phase 11: OpenClaw Cron Integration
+**Depends on:** None
 
-**Goal:** Users can schedule daily report generation via `openclaw cron add` with proper isolation and announcement flags
-
-**Depends on:** None (first phase)
-
-**Requirements:** DAILY-01, DAILY-02, DAILY-03, DAILY-04
+**Requirements:** FUND-01, FUND-02, FUND-03, FUND-04
 
 **Success Criteria** (what must be TRUE):
-1. User can add cron job with `openclaw cron add --session isolated --announce --to <target>` targeting feedship ai-daily
-2. Cron job executes in isolated session mode without context pollution
-3. Cron job uses `--announce` flag to ensure report outputs to configured channel
-4. ai-daily SKILL.md contains complete cron configuration examples
+1. `openclaw run feedship-ai-daily` 能被 OpenClaw 正确加载
+2. `feedship fetch --all` 正常抓取所有订阅源
+3. `feedship article list --since YYYY-MM-DD` 正确按日期过滤
+4. `feedship search` 语义搜索返回相关结果
 
-**Plans**: TBD
-
-**UI hint**: yes
+**Plans**:
+- [x] 14-01-PLAN.md — 基础流程测试 (FUND-01~04)
 
 ---
 
-### Phase 12: Daily Report Template
+### Phase 15: Cron 与 Isolated Session 验证
 
-**Goal:** Users receive daily reports with grouped articles, AI-generated summaries, and configurable ranking
+**Goal:** 验证 cron job 在 isolated session 下的行为
 
-**Depends on:** Phase 11
+**Depends on:** Phase 14
+
+**Requirements:** CRON-01, CRON-02, CRON-03, CRON-04
+
+**Success Criteria** (what must be TRUE):
+1. `openclaw cron add` 能创建 feedship-ai-daily cron job
+2. cron job 在 isolated session 下 `feedship` 命令 PATH 可达
+3. `--announce` flag 正确把报告投递到飞书 channel
+4. `openclaw cron run <job-id>` 能立即触发 job
+
+**Plans**:
+- [x] 15-01-PLAN.md — Cron + Isolated Session 验证 (CRON-01~04)
+
+---
+
+### Phase 16: 报告格式验证
+
+**Goal:** 验证 6-section 报告格式的完整性
+
+**Depends on:** Phase 14
 
 **Requirements:** REPORT-01, REPORT-02, REPORT-03, REPORT-04
 
 **Success Criteria** (what must be TRUE):
-1. Daily report displays articles grouped by feed/source
-2. Daily report includes AI-generated summary with 3-5 key points
-3. Daily report supports ranking by views/relevance (configurable)
-4. Report template is documented and configurable via ai-daily skill documentation
+1. 报告包含完整的 A~F 六个 section
+2. Section E 能提取有效的创业相关内容
+3. Section F 能提取有效的内容角度
+4. 空数据场景有友好提示
 
-**Plans**: 1 plan
-
-**Plan list**:
-- [x] 12-01-PLAN.md — Update SKILL.md with 4-section format (grouped, AI summary, ranking, config)
+**Plans**: TBD
 
 ---
 
-### Phase 13: AI Mining and Multi-Channel Delivery
+### Phase 17: 频道投递与边界情况
 
-**Goal:** Users receive AI-mined insights (startup signals, content ideas) delivered via Telegram and/or 飞书
+**Goal:** 验证飞书投递和边界情况处理
 
-**Depends on:** Phase 12
+**Depends on:** Phase 15
 
-**Requirements:** MINE-01, MINE-02, MINE-03, CHANNEL-01, CHANNEL-02, CHANNEL-03, CHANNEL-04
+**Requirements:** CHANNEL-01, CHANNEL-02, CHANNEL-03, EDGE-01, EDGE-02, EDGE-03, EDGE-04
 
 **Success Criteria** (what must be TRUE):
-1. Daily report includes "创业信号" section with funding, acquisitions, and trend opportunities
-2. Daily report includes "创作点" section with story angles and trending topics
-3. AI mining results are structured for clean channel delivery
-4. Telegram channel delivery works via openclaw channel configuration
-5. 飞书 channel delivery works via openclaw channel configuration
-6. ai-daily SKILL.md contains complete channel setup guides (Telegram + 飞书)
-7. Channel selection is flexible via OpenClaw config without code changes
+1. 飞书 channel 能收到完整报告
+2. markdown 格式在飞书端正确渲染
+3. 缺失依赖（feedship/ml/cloudflare）有清晰提示
+4. gateway 未启动时有启动指引
 
-**Plans**: 1
-
-**Plan list**:
-- [x] 13-01-PLAN.md — Update SKILL.md to v1.3 with 6-section format, Telegram/飞书 guides
+**Plans**: TBD
 
 ---
 
@@ -95,10 +98,11 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. OpenClaw Cron Integration | v1.7 | 1/2 | In Progress|  |
-| 12. Daily Report Template | v1.7 | 1/1 | Complete    | 2026-04-04 |
-| 13. AI Mining and Multi-Channel Delivery | v1.7 | 1/1 | Complete   | 2026-04-04 |
+| 14. 基础流程测试 | v1.8 | 1/1 | Complete | 2026-04-04 |
+| 15. Cron 与 Isolated Session | v1.8 | 1/1 | Complete | 2026-04-04 |
+| 16. 报告格式验证 | v1.8 | 1/1 | Complete | 2026-04-04 |
+| 17. 频道投递与边界情况 | v1.8 | 1/1 | Complete | 2026-04-04 |
 
 ---
 
-_See `.planning/milestones/v1.6-ROADMAP.md` for full v1.6 details_
+_See `.planning/milestones/v1.7-ROADMAP.md` for full v1.7 details_

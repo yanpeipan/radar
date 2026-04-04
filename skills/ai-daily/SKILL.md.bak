@@ -1,7 +1,6 @@
 ---
-version: 1.5.0
 name: feedship-ai-daily
-description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 6-section digest: (A) Articles grouped by feed, (B) AI summary with 3-5 key points, (C) Featured picks by ranking, (D) Hot topics clustering, (E) Startup signals, (F) Content angles. Requires feedship skill."
+description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 6-section digest. MANDATORY FORMAT: Every report MUST output exactly these 6 sections in order: ## A. 按来源分组 (list articles grouped by feed name) → ## B. AI摘要 (3-5 bullet AI summary) → ## C. 精选推荐 (top 5-8 ranked articles) → ## D. 热点话题 (3-5 topic clusters) → ## E. 创业信号 (funding/acquisitions/trends) → ## F. 创作点 (content angles). Never skip or combine sections. Requires feedship skill."
 metadata:
   openclaw:
     requires:
@@ -10,14 +9,65 @@ metadata:
     cron:
       syntax: cron([minute,] [hour,] [day-of-month,] [month,] [day-of-week])
       default: "0 8 * * *"  # Daily at 8:00 AM
-      description: "Generate daily AI news digest every day at 8 AM
+      description: "Generate daily AI news digest every day at 8 AM — MUST follow 6-section A-F format
 ---
 
 # AI 日报 (Feedship AI Daily)
 
-**Version:** 1.3
+**Version:** 1.5
 **For:** OpenClaw compatible agents
 **Description:** Generate daily AI news digest from feedship subscriptions
+
+## Report Format — MANDATORY
+
+**Every report MUST contain exactly these 6 sections in order. Do not skip, combine, or omit any section:**
+
+```
+## A. 按来源分组
+[Articles grouped by feed source]
+
+## B. AI摘要
+[3-5 key bullet points summary]
+
+## C. 精选推荐
+[Top 5-8 ranked articles]
+
+## D. 热点话题
+[3-5 topic clusters]
+
+## E. 创业信号
+[Funding, acquisitions, trends]
+
+## F. 创作点
+[Content angles and story ideas]
+```
+
+**Example output:**
+```
+## A. 按来源分组
+- TechCrunch: 7篇
+- Reuters: 2篇
+
+## B. AI摘要
+- OpenAI融资$1220亿，估值$8520亿
+- Anthropic一个月三线出击（收购/PAC/DMCA误删）
+
+## C. 精选推荐
+1. Anthropic 4亿收购Coefficient Bio
+2. OpenAI $1220亿融资
+
+## D. 热点话题
+- AI IPO竞赛
+- AI能源危机
+
+## E. 创业信号
+- 生物AI并购潮
+
+## F. 创作点
+- 《Anthropic一个月三件大事》
+```
+| E | 创业信号 | Funding, acquisitions, trends |
+| F | 创作点 | Content angles and story ideas |
 
 ## Setup
 
@@ -139,9 +189,20 @@ Before scheduling automated reports, verify the following:
 
 ### On-Demand
 
-User says: "生成今日日报"、"今日新闻摘要"、"daily digest"
+**Trigger the skill by sending a message to your configured chat channel:**
 
-Agent activates this skill and runs the Generate Daily Report flow.
+1. Open your chat app (飞书 or Telegram)
+2. Send to the OpenClaw bot: "生成今日日报"、"今日新闻摘要"、"daily digest" 等触发短语
+3. The `main` agent recognizes the trigger phrase and loads this skill
+4. The agent runs the Generate Daily Report flow and sends the report back to your channel
+
+**Note:** `feedship-ai-daily` is a **skill** (a prompt/instruction set for the agent), not a CLI command or separate agent. There is no `openclaw run feedship-ai-daily` command. The skill is activated by the agent when it recognizes the trigger phrases above.
+
+**Test via CLI (for verification only):**
+```bash
+openclaw agent --agent main --message "生成今日日报" --deliver --channel feishu
+```
+This sends a message to the main agent via the feishu channel. The agent will load this skill and generate a report.
 
 ### Automatic (Cron)
 
@@ -228,7 +289,16 @@ Then use semantic search to focus on current themes:
 feedship search "AI LLM GPT machine learning" --semantic --limit 333 --since YYYY-MM-DD
 ```
 
-### Step 3: Generate 4-Section Report
+### Step 3: Generate 6-Section Report
+
+**IMPORTANT: You MUST generate all 6 sections (A through F) in every report. Do not skip, combine, or omit any section. Each section serves a unique purpose:**
+
+- **A** — 按来源分组 (Grouped by Feed)
+- **B** — AI摘要 (AI Summary)
+- **C** — 精选推荐 (Featured Picks)
+- **D** — 热点话题 (Hot Topics)
+- **E** — 创业信号 (Startup Signals)
+- **F** — 创作点 (Content Angles)
 
 Read full content for articles you want to summarize:
 
@@ -485,6 +555,7 @@ Key patterns to detect:
 
 ## Tips
 
+- **IMPORTANT: Always output exactly 6 sections A through F in every report. Never skip, combine, or omit any section. Each section must be clearly labeled with its letter and Chinese name.**
 - If no articles found today, say "今日无新文" and suggest checking yesterday
 - If feedship not installed, install first: `uv pip install feedship`
 - Use `feedship feed list -v` to see feed weights

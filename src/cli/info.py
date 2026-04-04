@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
 import click
 
+from src.application.config import _get_settings
 from src.cli import cli  # noqa: E402, F401
 from src.cli.ui import print_json
-from src.application.config import _get_settings
 from src.storage.sqlite.impl import get_db, get_db_path
 
 
@@ -51,7 +50,10 @@ def _get_config_info() -> dict:
 
     # Use platformdirs like config.py does
     import platformdirs
-    config_path = Path(platformdirs.user_config_dir("feedship", appauthor=False)) / "config.yaml"
+
+    config_path = (
+        Path(platformdirs.user_config_dir("feedship", appauthor=False)) / "config.yaml"
+    )
 
     settings = _get_settings()
     return {
@@ -66,7 +68,9 @@ def _get_config_info() -> dict:
 @click.option("--storage", is_flag=True, help="Show storage path and stats")
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
-def info(ctx: click.Context, version: bool, config: bool, storage: bool, json_output: bool) -> None:
+def info(
+    ctx: click.Context, version: bool, config: bool, storage: bool, json_output: bool
+) -> None:
     """Display feedship diagnostics: version, config, and storage information."""
     # Filter logic: when no filters set, show all; when any filter set, show only those
     show_version = not (config or storage)

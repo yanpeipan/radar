@@ -1,8 +1,7 @@
 """Integration tests for CLI commands using CliRunner."""
 
-from unittest.mock import MagicMock, patch
-
 import json
+from unittest.mock import MagicMock, patch
 
 import pytest
 from click.testing import CliRunner
@@ -830,7 +829,9 @@ class TestInfoCommands:
         assert result.exit_code == 0
         assert "Config:" in result.output
         assert "Articles:" not in result.output
-        assert "version:" in result.output.lower() or "timezone:" in result.output.lower()
+        assert (
+            "version:" in result.output.lower() or "timezone:" in result.output.lower()
+        )
 
     def test_info_storage_only(self, cli_runner, initialized_db):
         """feedship info --storage shows storage path and stats."""
