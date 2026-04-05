@@ -150,7 +150,7 @@ def search_articles_fts(
         # Skip initial scoring when cross-encoder; it will set ce_score and we recompute
         import concurrent.futures
 
-        from src.application.rerank import cross_encoder
+        from src.application.cross_encoder import cross_encoder
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(asyncio.run, cross_encoder(query, articles, limit))
@@ -202,7 +202,7 @@ def search_articles_semantic(
         # Skip initial scoring when cross-encoder; it will set ce_score and we recompute
         import concurrent.futures
 
-        from src.application.rerank import cross_encoder
+        from src.application.cross_encoder import cross_encoder
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(
