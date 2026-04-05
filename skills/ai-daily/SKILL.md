@@ -176,32 +176,11 @@ Find `<job-id>` from `openclaw cron list`.
 feedship fetch --all
 ```
 
-### Step 2: Get recent articles (last 3 days – covers timezone issues)
+### Step 2: Get recent articles (last 2 days – covers timezone issues)
 ```bash
 # Use dynamic dates (example for today)
-SINCE=$(date -d '3 days ago' +%Y-%m-%d)
-UNTIL=$(date +%Y-%m-%d)
-feedship article list --limit 333 --since $SINCE --until $UNTIL
-```
-
-### Step 3: Semantic search across key topics
-Run the following searches to ensure comprehensive coverage:
-
-```bash
-# Models & foundation
-feedship search "AI LLM GPT Claude Gemini Llama MoE 多模态 开源模型 PMF MRR ARR AI SaaS OPC startup funding" --semantic --limit 333 --since $SINCE
-
-# Applications & products
-feedship search "AI应用 AI PMF MRR ARR AI SaaS OPC 创业 投资 startup funding" --semantic --limit 333 --since $SINCE
-
-# Infrastructure & tools
-feedship search "Agent框架 Autonomous Agent workflows RAG orchestration devtools" --semantic --limit 333 --since $SINCE
-
-# Policy & regulation
-feedship search "AI政策 监管 合规 法律 regulation compliance" --semantic --limit 333 --since $SINCE
-
-# Security & ethics
-feedship search "AI安全 伦理 隐私 争议 safety ethics" --semantic --limit 333 --since $SINCE
+SINCE=$(date -d '2 days ago' +%Y-%m-%d)
+feedship article list --limit 333 --since $SINCE
 ```
 
 ### Step 4: Generate report sections (sequential file write)
@@ -209,10 +188,12 @@ feedship search "AI安全 伦理 隐私 争议 safety ethics" --semantic --limit
 Each section is generated and written to a separate file to avoid output truncation. Use bash to write files sequentially.
 
 **Step 4a: Generate Section A**
+
+
 ```bash
 DATE=$(date +%Y-%m-%d)
 mkdir -p /tmp/ai-daily-$DATE
-cat > /tmp/ai-daily-$DATE/section_a.md << 'EOF'
+cat > /tmp/ai-daily/$DATE/section_a.md << 'EOF'
 # AI 日报 DATE_PLACEHOLDER
 
 ## A. AI五层蛋糕
@@ -222,7 +203,7 @@ EOF
 
 **Step 4b: Generate Section B**
 ```bash
-cat > /tmp/ai-daily-$DATE/section_b.md << 'EOF'
+cat > /tmp/ai-daily/$DATE/section_b.md << 'EOF'
 ## B. 精选推荐
 [按格式生成 精选推荐 内容]
 EOF
@@ -230,7 +211,7 @@ EOF
 
 **Step 4c: Generate Section C**
 ```bash
-cat > /tmp/ai-daily-$DATE/section_c.md << 'EOF'
+cat > /tmp/ai-daily/$DATE/section_c.md << 'EOF'
 ## C. 创业信号
 [按格式生成 创业信号 内容]
 EOF
@@ -238,7 +219,7 @@ EOF
 
 **Step 4d: Generate Section D**
 ```bash
-cat > /tmp/ai-daily-$DATE/section_d.md << 'EOF'
+cat > /tmp/ai-daily/$DATE/section_d.md << 'EOF'
 ## D. 创作点
 [按格式生成 创作点 内容]
 EOF
@@ -246,7 +227,7 @@ EOF
 
 **Step 4e: Generate Section E**
 ```bash
-cat > /tmp/ai-daily-$DATE/section_e.md << 'EOF'
+cat > /tmp/ai-daily/$DATE/section_e.md << 'EOF'
 ## E. 政策解读
 [按格式生成 政策解读 内容]
 EOF
@@ -254,7 +235,7 @@ EOF
 
 **Step 4f: Generate Section F**
 ```bash
-cat > /tmp/ai-daily-$DATE/section_f.md << 'EOF'
+cat > /tmp/ai-daily/$DATE/section_f.md << 'EOF'
 ## F. 媒体热点
 [按格式生成 媒体热点 内容]
 EOF
