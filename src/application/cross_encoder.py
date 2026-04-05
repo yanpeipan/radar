@@ -29,6 +29,10 @@ def _load_reranker():
     """
     global _model, _tokenizer, _torch
     if _model is None:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.debug("Loading Cross-Encoder model BAAI/bge-reranker-base...")
         try:
             import torch
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
@@ -45,6 +49,7 @@ def _load_reranker():
         _tokenizer = AutoTokenizer.from_pretrained(model_name)
         _model = AutoModelForSequenceClassification.from_pretrained(model_name)
         _model.eval()
+        logger.debug("Cross-Encoder model loaded successfully")
 
     return _model, _tokenizer
 
