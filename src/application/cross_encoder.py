@@ -7,7 +7,10 @@ imports when the module is not used.
 
 from __future__ import annotations
 
-from src.application.articles import ArticleListItem
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from src.application.articles import ArticleListItem
 
 # Global cache for model and tokenizer (lazy loaded)
 _model = None
@@ -46,7 +49,7 @@ def _load_reranker():
     return _model, _tokenizer
 
 
-async def cross_encoder(
+def cross_encoder(
     query: str, candidates: list[ArticleListItem], top_k: int = 20
 ) -> list[ArticleListItem]:
     """Cross-Encoder reranking using BAAI/bge-reranker-base.

@@ -6,7 +6,7 @@ Scoring and ranking logic is encapsulated in this layer.
 
 from __future__ import annotations
 
-import asyncio
+import concurrent.futures
 from dataclasses import dataclass
 
 from src.application.combine import combine_scores
@@ -147,16 +147,9 @@ def search_articles_fts(
         groups=groups,
     )
     if cross_encoder:
-        # Skip initial scoring when cross-encoder; it will set ce_score and we recompute
-        import concurrent.futures
-
-        from src.application.cross_encoder import cross_encoder
-
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(asyncio.run, cross_encoder(query, articles, limit))
-            articles = future.result()
+            articles = executor.submit(cross_encoder, query, articles, limit).result()
         # After cross_encoder sets ce_score, recompute score with FTS5 weights
-        # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
         articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
     elif score:
         # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
@@ -199,18 +192,11 @@ def search_articles_semantic(
         groups=groups,
     )
     if cross_encoder:
-        # Skip initial scoring when cross-encoder; it will set ce_score and we recompute
-        import concurrent.futures
-
-        from src.application.cross_encoder import cross_encoder
-
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(
-                asyncio.run, cross_encoder(query_text, articles, limit)
-            )
-            articles = future.result()
+            articles = executor.submit(
+                cross_encoder, query_text, articles, limit
+            ).result()
         # After cross_encoder sets ce_score, recompute score with semantic weights
-        # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
         articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
     elif score:
         # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
