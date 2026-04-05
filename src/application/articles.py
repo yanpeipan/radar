@@ -149,9 +149,7 @@ def search_articles_fts(
     if cross_encoder:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             articles = executor.submit(cross_encoder, query, articles, limit).result()
-        # After cross_encoder sets ce_score, recompute score with FTS5 weights
-        articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
-    elif score:
+    if score:
         # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
         articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
     return articles
@@ -196,9 +194,7 @@ def search_articles_semantic(
             articles = executor.submit(
                 cross_encoder, query_text, articles, limit
             ).result()
-        # After cross_encoder sets ce_score, recompute score with semantic weights
-        articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
-    elif score:
+    if score:
         # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
         articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
     return articles
