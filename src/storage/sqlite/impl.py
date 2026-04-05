@@ -348,7 +348,7 @@ def _batch_upsert_articles(articles: list) -> list[tuple[str, str]]:
         cursor.executemany(
             """INSERT INTO articles (id, feed_id, title, link, guid, published_at, content, description, created_at, modified_at, author, tags, category, meta)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(feed_id, id) DO UPDATE SET
+               ON CONFLICT(feed_id, guid) DO UPDATE SET
                    title = excluded.title,
                    link = excluded.link,
                    published_at = excluded.published_at,

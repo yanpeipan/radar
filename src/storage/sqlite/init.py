@@ -66,6 +66,58 @@ class DatabaseInitializer:
                 )
             """)
 
+            # Migration: fix UNIQUE constraint to use guid instead of id
+            # The old constraint UNIQUE(feed_id, id) never triggered conflicts because
+            # id is always newly generated. The correct constraint is UNIQUE(feed_id, guid).
+            cursor.execute("PRAGMA index_list(articles)")
+            indexes = [row[1] for row in cursor.fetchall()]
+            has_old_constraint = any(
+                "articles_feed_id_id" in idx
+                or idx.startswith("sqlite_autoindex_articles_")
+                for idx in indexes
+            )
+            has_new_constraint = any("articles_feed_id_guid" in idx for idx in indexes)
+
+            if has_old_constraint and not has_new_constraint:
+                logger.info(
+                    "Migrating articles table: changing UNIQUE(feed_id, id) to UNIQUE(feed_id, guid)"
+                )
+                cursor.execute("""
+                    CREATE TABLE articles_new (
+                        id TEXT NOT NULL,
+                        feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+                        title TEXT,
+                        link TEXT,
+                        guid TEXT NOT NULL,
+                        published_at TEXT,
+                        modified_at TEXT,
+                        description TEXT,
+                        content TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                        author TEXT,
+                        tags TEXT,
+                        category TEXT,
+                        meta TEXT,
+                        UNIQUE(feed_id, guid)
+                    )
+                """)
+                # Deduplicate: keep the row with latest modified_at for each (feed_id, guid) pair
+                # Using a JOIN approach for better performance with large datasets
+                cursor.execute("""
+                    INSERT INTO articles_new
+                    SELECT a.* FROM articles a
+                    INNER JOIN (
+                        SELECT feed_id, guid, MAX(modified_at) as max_modified
+                        FROM articles
+                        GROUP BY feed_id, guid
+                    ) b ON a.feed_id = b.feed_id AND a.guid = b.guid AND a.modified_at = b.max_modified
+                """)
+                cursor.execute("DROP TABLE articles")
+                cursor.execute("ALTER TABLE articles_new RENAME TO articles")
+                logger.info(
+                    "Migration complete: articles table now uses UNIQUE(feed_id, guid)"
+                )
+
             # SQLite doesn't support ALTER COLUMN to change types, so skip the published_at migration
             # Check if author, tags, category columns exist before adding
             cursor.execute("PRAGMA table_info(articles)")
