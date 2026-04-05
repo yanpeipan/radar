@@ -187,7 +187,7 @@ def search_articles_semantic(
     if cross_encoder:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             articles = executor.submit(
-                cross_encoder, query_text, articles, limit
+                _cross_encoder_func, query_text, articles, limit
             ).result()
     # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
     return combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
