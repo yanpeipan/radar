@@ -544,9 +544,19 @@ async def _fetch_with_fallback_async(
             return cached
 
         # Perform actual fetch (run sync function in thread)
-        result = await asyncio.to_thread(
-            _sync_fetch_with_fallback, url, headers, timeout
-        )
+        # Wrap with wait_for to prevent event loop starvation when Playwright
+        # blocks on its internal 60s locator timeout - we want to release the
+        # thread after _STEALTH_TIMEOUT_MS (15s)
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(_sync_fetch_with_fallback, url, headers, timeout),
+                timeout=_STEALTH_TIMEOUT_MS / 1000,
+            )
+        except asyncio.TimeoutError:
+            _logger.warning(
+                f"Stealth fetch timed out after {_STEALTH_TIMEOUT_MS}ms for {url}"
+            )
+            return None
 
         # Store in cache if successful
         if result is not None:
