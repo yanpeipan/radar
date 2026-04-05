@@ -72,7 +72,7 @@ openclaw cron add \
   --channel telegram \
   --to <YOUR_CHAT_ID> \
   --timeout-seconds 900 \
-  --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-D 四段式格式生成报告。"
+  --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-F 六段式格式生成报告。"
 ```
 
 ### 飞书 Setup
@@ -116,7 +116,7 @@ openclaw cron add \
   --channel feishu \
   --to <YOUR_FEISHU_OPEN_ID> \
   --timeout-seconds 900 \
-  --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-D 四段式格式生成报告。"
+  --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-F 六段式格式生成报告。"
 ```
 
 ---
@@ -174,7 +174,7 @@ openclaw cron add \
   --channel <your-channel> \
   --to <your-destination> \
   --timeout-seconds 900 \
-  --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-D 四段式格式生成报告。"
+  --message "使用 feedship-ai-daily skill 生成今日日报。先读取 ~/clawd/skills/ai-daily/SKILL.md 和 REPORT_FORMAT.md 了解格式要求，然后严格遵循 A-F 六段式格式生成报告。"
 ```
 
 Replace:
@@ -235,7 +235,7 @@ Then use semantic search to focus on current themes:
 feedship search "AI LLM GPT machine learning" --semantic --limit 333 --since YYYY-MM-DD
 ```
 
-### Step 3: Generate 4-Section Report
+### Step 3: Generate 6-Section Report
 
 Read full content for articles you want to summarize:
 
