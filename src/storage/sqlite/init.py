@@ -6,7 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Articles table base columns (without migration additions)
+# Articles table base columns
 _ARTICLES_BASE = """\
     id TEXT NOT NULL,
     feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
@@ -19,8 +19,8 @@ _ARTICLES_BASE = """\
     content TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP"""
 
-# Columns added by the UNIQUE(feed_id, guid) migration
-_ARTICLES_MIGRATION_ADDITIONS = {
+# Columns added over the base schema
+_ARTICLES_EXTRA_COLUMNS = {
     "author": "TEXT",
     "tags": "TEXT",
     "category": "TEXT",
@@ -42,7 +42,6 @@ class DatabaseInitializer:
         with get_db() as conn:
             cursor = conn.cursor()
 
-            # Feeds table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS feeds (
                     id TEXT PRIMARY KEY,
@@ -63,63 +62,21 @@ class DatabaseInitializer:
                 cursor.execute('ALTER TABLE feeds ADD COLUMN "group" TEXT')
                 logger.debug("Migrated group column")
 
-            # Articles table
+            extra_cols = "".join(
+                f"\n    {name} {typ}," for name, typ in _ARTICLES_EXTRA_COLUMNS.items()
+            )
             cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS articles (
                     {_ARTICLES_BASE},
+                    {extra_cols}
                     UNIQUE(feed_id, guid)
                 )
             """)
 
-            # Migration: UNIQUE(feed_id, id) -> UNIQUE(feed_id, guid)
-            cursor.execute("PRAGMA index_list(articles)")
-            indexes = [row[1] for row in cursor.fetchall()]
-            has_old = any(
-                "articles_feed_id_id" in idx
-                or idx.startswith("sqlite_autoindex_articles_")
-                for idx in indexes
-            )
-            has_new = any("articles_feed_id_guid" in idx for idx in indexes)
-
-            if has_old and not has_new:
-                logger.debug(
-                    "Migrating articles table: changing UNIQUE(feed_id, id) to UNIQUE(feed_id, guid)"
-                )
-                cursor.execute("DROP TABLE IF EXISTS articles_new")
-                migration_cols = "\n".join(
-                    f"    {name} {typ},"
-                    for name, typ in _ARTICLES_MIGRATION_ADDITIONS.items()
-                )
-                cursor.execute(f"""
-                    CREATE TABLE articles_new (
-                        {_ARTICLES_BASE},
-                        {migration_cols}
-                        UNIQUE(feed_id, guid)
-                    )
-                """)
-                # Deduplicate: keep row with latest modified_at per (feed_id, guid),
-                # tie-break by highest id
-                cursor.execute("""
-                    INSERT INTO articles_new
-                    SELECT a.* FROM articles a
-                    INNER JOIN (
-                        SELECT feed_id, guid, modified_at,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY feed_id, guid
-                                   ORDER BY modified_at DESC, id DESC
-                               ) as rn
-                        FROM articles
-                    ) b ON a.feed_id = b.feed_id AND a.guid = b.guid
-                        AND a.modified_at = b.modified_at AND b.rn = 1
-                """)
-                cursor.execute("DROP TABLE articles")
-                cursor.execute("ALTER TABLE articles_new RENAME TO articles")
-                logger.debug("Migration complete")
-
-            # Add missing columns (works on both migrated and non-migrated schemas)
+            # Add any missing columns (forward-compatibility for existing dbs)
             cursor.execute("PRAGMA table_info(articles)")
             existing = {row[1] for row in cursor.fetchall()}
-            for col_name, col_type in _ARTICLES_MIGRATION_ADDITIONS.items():
+            for col_name, col_type in _ARTICLES_EXTRA_COLUMNS.items():
                 if col_name not in existing:
                     cursor.execute(
                         f"ALTER TABLE articles ADD COLUMN {col_name} {col_type}"
