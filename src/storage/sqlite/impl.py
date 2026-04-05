@@ -912,20 +912,17 @@ def update_article_content(article_id: str, content: str) -> dict:
     Returns:
         Dict with 'success' (bool) and optional 'error' (str).
     """
-    import time
-
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     with get_db() as conn:
         cursor = conn.cursor()
-        # Try exact match first
-        cursor.execute("SELECT id FROM articles WHERE id = ?", (article_id,))
-        row = cursor.fetchone()
-        # If not found and length == 8, try truncated ID match
-        if not row and len(article_id) == 8:
+        # Build target ID: exact match or truncated 8-char prefix
+        if len(article_id) == 8:
             cursor.execute(
                 "SELECT id FROM articles WHERE id LIKE ? || '%' LIMIT 1", (article_id,)
             )
-            row = cursor.fetchone()
+        else:
+            cursor.execute("SELECT id FROM articles WHERE id = ?", (article_id,))
+        row = cursor.fetchone()
         if not row:
             return {"success": False, "error": f"Article not found: {article_id}"}
         actual_id = row["id"]

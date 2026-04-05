@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 import trafilatura
+from scrapling import Selector
 
 from src.storage import update_article_content
 from src.utils.scraping_utils import fetch_with_fallback
@@ -60,8 +61,6 @@ def fetch_url_content(url: str, timeout: int = 30) -> dict:
     # Extract title from HTML for response
     title = None
     try:
-        from scrapling import Selector
-
         root = Selector(html)
         title_els = root.css("title")
         if title_els and title_els[0].text:
