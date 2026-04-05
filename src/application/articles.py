@@ -117,11 +117,9 @@ def search_articles_fts(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
+    score: bool = True,
 ) -> list[ArticleListItem]:
     """Search articles using FTS5 full-text search with BM25 scoring.
-
-    Encapsulates combine_scores with FTS5 weights: alpha=0.3 (source_weight),
-    beta=0.3 (freshness), gamma=0.0 (no vec_sim), delta=0.2 (BM25).
 
     Args:
         query: FTS5 query string (space-separated = AND, use quotes for phrases)
@@ -131,9 +129,11 @@ def search_articles_fts(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
+        score: If True, compute and sort by final_score (default). Set False when
+            reranking will override the sort anyway.
 
     Returns:
-        List of ArticleListItem sorted by final_score descending.
+        List of ArticleListItem sorted by final_score descending (if score=True).
     """
     articles = storage_search_articles_fts(
         query=query,
@@ -144,6 +144,8 @@ def search_articles_fts(
         on=on,
         groups=groups,
     )
+    if not score:
+        return articles
     # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
     return combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
 
@@ -155,11 +157,9 @@ def search_articles_semantic(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
+    score: bool = True,
 ) -> list[ArticleListItem]:
     """Search articles by semantic similarity with vector scoring.
-
-    Encapsulates combine_scores with semantic weights: alpha=0.3 (source_weight),
-    beta=0.3 (freshness), gamma=0.2 (vec_sim), delta=0.0 (no BM25).
 
     Args:
         query_text: Natural language query to search for
@@ -168,9 +168,11 @@ def search_articles_semantic(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
+        score: If True, compute and sort by final_score (default). Set False when
+            reranking will override the sort anyway.
 
     Returns:
-        List of ArticleListItem sorted by final_score descending.
+        List of ArticleListItem sorted by final_score descending (if score=True).
     """
     articles = storage_search_articles_semantic(
         query_text=query_text,
@@ -180,5 +182,7 @@ def search_articles_semantic(
         on=on,
         groups=groups,
     )
+    if not score:
+        return articles
     # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
     return combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)

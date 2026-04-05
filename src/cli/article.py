@@ -276,8 +276,10 @@ def article_search(
         RERANK_FACTOR = 3
         search_limit = limit * RERANK_FACTOR if rerank else limit
 
+        # Skip combine_scores when reranking — rerank sorts by ce_score only
+        do_score = not rerank
+
         if semantic:
-            # Semantic search path (combine_scores in application layer)
             articles = search_articles_semantic(
                 query_text=query,
                 limit=search_limit,
@@ -285,11 +287,9 @@ def article_search(
                 until=until,
                 on=on_list,
                 groups=groups_list,
+                score=do_score,
             )
         else:
-            # FTS5 search path
-            from src.application.articles import search_articles_fts
-
             articles = search_articles_fts(
                 query=query,
                 limit=search_limit,
@@ -298,9 +298,9 @@ def article_search(
                 until=until,
                 on=on_list,
                 groups=groups_list,
+                score=do_score,
             )
 
-        # Rerank after search (both paths return scored+ranked results)
         if rerank:
             from src.application.rerank import rerank
 

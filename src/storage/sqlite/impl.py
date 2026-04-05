@@ -380,9 +380,32 @@ def _batch_upsert_articles(articles: list) -> list[tuple[str, str]]:
             f"Batch upsert: transaction committed, {len(results)} articles processed"
         )
 
-        # Build results
+        # Query actual IDs from database (ON CONFLICT keeps existing ID, not generated one)
+        # Build a mapping from (feed_id, guid) -> actual_id using the original input pairs
+        actual_ids_map: dict[tuple[str, str], str] = {}
+        if articles:
+            # Build list of (feed_id, guid) tuples from input articles
+            input_pairs = [
+                (_get_article_field(a, "feed_id") or "", _get_article_field(a, "guid"))
+                for a in articles
+            ]
+            # Query by (feed_id, guid) directly to get actual stored IDs
+            placeholders = ",".join("?" * len(input_pairs))
+            query = f"""SELECT id, feed_id, guid FROM articles
+                         WHERE (feed_id, guid) IN (VALUES {",".join("(?,?)" for _ in input_pairs)})"""
+            # Flatten input_pairs for query params
+            params = [val for pair in input_pairs for val in pair]
+            cursor.execute(query, params)
+            for row in cursor.fetchall():
+                actual_ids_map[(row[1], row[2])] = row[0]
+
+        # Build results with ACTUAL IDs from database
+        results.clear()
         for i, article in enumerate(articles):
-            results.append((article_ids[i], _get_article_field(article, "guid")))
+            feed_id = _get_article_field(article, "feed_id") or ""
+            guid = _get_article_field(article, "guid")
+            actual_id = actual_ids_map.get((feed_id, guid), article_ids[i])
+            results.append((actual_id, guid))
 
         return results
 
