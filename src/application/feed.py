@@ -13,6 +13,7 @@ from src.storage import list_feeds as storage_list_feeds
 from src.storage import remove_feed as storage_remove_feed
 from src.storage import update_feed as storage_update_feed
 from src.storage import upsert_feed
+from src.storage.sqlite.impl import _get_article_field
 from src.utils import generate_article_id, generate_feed_id
 
 logger = logging.getLogger(__name__)
@@ -257,16 +258,18 @@ def fetch_one(feed_or_id: str | Feed) -> dict:
     # Build article records with feed_id
     parsed_articles = []
     for article in articles:
-        article_guid = article.get("guid") or generate_article_id(article)
+        article_guid = _get_article_field(article, "guid") or generate_article_id(
+            article
+        )
         parsed_articles.append(
             {
                 "guid": article_guid,
-                "title": article.get("title") or "",
-                "content": article.get("content") or "",
-                "description": article.get("description") or "",
-                "link": article.get("link") or "",
+                "title": _get_article_field(article, "title") or "",
+                "content": _get_article_field(article, "content") or "",
+                "description": _get_article_field(article, "description") or "",
+                "link": _get_article_field(article, "link") or "",
                 "feed_id": feed.id,
-                "published_at": article.get("published_at"),
+                "published_at": _get_article_field(article, "published_at"),
             }
         )
 

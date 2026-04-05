@@ -16,6 +16,7 @@ from src.models import Feed, FeedType
 from src.providers import match_first
 from src.storage import list_feeds as storage_list_feeds
 from src.storage import update_feed as storage_update_feed
+from src.storage.sqlite.impl import _get_article_field
 from src.utils import generate_article_id
 from src.utils.scraping_utils import _circuit_lock, _provider_circuits
 
@@ -93,19 +94,21 @@ async def fetch_one_async(feed: Feed) -> dict:
 
     parsed_articles = []
     for article in articles:
-        article_guid = article.get("guid") or generate_article_id(article)
+        article_guid = _get_article_field(article, "guid") or generate_article_id(
+            article
+        )
         parsed_articles.append(
             {
                 "guid": article_guid,
-                "title": article.get("title") or "",
-                "content": article.get("content") or "",
-                "description": article.get("description") or "",
-                "link": article.get("link") or "",
+                "title": _get_article_field(article, "title") or "",
+                "content": _get_article_field(article, "content") or "",
+                "description": _get_article_field(article, "description") or "",
+                "link": _get_article_field(article, "link") or "",
                 "feed_id": feed.id,
-                "published_at": article.get("published_at"),
-                "author": article.get("author"),
-                "tags": article.get("tags"),
-                "category": article.get("category"),
+                "published_at": _get_article_field(article, "published_at"),
+                "author": _get_article_field(article, "author"),
+                "tags": _get_article_field(article, "tags"),
+                "category": _get_article_field(article, "category"),
             }
         )
 
