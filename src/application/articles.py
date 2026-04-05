@@ -117,7 +117,6 @@ def search_articles_fts(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
-    score: bool = True,
     cross_encoder: bool = False,
 ) -> list[ArticleListItem]:
     """Search articles using FTS5 full-text search with BM25 scoring.
@@ -130,12 +129,10 @@ def search_articles_fts(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
-        score: If True, compute and sort by score (default). Set False when
-            cross_encoder will override the sort anyway.
         cross_encoder: If True, apply Cross-Encoder reranking after initial search.
 
     Returns:
-        List of ArticleListItem sorted by score descending (if score=True).
+        List of ArticleListItem sorted by score descending.
     """
     articles = storage_search_articles_fts(
         query=query,
@@ -149,10 +146,8 @@ def search_articles_fts(
     if cross_encoder:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             articles = executor.submit(cross_encoder, query, articles, limit).result()
-    if score:
-        # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
-        articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
-    return articles
+    # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
+    return combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
 
 
 def search_articles_semantic(
@@ -162,7 +157,6 @@ def search_articles_semantic(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
-    score: bool = True,
     cross_encoder: bool = False,
 ) -> list[ArticleListItem]:
     """Search articles by semantic similarity with vector scoring.
@@ -174,12 +168,10 @@ def search_articles_semantic(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
-        score: If True, compute and sort by score (default). Set False when
-            cross_encoder will override the sort anyway.
         cross_encoder: If True, apply Cross-Encoder reranking after initial search.
 
     Returns:
-        List of ArticleListItem sorted by score descending (if score=True).
+        List of ArticleListItem sorted by score descending.
     """
     articles = storage_search_articles_semantic(
         query_text=query_text,
@@ -194,7 +186,5 @@ def search_articles_semantic(
             articles = executor.submit(
                 cross_encoder, query_text, articles, limit
             ).result()
-    if score:
-        # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
-        articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
-    return articles
+    # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
+    return combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
