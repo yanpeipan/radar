@@ -79,7 +79,7 @@ class DatabaseInitializer:
             has_new_constraint = any("articles_feed_id_guid" in idx for idx in indexes)
 
             if has_old_constraint and not has_new_constraint:
-                logger.info(
+                logger.debug(
                     "Migrating articles table: changing UNIQUE(feed_id, id) to UNIQUE(feed_id, guid)"
                 )
                 # Clean up any stale articles_new from a failed prior migration
