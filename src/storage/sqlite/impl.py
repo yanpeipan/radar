@@ -778,7 +778,7 @@ def list_articles(
                 freshness=freshness,
                 source_weight=0.3,
                 ce_score=0.0,
-                final_score=0.0,
+                score=0.0,
             )
 
         return [_compute_article_item(row) for row in rows]

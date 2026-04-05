@@ -49,3 +49,4 @@ None
 | 260405-sm0 | 触发日报 & 自行检测、评分、优化 | 2026-04-05 | ba599a9 | [260405-sm0-...](./quick/260405-sm0-trigger-ai-daily-eval/) |
 | 260405-ti2 | openclaw feedship-ai-daily uvx fix | 2026-04-05 | e40d9c8 | [260405-ti2-...](./quick/260405-ti2-openclaw-feedship-ai-daily-skills/) |
 | 260405-tu4 | feedship-ai-daily cron loop test | 2026-04-05 | e40d9c8 | [260405-tu4-...](./quick/260405-tu4-feedship-ai-daily-skill/) |
+| 260406-170 | 重构rerank逻辑，cli层不写业务逻辑，把rerank放在search_articles层 | 2026-04-05 | 78af68c | [260406-170-...](./quick/260406-170-rerank-cli-rerank-search-articles-semant/) |

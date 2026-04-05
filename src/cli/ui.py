@@ -285,7 +285,7 @@ def _serialize_article(item: ArticleListItem) -> dict:
         "guid": item.guid,
         "published_at": _iso_timestamp(item.published_at),
         "description": item.description,
-        "score": item.final_score if item.final_score > 0 else item.score,
+        "score": item.score,
     }
 
 

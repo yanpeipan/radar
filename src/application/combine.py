@@ -23,7 +23,7 @@ def combine_scores(
     gamma: float = 0.2,
     delta: float = 0.2,
 ) -> list[ArticleListItem]:
-    """Combine multiple scoring signals into final_score using weighted combination.
+    """Combine multiple scoring signals into score using weighted combination.
 
     Newton's cooling law: freshness = exp(-days_ago / half_life_days)
     half_life_days is fixed at 7 (one week).
@@ -36,7 +36,7 @@ def combine_scores(
         delta: Weight for BM25 score (bm25_score).
 
     Returns:
-        List of candidates sorted by final_score descending.
+        List of candidates sorted by score descending.
     """
     half_life_days = 7
     now = datetime.now(timezone.utc)
@@ -58,9 +58,9 @@ def combine_scores(
         ce = c.ce_score if c.ce_score > 0 else 0.0
 
         # Final score = weighted combination of 4 signals
-        c.final_score = (
+        c.score = (
             alpha * ce + beta * c.freshness + gamma * c.vec_sim + delta * c.bm25_score
         )
 
-    candidates.sort(key=lambda x: x.final_score, reverse=True)
+    candidates.sort(key=lambda x: x.score, reverse=True)
     return candidates
