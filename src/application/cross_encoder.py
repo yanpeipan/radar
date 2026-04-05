@@ -29,12 +29,6 @@ def _load_reranker():
     """
     global _model, _tokenizer, _torch
     if _model is None:
-        import os
-
-        # Auto-use hf-mirror.com if no HF endpoint is configured
-        if not os.environ.get("HF_ENDPOINT"):
-            os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-
         try:
             import torch
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
