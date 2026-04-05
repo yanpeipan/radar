@@ -212,9 +212,9 @@ feedship search "AI安全 伦理 隐私 争议 safety ethics" --semantic --limit
 
 | Section | Name | Mapping |
 |---------|------|---------|
-| A | AI五层蛋糕 | AI应用, AI模型, AI基础设施, 芯片, 能源 |
+| A | AI五层蛋糕 | AI应用, AI模型, AI基础设施, 芯片, 能源 (with #融资/#并购/#趋势 tags) |
 | B | 精选推荐 | Top 10‑15 articles across all clusters, grouped by topic |
-| C | 创业信号 | Funding, acquisitions, trends |
+| C | 创业信号 | High-leverage tools + conditional business teardown |
 | D | 创作点 | Content angles and story ideas |
 | E | 政策解读 | Policy & regulation |
 | F | 媒体热点 | Viral discussions and media trends |
@@ -232,7 +232,7 @@ Quick reference:
 |---------|------|------------------|
 | A | AI五层蛋糕 | For each layer: AI-generated summary + at least 2 source links |
 | B | 精选推荐 | 5‑8 articles with title, one‑sentence summary, link; merge hot topics |
-| C | 创业信号 | Funding rounds, acquisitions, emerging companies (amounts, investors) |
+| C | 创业信号 | High-leverage tools (max 3) + conditional business teardown (触发条件: 融资>$10M OR 爆款应用 OR 技术栈可推测) |
 | D | 创作点 | Story angles and content inspiration for creators |
 | E | 政策解读 | Regulations, compliance developments, impact analysis |
 | F | 媒体热点 | Highly discussed AI topics on social/ traditional media |
