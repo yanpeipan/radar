@@ -260,13 +260,24 @@ cat > /tmp/ai-daily-$DATE/section_f.md << 'EOF'
 EOF
 ```
 
-**Step 4g: Concatenate final report**
+**Step 4g: Send report in segments (avoid truncation)**
 ```bash
 DATE=$(date +%Y-%m-%d)
-cat /tmp/ai-daily-$DATE/section_*.md | sed "s/DATE_PLACEHOLDER/$DATE/" > /tmp/ai-daily-$DATE/daily-report.md
-cat /tmp/ai-daily-$DATE/daily-report.md
+# 替换日期占位符
+sed -i '' "s/DATE_PLACEHOLDER/$DATE/g" /tmp/ai-daily-$DATE/section_*.md
+
+# 分段发送 (每段包含2个section)
+# 发送 Part 1: A + B
+cat /tmp/ai-daily-$DATE/section_a.md /tmp/ai-daily-$DATE/section_b.md
+
+# 发送 Part 2: C + D
+cat /tmp/ai-daily-$DATE/section_c.md /tmp/ai-daily-$DATE/section_d.md
+
+# 发送 Part 3: E + F
+cat /tmp/ai-daily-$DATE/section_e.md /tmp/ai-daily-$DATE/section_f.md
 ```
 
+**注意：** 分段发送时，每个 part 都会单独推送。如果 channel 支持更长的消息，可以合并发送。最终输出应包含完整日期。
 ---
 
 ## 6. Report Format
