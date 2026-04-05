@@ -37,7 +37,22 @@
 4. `--url` 和 `--id` 互斥，同时使用时报错
 5. Trafilatura 使用 output_format=markdown，include_images=False，include_tables=True
 
-**Plans**: TBD
+**Implementation Notes:**
+- **分层架构**: CLI (`src/cli/article.py`) 只调用 application 层，不写业务逻辑；storage 层只做数据访问；业务逻辑放在 application 层 (`src/application/`)
+- **复用现有代码**: 使用 `src/utils/scraping_utils.py`（`fetch_with_fallback`, `StealthFetcher`）
+- **TDD**: 先在 `tests/` 写单元测试，再实现代码
+- **简洁高效**: trafilatura 提取逻辑直接写在 `src/application/article_view.py`，不复用 WebpageProvider
+
+**Implementation Plan:**
+- 新增 `src/application/article_view.py` — 业务逻辑层
+  - `fetch_url_content(url: str) -> dict` — 用 `scraping_utils.fetch_with_fallback` 抓取，trafilatura 提取，返回 dict
+  - `fetch_and_fill_article(article_id: str) -> dict` — 查库->抓取->回填->返回
+- 新增 `storage.update_article_content(article_id, content)` — 数据库更新
+- 修改 `src/cli/article.py` 的 `article view` 命令 — 调用 application 层
+- TDD: 先在 `tests/` 写单元测试
+
+**Plans**:
+- [x] 19-01-PLAN.md — article view --url/--id/--json 实现 (VIEW-01~04)
 
 ---
 
@@ -139,7 +154,7 @@
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 19. article view 增强 | v1.10 | 0/1 | Not started | - |
+| 19. article view 增强 | v1.10 | 1/1 | In Progress | — |
 | 18. fetch --url 实现 | v1.9 | 1/1 | In Progress | — |
 | 14. 基础流程测试 | v1.8 | 1/1 | Complete | 2026-04-04 |
 | 15. Cron 与 Isolated Session | v1.8 | 1/1 | Complete | 2026-04-04 |

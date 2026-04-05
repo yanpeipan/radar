@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.10
 milestone_name: article view 增强
-status: defining
+status: discussing
 last_updated: "2026-04-06T00:00:00.000Z"
-last_activity: "2026-04-06 -- Milestone v1.10 roadmap created"
+last_activity: "2026-04-06 -- Phase 19 context gathered (auto mode), advancing to plan-phase"
 progress:
   total_phases: 1
   completed_phases: 0
@@ -21,10 +21,10 @@ progress:
 
 ## Current Position
 
-Phase: Phase 19 (defining)
+Phase: 19 (article view 命令增强)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-06 — Milestone v1.10 roadmap created
+Status: Context gathered, ready for planning
+Last activity: 2026-04-06 — Context captured (auto mode), advancing to plan-phase
 
 ## Current Milestone: v1.10 article view 增强
 
@@ -39,6 +39,8 @@ Last activity: 2026-04-06 — Milestone v1.10 roadmap created
 - VIEW-04: Trafilatura 最佳实践：output_format=markdown，include_images=False，include_tables=True
 
 **Phase:** Phase 19
+
+**Context:** `.planning/phases/19-article-view/19-CONTEXT.md`
 
 ## Quick Tasks Completed
 
