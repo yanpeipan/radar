@@ -118,7 +118,7 @@ def search_articles_fts(
     on: list[str] | None = None,
     groups: list[str] | None = None,
     score: bool = True,
-    rerank: bool = False,
+    cross_encoder: bool = False,
 ) -> list[ArticleListItem]:
     """Search articles using FTS5 full-text search with BM25 scoring.
 
@@ -131,8 +131,8 @@ def search_articles_fts(
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
         score: If True, compute and sort by score (default). Set False when
-            reranking will override the sort anyway.
-        rerank: If True, apply Cross-Encoder reranking after initial search.
+            cross_encoder will override the sort anyway.
+        cross_encoder: If True, apply Cross-Encoder reranking after initial search.
 
     Returns:
         List of ArticleListItem sorted by score descending (if score=True).
@@ -146,16 +146,16 @@ def search_articles_fts(
         on=on,
         groups=groups,
     )
-    if rerank:
-        # Skip initial combine_scores when reranking; rerank will set ce_score
+    if cross_encoder:
+        # Skip initial scoring when cross-encoder; it will set ce_score and we recompute
         import concurrent.futures
 
-        from src.application.rerank import rerank
+        from src.application.rerank import cross_encoder
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(asyncio.run, rerank(query, articles, limit))
+            future = executor.submit(asyncio.run, cross_encoder(query, articles, limit))
             articles = future.result()
-        # After rerank sets ce_score, recompute score with FTS5 weights
+        # After cross_encoder sets ce_score, recompute score with FTS5 weights
         # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
         articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
     elif score:
@@ -172,7 +172,7 @@ def search_articles_semantic(
     on: list[str] | None = None,
     groups: list[str] | None = None,
     score: bool = True,
-    rerank: bool = False,
+    cross_encoder: bool = False,
 ) -> list[ArticleListItem]:
     """Search articles by semantic similarity with vector scoring.
 
@@ -184,8 +184,8 @@ def search_articles_semantic(
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
         score: If True, compute and sort by score (default). Set False when
-            reranking will override the sort anyway.
-        rerank: If True, apply Cross-Encoder reranking after initial search.
+            cross_encoder will override the sort anyway.
+        cross_encoder: If True, apply Cross-Encoder reranking after initial search.
 
     Returns:
         List of ArticleListItem sorted by score descending (if score=True).
@@ -198,16 +198,18 @@ def search_articles_semantic(
         on=on,
         groups=groups,
     )
-    if rerank:
-        # Skip initial combine_scores when reranking; rerank will set ce_score
+    if cross_encoder:
+        # Skip initial scoring when cross-encoder; it will set ce_score and we recompute
         import concurrent.futures
 
-        from src.application.rerank import rerank
+        from src.application.rerank import cross_encoder
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(asyncio.run, rerank(query_text, articles, limit))
+            future = executor.submit(
+                asyncio.run, cross_encoder(query_text, articles, limit)
+            )
             articles = future.result()
-        # After rerank sets ce_score, recompute score with semantic weights
+        # After cross_encoder sets ce_score, recompute score with semantic weights
         # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
         articles = combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
     elif score:

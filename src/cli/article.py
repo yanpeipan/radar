@@ -237,7 +237,9 @@ def article_open(ctx: click.Context, article_id: str) -> None:
 @click.option(
     "--semantic", is_flag=True, help="Use semantic search instead of keyword search"
 )
-@click.option("--rerank", is_flag=True, help="Apply Cross-Encoder reranking to results")
+@click.option(
+    "--cross-encoder", is_flag=True, help="Apply Cross-Encoder reranking to results"
+)
 @click.option("--since", default=None, help="Start date (YYYY-MM-DD)")
 @click.option("--until", default=None, help="End date (YYYY-MM-DD)")
 @click.option("--on", multiple=True, help="Specific date (YYYY-MM-DD), can repeat")
@@ -252,7 +254,7 @@ def article_search(
     limit: int,
     feed_id: str | None,
     semantic: bool,
-    rerank: bool,
+    cross_encoder: bool,
     since: str | None,
     until: str | None,
     on: tuple,
@@ -276,7 +278,7 @@ def article_search(
                 until=until,
                 on=on_list,
                 groups=groups_list,
-                rerank=rerank,
+                cross_encoder=cross_encoder,
             )
         else:
             articles = search_articles_fts(
@@ -287,7 +289,7 @@ def article_search(
                 until=until,
                 on=on_list,
                 groups=groups_list,
-                rerank=rerank,
+                cross_encoder=cross_encoder,
             )
 
         if json_output:

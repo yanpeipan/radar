@@ -46,10 +46,10 @@ def _load_reranker():
     return _model, _tokenizer
 
 
-async def rerank(
+async def cross_encoder(
     query: str, candidates: list[ArticleListItem], top_k: int = 20
 ) -> list[ArticleListItem]:
-    """Cross-Encoder rerank using BAAI/bge-reranker-base.
+    """Cross-Encoder reranking using BAAI/bge-reranker-base.
 
     Args:
         query: The search query string.
