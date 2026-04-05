@@ -150,11 +150,11 @@ def search_articles_fts(
                 articles = executor.submit(
                     _cross_encoder_func, query, articles, limit
                 ).result()
-        except Exception:
+        except Exception as e:
             import logging
 
             logging.getLogger(__name__).warning(
-                "Cross-Encoder model unavailable, skipping rerank"
+                f"Cross-Encoder model unavailable, skipping rerank: {e}"
             )
     # FTS5: gamma=0.0 (no vec_sim), delta=0.2 (BM25)
     return combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.0, delta=0.2)
@@ -197,11 +197,11 @@ def search_articles_semantic(
                 articles = executor.submit(
                     _cross_encoder_func, query_text, articles, limit
                 ).result()
-        except Exception:
+        except Exception as e:
             import logging
 
             logging.getLogger(__name__).warning(
-                "Cross-Encoder model unavailable, skipping rerank"
+                f"Cross-Encoder model unavailable, skipping rerank: {e}"
             )
     # Semantic: gamma=0.2 (vec_sim), delta=0.0 (no BM25)
     return combine_scores(articles, alpha=0.3, beta=0.3, gamma=0.2, delta=0.0)
