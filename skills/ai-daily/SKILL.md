@@ -183,6 +183,23 @@ SINCE=$(date -d '2 days ago' +%Y-%m-%d)
 feedship article list --limit 333 --since $SINCE
 ```
 
+### Step 3: Semantic search across key topics
+Run the following searches to ensure comprehensive coverage:
+
+```bash
+# AI应用: ToB/ToC落地、Agent智能体、SaaS接入AI、商业模式创新
+feedship search "AI应用 Agent智能体 SaaS AI商业模式 用户体验" --semantic --limit 200 --since $SINCE
+
+# AI模型: 新模型发布、架构创新、训练突破
+feedship search "LLM GPT Claude Gemini Llama MoE 开源模型" --semantic --limit 200 --since $SINCE
+
+# AI基础设施: Agent框架、开发者工具、RAG
+feedship search "Agent框架 RAG orchestration devtools 开发者工具" --semantic --limit 200 --since $SINCE
+
+# 政策与安全: 监管、合规、安全
+feedship search "AI政策 监管 合规 安全 隐私" --semantic --limit 200 --since $SINCE
+```
+
 ### Step 4: Generate report sections (sequential file write)
 
 Each section is generated and written to a separate file to avoid output truncation. Use bash to write files sequentially.
