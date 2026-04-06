@@ -340,7 +340,7 @@ def format_article_list(items: list[ArticleListItem], limit: int) -> dict:
         "items": [_serialize_article(item) for item in items],
         "count": len(items),
         "limit": limit,
-        "has_more": len(items) > limit,
+        "has_more": len(items) >= limit,
     }
 
 
