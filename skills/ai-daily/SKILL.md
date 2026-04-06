@@ -253,46 +253,45 @@ cat > /tmp/ai-daily-$DATE/section_f.md << 'EOF'
 EOF
 ```
 
-### Step 4: Generate report sections (sequential file write)
+### Step 4: Auto-format sections (no AI content generation)
 
-**关键要求：**
-1. 必须先读取 links_*.txt 中的真实文章链接
-2. **只写 links_*.txt 中存在的文章**，禁止凭空创作文章或链接
-3. 如果某篇文章在 links_*.txt 中没有链接，则不要写那篇文章
-4. 所有链接必须来自 links_*.txt，禁止使用训练数据记忆生成链接
+**关键：禁止 AI 生成新内容或标题，只做格式转换！**
 
-**Step 4a: Generate Section A**
+用 Python 脚本直接格式化，避免 AI 幻觉：
+
 ```bash
 DATE=$(date +%Y-%m-%d)
-# 直接写入真实链接到section文件，只做格式转换不生成新内容！
-cat /tmp/ai-daily-$DATE/links_a.txt > /tmp/ai-daily-$DATE/section_a_raw.txt
-cat > /tmp/ai-daily-$DATE/section_a.md << 'EOF'
-# AI 日报 DATE_PLACEHOLDER
+python3 << 'PYEOF'
+import re
 
-## A. AI五层蛋糕
+def format_section(lines, section_name):
+    items = []
+    for line in lines:
+        line = line.strip()
+        if not line or '|' not in line:
+            continue
+        parts = line.split('|')
+        if len(parts) >= 2:
+            title = parts[0].strip()
+            link = parts[1].strip()
+            if title and link and link != 'null':
+                items.append((title, link))
 
-[以上链接为基础，按 REPORT_FORMAT.md 格式分类生成，只使用真实链接禁止虚构]
-EOF
+    with open(f'/tmp/ai-daily-{DATE}/section_{section_name}.md', 'w') as f:
+        f.write(f'## {section_name}\n\n')
+        for i, (title, link) in enumerate(items, 1):
+            safe_title = re.sub(r'[#*`]', '', title)
+            f.write(f'{i}. {safe_title}\n')
+            f.write(f'   来源：[**链接**]({link})\n\n')
+
+for section, filename in [('A', 'links_a'), ('B', 'links_b'), ('C', 'links_c'),
+                           ('D', 'links_d'), ('E', 'links_e'), ('F', 'links_f')]:
+    try:
+        with open(f'/tmp/ai-daily-{DATE}/{filename}.txt') as f:
+            format_section(f.readlines(), section)
+    except: pass
+PYEOF
 ```
-
-**Step 4b: Generate Section B**
-```bash
-cat /tmp/ai-daily-$DATE/links_b.txt > /tmp/ai-daily-$DATE/section_b_raw.txt
-cat > /tmp/ai-daily-$DATE/section_b.md << 'EOF'
-## B. 精选推荐
-
-[以上链接为基础，按 REPORT_FORMAT.md 格式生成，只使用真实链接禁止虚构]
-EOF
-```
-
-**Step 4c: Generate Section C**
-```bash
-cat /tmp/ai-daily-$DATE/links_c.txt > /tmp/ai-daily-$DATE/section_c_raw.txt
-cat > /tmp/ai-daily-$DATE/section_c.md << 'EOF'
-## C. 创业信号
-
-[以上链接为基础，按 REPORT_FORMAT.md 格式生成，只使用真实链接禁止虚构]
-EOF
 ```
 
 **Step 4d: Generate Section D**
