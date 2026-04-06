@@ -23,11 +23,8 @@ metadata:
 Before using this skill, install feedship with ML and cloud extras:
 
 ```bash
-# Recommended: uv (isolated, managed)
 uv tool install 'feedship[ml,cloudflare]' --python 3.12 --force
-
-# Alternative: pipx
-uv tool install 'feedship[cloudflare,ml]'```
+```
 
 > **Note:** `cloudflare` extra provides scrapling (HTML fetching); `ml` extra provides
 > sentence-transformers + chromadb (semantic search). Both are required for full functionality.
@@ -333,7 +330,7 @@ For automated periodic fetching, use platform-specific schedulers:
 
 **Linux (systemd timer):**
 ```ini
-# ~/.config/systemd/user/feedship-fetch.timer
+# ~/.config/systemd/user/feedship.timer
 [Timer] OnBootSec=5min OnUnitActiveSec=1h
 ```
 
