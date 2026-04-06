@@ -23,7 +23,7 @@ Before using this skill, install feedship with ML and cloud extras:
 uv tool install 'feedship[ml,cloudflare]' --python 3.12 --force
 
 # Alternative: pipx
-pipx install 'feedship[cloudflare,ml]'```
+uv tool install 'feedship[cloudflare,ml]'```
 
 > **Note:** `cloudflare` extra provides scrapling (HTML fetching); `ml` extra provides
 > sentence-transformers + chromadb (semantic search). Both are required for full functionality.
@@ -39,17 +39,17 @@ echo 'export PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/' >> ~/.bashrc
 source ~/.bashrc
 
 # Install
-pipx install 'feedship[cloudflare,ml]' --force
+uv tool install 'feedship[cloudflare,ml]' --force
 ```
 
 ### Upgrade
 
 ```bash
 # From PyPI (if accessible)
-pipx upgrade feedship
+uv tool upgrade feedship
 
 # From GitHub (latest commits)
-pipx install 'feedship @ git+https://github.com/yanpeipan/feedship.git' \
+uv tool install 'feedship @ git+https://github.com/yanpeipan/feedship.git' \
   --pip-args='-i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com' \
   --include-deps --force
 ```
