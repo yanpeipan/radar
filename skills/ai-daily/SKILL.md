@@ -290,39 +290,6 @@ for section, filename in [('A', 'links_a'), ('B', 'links_b'), ('C', 'links_c'),
         with open(f'/tmp/ai-daily-{DATE}/{filename}.txt') as f:
             format_section(f.readlines(), section)
     except: pass
-PYEOF
-```
-```
-
-**Step 4d: Generate Section D**
-```bash
-cat /tmp/ai-daily-$DATE/links_d.txt > /tmp/ai-daily-$DATE/section_d_raw.txt
-cat > /tmp/ai-daily-$DATE/section_d.md << 'EOF'
-## D. 创作点
-
-[以上链接为基础，按 REPORT_FORMAT.md 格式生成，只使用真实链接禁止虚构]
-EOF
-```
-
-**Step 4e: Generate Section E**
-```bash
-cat /tmp/ai-daily-$DATE/links_e.txt > /tmp/ai-daily-$DATE/section_e_raw.txt
-cat > /tmp/ai-daily-$DATE/section_e.md << 'EOF'
-## E. 政策解读
-
-[以上链接为基础，按 REPORT_FORMAT.md 格式生成，只使用真实链接禁止虚构]
-EOF
-```
-
-**Step 4f: Generate Section F**
-```bash
-cat /tmp/ai-daily-$DATE/links_f.txt > /tmp/ai-daily-$DATE/section_f_raw.txt
-cat > /tmp/ai-daily-$DATE/section_f.md << 'EOF'
-## F. 媒体热点
-
-[以上链接为基础，按 REPORT_FORMAT.md 格式生成，只使用真实链接禁止虚构]
-EOF
-```
 
 **Step 4g: Generate Editor's Note (主编导读)**
 ```bash
