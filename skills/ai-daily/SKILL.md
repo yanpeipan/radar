@@ -183,21 +183,74 @@ SINCE=$(date -d '2 days ago' +%Y-%m-%d)
 feedship article list --limit 333 --since $SINCE
 ```
 
-### Step 3: Semantic search across key topics
-Run the following searches to ensure comprehensive coverage:
+### Step 3: Generate report sections (按需搜索)
 
+Each section is generated with its dedicated search to avoid context overflow. Search results are saved to files first.
+
+**Step 3a: Generate Section A (AI五层蛋糕)**
 ```bash
-# AI应用: ToB/ToC落地、Agent智能体、SaaS接入AI、商业模式创新
-feedship search "AI应用 Agent智能体 SaaS AI商业模式 用户体验" --semantic --limit 200 --since $SINCE
+DATE=$(date +%Y-%m-%d)
+SINCE=$(date -d '2 days ago' +%Y-%m-%d)
+mkdir -p /tmp/ai-daily-$DATE
+# AI应用
+feedship search "AI应用 Agent智能体 SaaS AI商业模式" --semantic --limit 100 --since $SINCE > /tmp/ai-daily-$DATE/s1.txt
+# AI模型
+feedship search "LLM GPT Claude Gemini Llama MoE 开源模型" --semantic --limit 100 --since $SINCE > /tmp/ai-daily-$DATE/s2.txt
+# AI基础设施
+feedship search "Agent框架 RAG devtools" --semantic --limit 100 --since $SINCE > /tmp/ai-daily-$DATE/s3.txt
+# 芯片与能源
+feedship search "芯片 GPU AI芯片 能源" --semantic --limit 50 --since $SINCE > /tmp/ai-daily-$DATE/s4.txt
+cat > /tmp/ai-daily-$DATE/section_a.md << 'EOF'
+# AI 日报 DATE_PLACEHOLDER
 
-# AI模型: 新模型发布、架构创新、训练突破
-feedship search "LLM GPT Claude Gemini Llama MoE 开源模型" --semantic --limit 200 --since $SINCE
+## A. AI五层蛋糕
+[按 REPORT_FORMAT.md 格式生成]
+EOF
+```
 
-# AI基础设施: Agent框架、开发者工具、RAG
-feedship search "Agent框架 RAG orchestration devtools 开发者工具" --semantic --limit 200 --since $SINCE
+**Step 3b: Section B (精选推荐)**
+```bash
+feedship search "AI 热门 精选 推荐" --semantic --limit 50 --since $SINCE > /tmp/ai-daily-$DATE/s5.txt
+cat > /tmp/ai-daily-$DATE/section_b.md << 'EOF'
+## B. 精选推荐
+[按格式生成]
+EOF
+```
 
-# 政策与安全: 监管、合规、安全
-feedship search "AI政策 监管 合规 安全 隐私" --semantic --limit 200 --since $SINCE
+**Step 3c: Section C (创业信号)**
+```bash
+feedship search "融资 创业 投资 收购" --semantic --limit 50 --since $SINCE > /tmp/ai-daily-$DATE/s6.txt
+cat > /tmp/ai-daily-$DATE/section_c.md << 'EOF'
+## C. 创业信号
+[按格式生成]
+EOF
+```
+
+**Step 3d: Section D (创作点)**
+```bash
+feedship search "AI创作 热门话题 趋势" --semantic --limit 50 --since $SINCE > /tmp/ai-daily-$DATE/s7.txt
+cat > /tmp/ai-daily-$DATE/section_d.md << 'EOF'
+## D. 创作点
+[按格式生成]
+EOF
+```
+
+**Step 3e: Section E (政策解读)**
+```bash
+feedship search "AI政策 监管 合规 安全" --semantic --limit 50 --since $SINCE > /tmp/ai-daily-$DATE/s8.txt
+cat > /tmp/ai-daily-$DATE/section_e.md << 'EOF'
+## E. 政策解读
+[按格式生成]
+EOF
+```
+
+**Step 3f: Section F (媒体热点)**
+```bash
+feedship search "AI社交热议 舆论焦点" --semantic --limit 50 --since $SINCE > /tmp/ai-daily-$DATE/s9.txt
+cat > /tmp/ai-daily-$DATE/section_f.md << 'EOF'
+## F. 媒体热点
+[按格式生成]
+EOF
 ```
 
 ### Step 4: Generate report sections (sequential file write)
@@ -258,24 +311,16 @@ cat > /tmp/ai-daily/$DATE/section_f.md << 'EOF'
 EOF
 ```
 
-**Step 4g: Send report in segments (avoid truncation)**
+**Step 4g: Send report (final output)**
 ```bash
 DATE=$(date +%Y-%m-%d)
 # 替换日期占位符
 sed -i '' "s/DATE_PLACEHOLDER/$DATE/g" /tmp/ai-daily-$DATE/section_*.md
 
-# 分段发送 (每段包含2个section)
-# 发送 Part 1: A + B
-cat /tmp/ai-daily-$DATE/section_a.md /tmp/ai-daily-$DATE/section_b.md
-
-# 发送 Part 2: C + D
-cat /tmp/ai-daily-$DATE/section_c.md /tmp/ai-daily-$DATE/section_d.md
-
-# 发送 Part 3: E + F
-cat /tmp/ai-daily-$DATE/section_e.md /tmp/ai-daily-$DATE/section_f.md
+# 输出完整报告
+cat /tmp/ai-daily-$DATE/section_*.md
 ```
 
-**注意：** 分段发送时，每个 part 都会单独推送。如果 channel 支持更长的消息，可以合并发送。最终输出应包含完整日期。
 ---
 
 ## 6. Report Format
