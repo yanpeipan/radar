@@ -346,7 +346,7 @@ openclaw cron add \
   --cron "*/30 * * * *" \
   --tz Asia/Shanghai \
   --session isolated \
-  --message "feedship fetch --all" \
+  --message "uv run --with feedship[ml,cloudflare] feedship fetch --all" \
   --timeout-seconds 300
 ```
 
