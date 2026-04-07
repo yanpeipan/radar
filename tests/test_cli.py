@@ -756,30 +756,27 @@ class TestFetchCommands:
 class TestFetchUrlCommands:
     """Tests for fetch --url CLI command (direct URL fetch without DB save)."""
 
+    # Shared mock helpers — _MockArticleResult.articles is reassigned per test
+    class _MockArticleResult:
+        articles = []
+
+    class _MockProvider:
+        def fetch_articles(self, feed):
+            return TestFetchUrlCommands._MockArticleResult()
+
     def test_fetch_url_basic(self, cli_runner, initialized_db, monkeypatch):
         """fetch --url <url> fetches articles and outputs success message."""
-        mock_articles = [
+        self.__class__._MockArticleResult.articles = [
             {
-                "id": "article-1",
                 "title": "Test Article",
-                "url": "https://example.com/article1",
+                "link": "https://example.com/article1",
                 "description": "A test article",
                 "content": "<p>Content</p>",
-                "source": "test",
                 "published_at": "2024-01-15T10:00:00+00:00",
             }
         ]
-
-        class MockArticleResult:
-            articles = mock_articles
-
-        class MockProvider:
-            def fetch_articles(self, feed):
-                return MockArticleResult()
-
-        # match_first is imported lazily inside _do_fetch, patch at the providers level
         monkeypatch.setattr(
-            "src.providers.match_first", lambda url, **kw: MockProvider()
+            "src.providers.match_first", lambda url, **kw: self._MockProvider()
         )
 
         result = cli_runner.invoke(cli, ["fetch", "--url", "https://example.com/feed"])
@@ -789,11 +786,9 @@ class TestFetchUrlCommands:
 
     def test_fetch_url_json_output(self, cli_runner, initialized_db, monkeypatch):
         """fetch --url <url> --json outputs valid JSON with articles field."""
-        import json
-
         from src.providers.base import Article
 
-        mock_articles = [
+        self.__class__._MockArticleResult.articles = [
             Article(
                 title="JSON Test Article",
                 link="https://json.example.com/article1",
@@ -803,16 +798,8 @@ class TestFetchUrlCommands:
                 published_at="2024-01-15T10:00:00+00:00",
             )
         ]
-
-        class MockArticleResult:
-            articles = mock_articles
-
-        class MockProvider:
-            def fetch_articles(self, feed):
-                return MockArticleResult()
-
         monkeypatch.setattr(
-            "src.providers.match_first", lambda url, **kw: MockProvider()
+            "src.providers.match_first", lambda url, **kw: self._MockProvider()
         )
 
         result = cli_runner.invoke(
@@ -828,16 +815,9 @@ class TestFetchUrlCommands:
 
     def test_fetch_url_no_articles(self, cli_runner, initialized_db, monkeypatch):
         """fetch --url <url> with no articles outputs 'No articles found'."""
-
-        class MockArticleResult:
-            articles = []
-
-        class MockProvider:
-            def fetch_articles(self, feed):
-                return MockArticleResult()
-
+        self.__class__._MockArticleResult.articles = []
         monkeypatch.setattr(
-            "src.providers.match_first", lambda url, **kw: MockProvider()
+            "src.providers.match_first", lambda url, **kw: self._MockProvider()
         )
 
         result = cli_runner.invoke(
@@ -848,7 +828,6 @@ class TestFetchUrlCommands:
 
     def test_fetch_url_no_provider(self, cli_runner, initialized_db, monkeypatch):
         """fetch --url <unsupported_url> returns exit code 1 with no provider error."""
-        # Force match_first to return None for this URL
         monkeypatch.setattr("src.providers.match_first", lambda url, **kw: None)
 
         result = cli_runner.invoke(
