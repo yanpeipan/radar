@@ -207,6 +207,13 @@ class RSSProvider:
                 feed.url, feed.etag, feed.modified_at
             )
 
+            if response is None:
+                logger.error(
+                    "RSSProvider.fetch_articles(%s) failed: fetch returned None",
+                    feed.url,
+                )
+                return FetchedResult(articles=[])
+
             # Check Content-Length header against size limit
             content_length = response.headers.get("content-length")
             if content_length:
@@ -626,46 +633,6 @@ class RSSProvider:
             except Exception:
                 continue
         return feeds
-
-
-# DEPRECATED: Replaced by probe_feed_paths_parallel in src.discovery.parallel_probe
-# def _probe_well_known_paths(url: str, html: str | None) -> list[DiscoveredFeed]:
-#     """Probe well-known feed paths on a page URL and validate them in parallel.
-#
-#     Args:
-#         url: Base page URL to probe.
-#         html: Optional HTML content for subdirectory discovery.
-#
-#     Returns:
-#         List of DiscoveredFeed found via well-known path probing (only validated ones).
-#     """
-#     import concurrent.futures
-#
-#     from src.discovery.common_paths import generate_feed_candidates
-#
-#     candidates = generate_feed_candidates(url, html)
-#     if not candidates:
-#         return []
-#
-#     def _validate_one(candidate: str) -> DiscoveredFeed | None:
-#         try:
-#             return RSSProvider().parse_feed(candidate, None)
-#         except Exception:
-#             return None
-#
-#     # Use ThreadPoolExecutor for parallel validation (avoid asyncio.run() nesting issues)
-#     results: list[DiscoveredFeed] = []
-#     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-#         futures = [executor.submit(_validate_one, c) for c in candidates]
-#         for future in concurrent.futures.as_completed(futures):
-#             try:
-#                 result = future.result()
-#                 if result is not None:
-#                     results.append(result)
-#             except Exception:
-#                 pass
-#
-#     return results
 
 
 # Register this provider - it will be sorted by priority() after all modules load
