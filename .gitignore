@@ -47,6 +47,7 @@ Thumbs.db
 # Project specific
 .planning/
 .claude/
+stdout/
 .claude-flow/
 .swarm/
 data/

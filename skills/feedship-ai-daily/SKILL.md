@@ -175,7 +175,7 @@ Find `<job-id>` from `openclaw cron list`.
 ```bash
 # Use dynamic dates (example for today)
 SINCE=$(date -d '2 days ago' +%Y-%m-%d)
-feedship article list --limit 333 --since $SINCE
+feedship article list --limit 3333 --since $SINCE --json > /tmp/ai-daily/$DATE-articles.json
 ```
 
 ### Step 3: Generate report sections (按需搜索)
