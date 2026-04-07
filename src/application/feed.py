@@ -12,6 +12,7 @@ from src.storage import get_feed as storage_get_feed
 from src.storage import list_feeds as storage_list_feeds
 from src.storage import remove_feed as storage_remove_feed
 from src.storage import update_feed as storage_update_feed
+from src.storage import update_feed_metadata as storage_update_feed_metadata
 from src.storage import upsert_feed
 from src.storage.sqlite.impl import _get_article_field
 from src.utils import generate_article_id, generate_feed_id
@@ -216,6 +217,27 @@ def remove_feed(feed_id: str) -> bool:
         True if the feed was deleted, False if not found.
     """
     return storage_remove_feed(feed_id)
+
+
+def update_feed_metadata(
+    feed_id: str,
+    weight: float | None = None,
+    group: str | None = None,
+    feed_meta_data: FeedMetaData | None = None,
+) -> tuple[Feed | None, bool]:
+    """Update feed metadata (weight, group, metadata JSON).
+
+    Args:
+        feed_id: The ID of the feed to update.
+        weight: Optional new weight (0.0-1.0).
+        group: Optional new group name. Use empty string to clear.
+        feed_meta_data: Optional FeedMetaData object to serialize as JSON.
+
+    Returns:
+        Tuple of (updated Feed object or None if not found, success bool).
+    """
+    metadata_str = feed_meta_data.to_json() if feed_meta_data else None
+    return storage_update_feed_metadata(feed_id, weight, group, metadata_str)
 
 
 def fetch_one(feed_or_id: str | Feed) -> dict:
