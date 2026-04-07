@@ -1,5 +1,5 @@
 ---
-version: 1.14.0
+version: 1.15.0
 name: feedship-ai-daily
 description: "Generate daily AI news digest from feedship subscriptions. Use when user wants today's news summary, daily briefing, periodic news recap, AI daily digest, ai daily, AI 日报, ai 日报, 生成简报, or 大模型日报. Reads existing feedship subscriptions, fetches latest articles, and generates a 6-section digest: (A) 精选推荐, (B) AI五层蛋糕, (C) 创业信号, (D) 创作点, (E) 政策解读, (F) 媒体热点. Requires feedship skill."
 metadata:
@@ -15,7 +15,7 @@ metadata:
 
 # AI 日报 (Feedship AI Daily)
 
-**Version:** 1.14.0
+**Version:** 1.15.0
 **For:** OpenClaw compatible agents
 **Description:** Generate daily AI news digest from feedship subscriptions
 
@@ -261,35 +261,8 @@ EOF
 
 ```bash
 DATE=$(date +%Y-%m-%d)
-python3 << 'PYEOF'
-import re
-
-def format_section(lines, section_name):
-    items = []
-    for line in lines:
-        line = line.strip()
-        if not line or '|' not in line:
-            continue
-        parts = line.split('|')
-        if len(parts) >= 2:
-            title = parts[0].strip()
-            link = parts[1].strip()
-            if title and link and link != 'null':
-                items.append((title, link))
-
-    with open(f'/tmp/ai-daily-{DATE}/section_{section_name}.md', 'w') as f:
-        f.write(f'## {section_name}\n\n')
-        for i, (title, link) in enumerate(items, 1):
-            safe_title = re.sub(r'[#*`]', '', title)
-            f.write(f'{i}. {safe_title}\n')
-            f.write(f'   来源：[**链接**]({link})\n\n')
-
-for section, filename in [('B', 'links_b'), ('A', 'links_a'), ('C', 'links_c'),
-                           ('D', 'links_d'), ('E', 'links_e'), ('F', 'links_f')]:
-    try:
-        with open(f'/tmp/ai-daily-{DATE}/{filename}.txt') as f:
-            format_section(f.readlines(), section)
-    except: pass
+python3 ~/.openclaw/skills/ai-daily/scripts/format_sections.py $DATE
+```
 
 **Step 4g: Generate Editor's Note (主编导读)**
 ```bash
@@ -415,6 +388,7 @@ openclaw cron add \
 ---
 
 **Changelog:**
+- 1.15.0: Extract auto-format sections into `scripts/format_sections.py`.
 - 1.14.0: Swap section order: A (精选推荐) now first, B (AI五层蛋糕) now second; 精选推荐 generated last.
 - 1.13.0: Fixed YAML syntax, updated skill path to `~/.openclaw/skills/`, improved date handling, added troubleshooting table, clarified cron instructions.
 - 1.12.0: Initial version.
