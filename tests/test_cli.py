@@ -753,6 +753,130 @@ class TestFetchCommands:
         assert result.exit_code == 0
 
 
+class TestFetchUrlCommands:
+    """Tests for fetch --url CLI command (direct URL fetch without DB save)."""
+
+    def test_fetch_url_basic(self, cli_runner, initialized_db, monkeypatch):
+        """fetch --url <url> fetches articles and outputs success message."""
+        mock_articles = [
+            {
+                "id": "article-1",
+                "title": "Test Article",
+                "url": "https://example.com/article1",
+                "description": "A test article",
+                "content": "<p>Content</p>",
+                "source": "test",
+                "published_at": "2024-01-15T10:00:00+00:00",
+            }
+        ]
+
+        class MockArticleResult:
+            articles = mock_articles
+
+        class MockProvider:
+            def fetch_articles(self, feed):
+                return MockArticleResult()
+
+        # match_first is imported lazily inside _do_fetch, patch at the providers level
+        monkeypatch.setattr(
+            "src.providers.match_first", lambda url, **kw: MockProvider()
+        )
+
+        result = cli_runner.invoke(cli, ["fetch", "--url", "https://example.com/feed"])
+        assert result.exit_code == 0
+        assert "Fetched 1 articles" in result.output
+        assert "example.com" in result.output
+
+    def test_fetch_url_json_output(self, cli_runner, initialized_db, monkeypatch):
+        """fetch --url <url> --json outputs valid JSON with articles field."""
+        import json
+
+        from src.providers.base import Article
+
+        mock_articles = [
+            Article(
+                title="JSON Test Article",
+                link="https://json.example.com/article1",
+                guid="article-json-1",
+                description="A test",
+                content="<p>Content</p>",
+                published_at="2024-01-15T10:00:00+00:00",
+            )
+        ]
+
+        class MockArticleResult:
+            articles = mock_articles
+
+        class MockProvider:
+            def fetch_articles(self, feed):
+                return MockArticleResult()
+
+        monkeypatch.setattr(
+            "src.providers.match_first", lambda url, **kw: MockProvider()
+        )
+
+        result = cli_runner.invoke(
+            cli, ["fetch", "--url", "https://json.example.com/feed", "--json"]
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert "articles" in data
+        assert len(data["articles"]) == 1
+        assert data["articles"][0]["title"] == "JSON Test Article"
+        assert "count" in data
+        assert data["count"] == 1
+
+    def test_fetch_url_no_articles(self, cli_runner, initialized_db, monkeypatch):
+        """fetch --url <url> with no articles outputs 'No articles found'."""
+
+        class MockArticleResult:
+            articles = []
+
+        class MockProvider:
+            def fetch_articles(self, feed):
+                return MockArticleResult()
+
+        monkeypatch.setattr(
+            "src.providers.match_first", lambda url, **kw: MockProvider()
+        )
+
+        result = cli_runner.invoke(
+            cli, ["fetch", "--url", "https://empty.example.com/feed"]
+        )
+        assert result.exit_code == 0
+        assert "No articles found" in result.output
+
+    def test_fetch_url_no_provider(self, cli_runner, initialized_db, monkeypatch):
+        """fetch --url <unsupported_url> returns exit code 1 with no provider error."""
+        # Force match_first to return None for this URL
+        monkeypatch.setattr("src.providers.match_first", lambda url, **kw: None)
+
+        result = cli_runner.invoke(
+            cli, ["fetch", "--url", "https://unsupported.example/feed"]
+        )
+        assert result.exit_code == 1
+        assert "No provider found" in result.output
+
+    def test_fetch_url_mutual_exclusion_with_id(self, cli_runner, initialized_db):
+        """fetch --url <url> <id> fails with mutual exclusion error."""
+        feed = Feed(
+            id="fetch-url-mutual-feed",
+            name="Test Feed",
+            url="https://example.com/feed.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        result = cli_runner.invoke(
+            cli, ["fetch", "--url", "https://example.com/feed", "fetch-url-mutual-feed"]
+        )
+        assert result.exit_code == 1
+        assert "Cannot use --url with" in result.output
+
+
 class TestDiscoverCommands:
     """Tests for discover CLI command."""
 
