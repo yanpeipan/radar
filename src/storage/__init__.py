@@ -23,6 +23,7 @@ from src.storage.sqlite.impl import (
     store_article_async,
     update_article_content,
     update_feed,
+    update_feed_metadata,
     upsert_articles,
     upsert_articles_async,
     upsert_feed,
