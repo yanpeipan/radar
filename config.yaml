@@ -1,3 +1,10 @@
+# LLM configuration
+llm:
+  provider: minimax
+  model: MiniMax-M2.7
+  api_key: ${MINIMAX_API_KEY}
+  minimax_base_url: https://api.minimaxi.com/v1
+
 # Application configuration
 timezone: Asia/Shanghai
 bm25_factor: 0.5
