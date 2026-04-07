@@ -594,3 +594,323 @@ def get_related_articles(article_id: str, limit: int = 5) -> list[dict]:
         if len(articles) >= limit:
             break
     return articles
+
+
+# ---------------------------------------------------------------------------
+# LLM collections: article summaries and keywords
+# ---------------------------------------------------------------------------
+
+
+def get_llm_summary_collection():
+    """Get or create the 'article_summaries' ChromaDB collection.
+
+    Stores LLM-generated summaries with embeddings for semantic search.
+
+    Returns:
+        Collection: ChromaDB collection for article summaries.
+    """
+    client = _get_chroma_client()
+    return client.get_or_create_collection(
+        name="article_summaries",
+        metadata={
+            "description": "LLM article summaries for semantic search",
+            "hnsw:space": "cosine",
+        },
+    )
+
+
+def get_llm_keywords_collection():
+    """Get or create the 'article_keywords' ChromaDB collection.
+
+    Stores LLM-extracted keywords with embeddings for semantic keyword search.
+
+    Returns:
+        Collection: ChromaDB collection for article keywords.
+    """
+    client = _get_chroma_client()
+    return client.get_or_create_collection(
+        name="article_keywords",
+        metadata={
+            "description": "LLM article keywords for semantic search",
+            "hnsw:space": "cosine",
+        },
+    )
+
+
+def upsert_article_summary(
+    article_id: str,
+    summary: str,
+    title: str | None = None,
+    url: str | None = None,
+    published_at: str | None = None,
+) -> None:
+    """Store LLM summary and its embedding in ChromaDB.
+
+    Args:
+        article_id: Unique article identifier (SQLite nanoid).
+        summary: LLM-generated summary text.
+        title: Article title (metadata).
+        url: Article URL (metadata).
+        published_at: Publication date (metadata).
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    if not summary:
+        return
+
+    with _chroma_lock:
+        collection = get_llm_summary_collection()
+        embedding_fn = get_embedding_function()
+
+        try:
+            emb = embedding_fn.encode(
+                [summary], convert_to_numpy=True, normalize_embeddings=True
+            )[0]
+        except Exception as e:
+            logger.error("Encoding failed for summary %s: %s", article_id, e)
+            raise
+        embedding_vector = emb.tolist()
+
+        metadata = {
+            "title": title or "",
+            "url": url or "",
+            "published_at": _published_at_to_timestamp(published_at),
+        }
+
+        try:
+            collection.upsert(
+                ids=[article_id],
+                documents=[summary],
+                embeddings=[embedding_vector],
+                metadatas=[metadata],
+            )
+        except Exception as e:
+            logger.error("ChromaDB upsert failed for summary %s: %s", article_id, e)
+            raise
+
+
+def upsert_article_keywords(
+    article_id: str,
+    keywords: list[str],
+    title: str | None = None,
+    url: str | None = None,
+    published_at: str | None = None,
+) -> None:
+    """Store LLM-extracted keywords and their embedding in ChromaDB.
+
+    Keywords are joined into a single string for embedding.
+
+    Args:
+        article_id: Unique article identifier (SQLite nanoid).
+        keywords: List of extracted keyword strings.
+        title: Article title (metadata).
+        url: Article URL (metadata).
+        published_at: Publication date (metadata).
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    if not keywords:
+        return
+
+    keywords_text = " | ".join(keywords)
+
+    with _chroma_lock:
+        collection = get_llm_keywords_collection()
+        embedding_fn = get_embedding_function()
+
+        try:
+            emb = embedding_fn.encode(
+                [keywords_text], convert_to_numpy=True, normalize_embeddings=True
+            )[0]
+        except Exception as e:
+            logger.error("Encoding failed for keywords %s: %s", article_id, e)
+            raise
+        embedding_vector = emb.tolist()
+
+        metadata = {
+            "title": title or "",
+            "url": url or "",
+            "published_at": _published_at_to_timestamp(published_at),
+            "keywords": keywords_text,
+        }
+
+        try:
+            collection.upsert(
+                ids=[article_id],
+                documents=[keywords_text],
+                embeddings=[embedding_vector],
+                metadatas=[metadata],
+            )
+        except Exception as e:
+            logger.error("ChromaDB upsert failed for keywords %s: %s", article_id, e)
+            raise
+
+
+def search_llm_summaries(
+    query_text: str,
+    limit: int = 10,
+    since: str | None = None,
+    until: str | None = None,
+) -> list[dict]:
+    """Semantic search over LLM-generated summaries.
+
+    Args:
+        query_text: Natural language query.
+        limit: Maximum number of results.
+        since: Optional start date (YYYY-MM-DD).
+        until: Optional end date (YYYY-MM-DD).
+
+    Returns:
+        List of dicts with keys: article_id, summary, title, url, distance.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    where_conditions = []
+    if since:
+        where_conditions.append(
+            ("published_at", {"$gte": _parse_date_to_timestamp(since)})
+        )
+    if until:
+        where_conditions.append(
+            ("published_at", {"$lte": _parse_date_to_timestamp(until)})
+        )
+    where_clause = None
+    if len(where_conditions) == 1:
+        where_clause = {where_conditions[0][0]: where_conditions[0][1]}
+    elif len(where_conditions) > 1:
+        where_clause = {"$and": [{k: v} for k, v in where_conditions]}
+
+    with _chroma_lock:
+        collection = get_llm_summary_collection()
+        embedding_fn = get_embedding_function()
+
+        try:
+            emb = embedding_fn.encode(
+                [query_text], convert_to_numpy=True, normalize_embeddings=True
+            )[0]
+        except Exception as e:
+            logger.error("Encoding failed for summary query: %s", e)
+            raise
+        embedding_vector = emb.tolist()
+
+        try:
+            results = collection.query(
+                query_embeddings=[embedding_vector],
+                n_results=limit,
+                where=where_clause,
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception as e:
+            logger.warning("ChromaDB error in search_llm_summaries: %s", e)
+            return []
+
+    ids = results.get("ids", [[]])[0]
+    documents = results.get("documents", [[]])[0]
+    metadatas = results.get("metadatas", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    output = []
+    for i, article_id in enumerate(ids):
+        if not article_id:
+            continue
+        distance = distances[i] if i < len(distances) else None
+        cos_sim = max(0.0, 1.0 - distance / 2.0) if distance is not None else 0.5
+        output.append(
+            {
+                "article_id": article_id,
+                "summary": documents[i] if i < len(documents) else None,
+                "title": metadatas[i].get("title") if metadatas[i] else None,
+                "url": metadatas[i].get("url") if metadatas[i] else None,
+                "cos_sim": cos_sim,
+            }
+        )
+    return output
+
+
+def search_llm_keywords(
+    query_text: str,
+    limit: int = 10,
+    since: str | None = None,
+    until: str | None = None,
+) -> list[dict]:
+    """Semantic search over LLM-extracted keywords.
+
+    Args:
+        query_text: Natural language query.
+        limit: Maximum number of results.
+        since: Optional start date (YYYY-MM-DD).
+        until: Optional end date (YYYY-MM-DD).
+
+    Returns:
+        List of dicts with keys: article_id, keywords, title, url, distance.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    where_conditions = []
+    if since:
+        where_conditions.append(
+            ("published_at", {"$gte": _parse_date_to_timestamp(since)})
+        )
+    if until:
+        where_conditions.append(
+            ("published_at", {"$lte": _parse_date_to_timestamp(until)})
+        )
+    where_clause = None
+    if len(where_conditions) == 1:
+        where_clause = {where_conditions[0][0]: where_conditions[0][1]}
+    elif len(where_conditions) > 1:
+        where_clause = {"$and": [{k: v} for k, v in where_conditions]}
+
+    with _chroma_lock:
+        collection = get_llm_keywords_collection()
+        embedding_fn = get_embedding_function()
+
+        try:
+            emb = embedding_fn.encode(
+                [query_text], convert_to_numpy=True, normalize_embeddings=True
+            )[0]
+        except Exception as e:
+            logger.error("Encoding failed for keyword query: %s", e)
+            raise
+        embedding_vector = emb.tolist()
+
+        try:
+            results = collection.query(
+                query_embeddings=[embedding_vector],
+                n_results=limit,
+                where=where_clause,
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception as e:
+            logger.warning("ChromaDB error in search_llm_keywords: %s", e)
+            return []
+
+    ids = results.get("ids", [[]])[0]
+    _documents = results.get("documents", [[]])[0]  # intentionally unused
+    metadatas = results.get("metadatas", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    output = []
+    for i, article_id in enumerate(ids):
+        if not article_id:
+            continue
+        distance = distances[i] if i < len(distances) else None
+        cos_sim = max(0.0, 1.0 - distance / 2.0) if distance is not None else 0.5
+        output.append(
+            {
+                "article_id": article_id,
+                "keywords": metadatas[i].get("keywords") if metadatas[i] else None,
+                "title": metadatas[i].get("title") if metadatas[i] else None,
+                "url": metadatas[i].get("url") if metadatas[i] else None,
+                "cos_sim": cos_sim,
+            }
+        )
+    return output

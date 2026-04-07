@@ -54,6 +54,8 @@ from src.cli import (
     discover,  # noqa: F401, E402
     feed,  # noqa: F401, E402
     info,  # noqa: F401, E402
+    report,  # noqa: F401, E402
+    summarize,  # noqa: F401, E402
 )
 
 if __name__ == "__main__":

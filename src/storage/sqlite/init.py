@@ -25,6 +25,11 @@ _ARTICLES_EXTRA_COLUMNS = {
     "tags": "TEXT",
     "category": "TEXT",
     "meta": "TEXT",
+    # LLM fields (v1.11)
+    "summary": "TEXT",
+    "quality_score": "REAL",
+    "keywords": "TEXT",  # JSON array
+    "summarized_at": "TEXT",  # ISO timestamp
 }
 
 

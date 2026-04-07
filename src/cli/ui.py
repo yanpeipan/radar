@@ -286,6 +286,7 @@ def _serialize_article(item: ArticleListItem) -> dict:
         "published_at": _iso_timestamp(item.published_at),
         "description": item.description,
         "score": item.score,
+        "quality_score": item.quality_score,
     }
 
 

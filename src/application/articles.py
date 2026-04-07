@@ -57,6 +57,7 @@ class ArticleListItem:
     source_weight: float = 0.3
     ce_score: float = 0.0
     score: float = 0.0
+    quality_score: float | None = None
 
 
 def list_articles(
@@ -66,6 +67,8 @@ def list_articles(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
+    sort_by: str | None = None,
+    min_quality: float | None = None,
 ) -> list[ArticleListItem]:
     """List articles ordered by publication date.
 
@@ -76,12 +79,21 @@ def list_articles(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
+        sort_by: Sort field — "quality" sorts by quality_score DESC, NULLS LAST.
+        min_quality: Minimum quality_score filter (0.0-1.0).
 
     Returns:
         List of ArticleListItem objects.
     """
     return storage_list_articles(
-        limit=limit, feed_id=feed_id, since=since, until=until, on=on, groups=groups
+        limit=limit,
+        feed_id=feed_id,
+        since=since,
+        until=until,
+        on=on,
+        groups=groups,
+        sort_by=sort_by,
+        min_quality=min_quality,
     )
 
 

@@ -696,6 +696,8 @@ def list_articles(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
+    sort_by: str | None = None,
+    min_quality: float | None = None,
 ) -> list:
     """List articles ordered by publication date.
 
@@ -706,6 +708,8 @@ def list_articles(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
+        sort_by: "quality" to sort by quality_score DESC, NULLS LAST.
+        min_quality: Minimum quality_score filter (0.0-1.0).
     """
     import math
     from datetime import datetime, timezone
@@ -739,18 +743,28 @@ def list_articles(
         placeholders = ",".join("?" * len(groups))
         conditions.append(f'f."group" IN ({placeholders})')
         params.extend(groups)
+    if min_quality is not None:
+        conditions.append("a.quality_score >= ?")
+        params.append(min_quality)
     where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+    # Build ORDER BY
+    if sort_by == "quality":
+        order_by = "a.quality_score DESC, a.published_at DESC"
+    else:
+        order_by = "a.published_at DESC, a.created_at DESC"
 
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(  # nosec B608
             f"""
             SELECT a.id, a.feed_id, f.name as feed_name,
-                   a.title, a.link, a.guid, a.published_at, a.description
+                   a.title, a.link, a.guid, a.published_at, a.description,
+                   a.quality_score
             FROM articles a
             JOIN feeds f ON a.feed_id = f.id
             WHERE {where_clause}
-            ORDER BY a.published_at DESC, a.created_at DESC
+            ORDER BY {order_by}
             LIMIT ?
             """,
             [*params, limit],
@@ -779,6 +793,7 @@ def list_articles(
                 source_weight=0.3,
                 ce_score=0.0,
                 score=0.0,
+                quality_score=row["quality_score"],
             )
 
         return [_compute_article_item(row) for row in rows]
@@ -932,6 +947,193 @@ def update_article_content(article_id: str, content: str) -> dict:
         )
         conn.commit()
         return {"success": True, "error": None}
+
+
+def update_article_llm(
+    article_id: str,
+    *,
+    summary: str | None = None,
+    quality_score: float | None = None,
+    keywords: list[str] | None = None,
+    tags: list[str] | None = None,
+) -> dict:
+    """Update article LLM fields: summary, quality_score, keywords, tags.
+
+    Args:
+        article_id: The article ID (supports 8-char truncated or full 32-char).
+        summary: AI-generated summary text.
+        quality_score: Quality score 0.0-1.0.
+        keywords: List of extracted keywords.
+        tags: List of auto-generated tags.
+
+    Returns:
+        Dict with 'success' (bool) and optional 'error' (str).
+    """
+    import json
+
+    now = time.strftime("%Y-%m-%d %H:%M:%S")
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if len(article_id) == 8:
+            cursor.execute(
+                "SELECT id FROM articles WHERE id LIKE ? || '%' LIMIT 1", (article_id,)
+            )
+        else:
+            cursor.execute("SELECT id FROM articles WHERE id = ?", (article_id,))
+        row = cursor.fetchone()
+        if not row:
+            return {"success": False, "error": f"Article not found: {article_id}"}
+        actual_id = row["id"]
+
+        keywords_json = json.dumps(keywords) if keywords is not None else None
+        tags_json = json.dumps(tags) if tags is not None else None
+
+        cursor.execute(
+            """
+            UPDATE articles
+            SET summary = ?, quality_score = ?, keywords = ?, tags = ?, summarized_at = ?
+            WHERE id = ?
+            """,
+            (summary, quality_score, keywords_json, tags_json, now, actual_id),
+        )
+        conn.commit()
+        return {"success": True, "error": None}
+
+
+def get_article_with_llm(article_id: str) -> dict | None:
+    """Get article with all LLM fields populated.
+
+    Args:
+        article_id: The article ID.
+
+    Returns:
+        Dict with article fields + LLM fields (summary, quality_score, keywords, tags, summarized_at),
+        or None if not found.
+    """
+    import json
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT a.*, f.name as feed_name, f.weight as feed_weight, f.url as feed_url
+            FROM articles a
+            JOIN feeds f ON a.feed_id = f.id
+            WHERE a.id = ?
+            """,
+            (article_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        result = dict(row)
+        # Parse JSON fields
+        if result.get("keywords"):
+            try:
+                result["keywords"] = json.loads(result["keywords"])
+            except Exception:
+                result["keywords"] = []
+        else:
+            result["keywords"] = []
+
+        if result.get("tags"):
+            try:
+                result["tags"] = json.loads(result["tags"])
+            except Exception:
+                result["tags"] = []
+        else:
+            result["tags"] = []
+        return result
+
+
+def list_articles_for_llm(
+    limit: int = 100,
+    feed_id: str | None = None,
+    groups: list[str] | None = None,
+    since: str | None = None,
+    until: str | None = None,
+    min_quality: float | None = None,
+) -> list[dict]:
+    """List articles that need LLM processing (summary IS NULL).
+
+    Args:
+        limit: Maximum number of articles to return.
+        feed_id: Optional feed ID to filter by.
+        groups: Optional list of feed groups to filter by.
+        since: Optional start date (YYYY-MM-DD).
+        until: Optional end date (YYYY-MM-DD).
+        min_quality: Minimum quality score threshold.
+
+    Returns:
+        List of article dicts (without LLM fields filled).
+    """
+    import math
+    from datetime import datetime, timezone
+
+    from src.application.config import get_timezone
+    from src.storage.vector import _published_at_to_timestamp
+
+    tz = get_timezone()
+
+    conditions = ["a.summary IS NULL"]
+    params = []
+
+    if feed_id:
+        conditions.append("a.feed_id = ?")
+        params.append(feed_id)
+    if groups:
+        placeholders = ",".join("?" * len(groups))
+        conditions.append(f'f."group" IN ({placeholders})')
+        params.extend(groups)
+    if since:
+        conditions.append("a.published_at >= ?")
+        params.append(_date_to_str(since, tz))
+    if until:
+        conditions.append("a.published_at <= ?")
+        params.append(_date_to_str_end(until, tz))
+
+    where_clause = " AND ".join(conditions)
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            SELECT a.id, a.feed_id, f.name as feed_name, f.weight as feed_weight,
+                   a.title, a.link, a.published_at, a.description, a.content,
+                   f.url as feed_url
+            FROM articles a
+            JOIN feeds f ON a.feed_id = f.id
+            WHERE {where_clause}
+            ORDER BY f.weight DESC, a.published_at DESC
+            LIMIT ?
+            """,
+            [*params, limit],
+        )
+        rows = cursor.fetchall()
+
+        def _compute_item(row):
+            pub_ts = _published_at_to_timestamp(row["published_at"])
+            freshness = 0.0
+            if pub_ts:
+                pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+                days_ago = (datetime.now(timezone.utc) - pub_dt).days
+                freshness = math.exp(-days_ago / 7)
+            return {
+                "id": row["id"],
+                "feed_id": row["feed_id"],
+                "feed_name": row["feed_name"],
+                "feed_weight": row["feed_weight"],
+                "title": row["title"],
+                "link": row["link"],
+                "published_at": row["published_at"],
+                "description": row["description"],
+                "content": row["content"],
+                "feed_url": row["feed_url"],
+                "freshness": freshness,
+            }
+
+        return [_compute_item(row) for row in rows]
 
 
 def search_articles_fts(
