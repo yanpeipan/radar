@@ -296,7 +296,7 @@ def run_improvement_loop(
         data = cluster_articles_for_report(
             since=since, until=until, limit=100, auto_summarize=auto_summarize
         )
-        report_text = render_report(data)
+        report_text = asyncio.run(render_report(data))
 
         # Evaluate quality (enhanced - includes completeness and Chinese correctness)
         enhanced = asyncio.run(evaluate_report_enhanced(report_text))

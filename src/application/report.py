@@ -925,21 +925,12 @@ def cluster_articles_for_report_v2(
     )
 
 
-def render_report_v2(
+async def render_report_v2(
     data: dict[str, Any],
     template_name: str = "v2",
     target_lang: str = "zh",
 ) -> str:
-    """Render a v2 report using Jinja2 template.
-
-    Args:
-        data: Report data from cluster_articles_for_report_v2()
-        template_name: Template name (without extension)
-        target_lang: Target language code (zh, en, ja, ko).
-
-    Returns:
-        Rendered markdown string.
-    """
+    """Render a v2 report using Jinja2 template (async, Fix #3)."""
     # Pre-translate all titles before template rendering (Fix #5)
     if target_lang != "zh":
         all_titles: list[str] = []
@@ -967,8 +958,8 @@ def render_report_v2(
         if all_titles:
             # Deduplicate titles to avoid redundant LLM calls
             unique_titles = list(dict.fromkeys(all_titles))
-            pre_translated = asyncio.run(
-                _translate_titles_batch_async(unique_titles, target_lang)
+            pre_translated = await _translate_titles_batch_async(
+                unique_titles, target_lang
             )
             # Populate cache for template filters
             for orig, translated in pre_translated.items():
@@ -1005,12 +996,12 @@ def render_report_v2(
     )
 
 
-def render_report(
+async def render_report(
     data: dict[str, Any],
     template_name: str = DEFAULT_TEMPLATE_NAME,
     target_lang: str = "zh",
 ) -> str:
-    """Render a report using Jinja2 template.
+    """Render a report using Jinja2 template (async, Fix #3).
 
     Args:
         data: Report data from cluster_articles_for_report()
@@ -1030,8 +1021,8 @@ def render_report(
                     all_titles.append(title)
         if all_titles:
             unique_titles = list(dict.fromkeys(all_titles))
-            pre_translated = asyncio.run(
-                _translate_titles_batch_async(unique_titles, target_lang)
+            pre_translated = await _translate_titles_batch_async(
+                unique_titles, target_lang
             )
             for orig, translated in pre_translated.items():
                 _title_translate_cache[(orig, target_lang)] = translated
@@ -1139,8 +1130,10 @@ async def _translate_report_async(report_text: str, target_lang: str) -> str:
     return "\n".join(translated_lines)
 
 
-def translate_report(report_text: str, target_lang: str) -> str:
-    """Translate report text to target language.
+async def translate_report_async(
+    report_text: str, target_lang: str
+) -> str:
+    """Async translate report text to target language (Fix #3).
 
     Args:
         report_text: The rendered report text.
@@ -1152,7 +1145,7 @@ def translate_report(report_text: str, target_lang: str) -> str:
     if target_lang == "zh":
         return report_text
 
-    return asyncio.run(_translate_report_async(report_text, target_lang))
+    return await _translate_report_async(report_text, target_lang)
 
 
 # Built-in default template (used when file not found)

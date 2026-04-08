@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 
@@ -99,7 +100,7 @@ def report(
 
         # Render report
         try:
-            report_text = render_report(data, template_name=template)
+            report_text = asyncio.run(render_report(data, template_name=template))
         except Exception as e:
             if json_output:
                 print_json_error(f"Failed to render template: {e}", "template_error")
