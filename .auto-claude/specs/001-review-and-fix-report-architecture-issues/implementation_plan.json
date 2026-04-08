@@ -1,0 +1,447 @@
+{
+  "feature": "Review and Fix Report Architecture Issues (Iterative AI Agent Loop)",
+  "description": "激活AI架构师，评估report代码架构及逻辑流程，修复三个最严重的问题，激活AI新闻分析师，分析最终新闻质量并反馈给AI架构师\n\nuv run feedship --debug report --since 2026-04-07 --until 2026-04-10 --language zh",
+  "workflow_type": "feature",
+  "workflow_rationale": "The task is a 100-iteration feedback loop: AI Architect evaluates code and fixes top 3 most severe problems per iteration; AI News Analyst evaluates report quality and routes feedback back. This is a multi-round refinement workflow requiring phased execution: investigation, iterative fix cycles, and QA validation.",
+  "created_at": "2026-04-08T18:29:13.815Z",
+  "updated_at": "2026-04-08T19:25:25.533Z",
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "xstateState": "coding",
+  "executionPhase": "coding",
+  "phases": [
+    {
+      "id": "phase-1-architect-review",
+      "name": "AI Architect Code Review",
+      "type": "investigation",
+      "description": "AI Architect evaluates report code architecture (src/application/report.py, src/llm/chains.py, src/cli/report.py) and produces a prioritized list of issues. Known pre-existing bugs: async event loop misuse in _translate_title_sync, translate_report, render_report_v2.",
+      "depends_on": [],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "AI Architect reviews src/application/report.py for async/event loop issues, DB write safety, clustering logic",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/report.py",
+            "src/utils/asyncio_utils.py"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "AI Architect reviews code and outputs a structured issue list with: (1) severity, (2) file path, (3) line range, (4) root cause, (5) proposed fix. Issues documented in iteration_issues.json."
+          },
+          "status": "completed",
+          "notes": "AI Architect reviewed src/application/report.py (1186 lines) and identified 5 issues: (1) HIGH asyncio.new_event_loop() dead code in translate_report, (2) HIGH get_event_loop().run_until_complete() unsafe pattern, (3) HIGH IndexError in dedup.py _level3_embedding_dedup, (4) MEDIUM duplicate articles in merged clusters, (5) LOW O(n²) centroid computation. DB write safety is CORRECT. Full structured issue list in iteration_issues.json.",
+          "updated_at": "2026-04-08T19:19:38.285428+00:00"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "AI Architect reviews src/llm/chains.py for LCEL chain correctness, prompt quality, and missing chains",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/llm/chains.py",
+            "src/llm/core.py"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "AI Architect outputs chain-specific issues: (1) prompt quality problems, (2) missing chains for report features, (3) LCEL interface issues. Added to iteration_issues.json."
+          },
+          "status": "completed",
+          "notes": "AI Architect reviewed src/llm/chains.py (205 lines) and identified 6 issues. (1) HIGH: evaluator-001 — EVALUATE_PROMPT asks for 0.0-1.0 scores but evaluator.py divides by 100 — corrupts quality scores. (2) MEDIUM: chains-001 — AsyncLLMWrapper.invoke() uses asyncio.run() which crashes in nested async context. (3) MEDIUM: chains-002 — hardcoded max_tokens=300 too low for get_layer_summary_chain() (needs 500+) and get_translate_chain() (needs 1000+). (4) LOW: chains-003 — all 5 chain getter functions lack return type annotations. (5) LOW: chains-004 — TOPIC_TITLE_PROMPT contradictory 10-20 char vs max-20-char limits. (6) LOW: chains-005 — get_evaluate_chain() uses StrOutputParser with no JSON validation. All 6 issues documented in iteration_issues.json (total_issues=11). Git commit blocked by worktree isolation — changes written to iteration_issues.json only."
+        },
+        {
+          "id": "subtask-1-3",
+          "description": "AI Architect reviews src/cli/report.py for CLI wrapper correctness and src/application/dedup.py for deduplication correctness",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/cli/report.py",
+            "src/application/dedup.py",
+            "src/storage/vector.py"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "AI Architect outputs CLI and dedup issues. Added to iteration_issues.json. If no issues found, documents 'no issues' for that file."
+          },
+          "status": "completed",
+          "notes": "AI Architect reviewed src/cli/report.py and src/application/dedup.py. Key findings: (1) INFO: report-003 IndexError claim is a FALSE POSITIVE — Python simulation confirmed current dedup.py loop is correct (emb_idx only increments for with-embedding articles, bounds always respected). top_3_issues_for_phase_2 updated accordingly. (2) LOW cli-001: Path import at line 151 violates PEP 8. (3) LOW cli-002: sys.exit(1) in template error bypasses outer exception handler. (4) LOW cli-003: ctx parameter unused. (5) LOW dedup-001: unused signature_map in _level2_minhash_dedup. (6) INFO dedup-002: id_to_embedding is NOT dead code. (7) LOW dedup-003: redundant import in preload_embedding_model. (8) LOW vector-001: get_chroma_collection missing return type. (9) LOW vector-002: _check_memory_guard name semantically inverted. (10) INFO vector-003: _check_memory_guard AND condition too permissive. Added cli_dedup_issues array (10 entries) to iteration_issues.json. total_issues=16."
+        },
+        {
+          "id": "subtask-1-4",
+          "description": "Document all findings in iteration_issues.json with severity ranking",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [
+            ".auto-claude/specs/001-review-and-fix-report-architecture-issues/iteration_issues.json"
+          ],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "test -f .auto-claude/specs/001-review-and-fix-report-architecture-issues/iteration_issues.json && echo 'EXISTS' || echo 'MISSING'",
+            "expected": "EXISTS"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-iteration-1",
+      "name": "AI Architect Iteration 1 — Fix Top 3 Issues",
+      "type": "implementation",
+      "description": "AI Architect applies fixes for the top 3 most severe issues identified in Phase 1. Known high-severity issues: (1) asyncio.run_until_complete() in _translate_title_sync (line 447), (2) asyncio.new_event_loop() in translate_report (line 1154), (3) nested asyncio.run() in render functions.",
+      "depends_on": [
+        "phase-1-architect-review"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Fix Issue #1: Replace asyncio.get_event_loop().run_until_complete() in _translate_title_sync with fully async approach",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/report.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/report.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -n 'run_until_complete' src/application/report.py",
+            "expected": "No matches (loop misuse fixed)"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Fix Issue #2: Replace asyncio.new_event_loop() nested in asyncio.run() in translate_report with proper async approach",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/report.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/report.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -n 'new_event_loop' src/application/report.py",
+            "expected": "No matches"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "Fix Issue #3: Replace nested asyncio.run() calls in render_report and render_report_v2 with async batch translation approach",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/report.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/report.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -n 'asyncio.run(' src/application/report.py",
+            "expected": "At most 2 matches (in cluster_articles_for_report and cluster_articles_for_report_v2 entry points only)"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-2-4",
+          "description": "Fix additional issues (top 4-6) if Phase 1 found them; otherwise document that no additional high-severity issues exist",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/report.py",
+            "src/llm/chains.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/report.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "uv run ruff check src/application/report.py src/llm/chains.py 2>&1 | grep -E 'error' | head -10",
+            "expected": "No output (no errors)"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-3-loop-iterations",
+      "name": "AI Architect Iterative Loop (Iterations 2–100)",
+      "type": "implementation",
+      "description": "Iterative loop: (1) AI Architect identifies top 3 remaining unfixed issues, (2) applies fixes, (3) AI News Analyst evaluates report quality and returns scores, (4) scores routed back to AI Architect for next iteration. Continues up to 100 iterations or until AI Architect reports no remaining critical issues.",
+      "depends_on": [
+        "phase-2-iteration-1"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Iteration N: AI Architect reviews remaining unfixed issues from iteration_issues.json, selects top 3, applies fixes",
+          "service": "main",
+          "files_to_modify": [
+            "src/application/report.py",
+            "src/llm/chains.py",
+            "src/llm/evaluator.py",
+            "src/application/dedup.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/report.py",
+            "src/llm/chains.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "uv run feedship --debug report --since 2026-04-07 --until 2026-04-10 --language zh 2>&1 | head -5",
+            "expected": "No traceback errors; report generates or exits gracefully with 'No articles found'"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Iteration N: AI News Analyst evaluates generated report quality using evaluate_report_enhanced; returns coherence/relevance/depth/structure scores",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/llm/evaluator.py"
+          ],
+          "verification": {
+            "type": "manual",
+            "instructions": "AI News Analyst reviews report output and returns structured scores. Scores recorded in iteration_scores.json. Scores must be in range 0.0-1.0."
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "Iteration N: Route AI News Analyst scores back to AI Architect; update iteration_issues.json with new priority ordering based on quality feedback",
+          "service": "main",
+          "files_to_modify": [
+            ".auto-claude/specs/001-review-and-fix-report-architecture-issues/iteration_issues.json"
+          ],
+          "files_to_create": [
+            ".auto-claude/specs/001-review-and-fix-report-architecture-issues/iteration_scores.json"
+          ],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "test -f .auto-claude/specs/001-review-and-fix-report-architecture-issues/iteration_scores.json && echo 'EXISTS' || echo 'MISSING'",
+            "expected": "EXISTS"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-3-4",
+          "description": "Loop termination check: if AI Architect reports no critical issues remaining OR iteration count reaches 100, end loop",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "manual",
+            "instructions": "If iteration count >= 100 OR no critical issues remain: end loop and proceed to Phase 4. Otherwise: increment iteration counter, go back to subtask-3-1."
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-qa-validation",
+      "name": "QA Validation",
+      "type": "implementation",
+      "description": "Final QA validation: run report CLI, run tests, verify no regressions, verify pre-commit passes.",
+      "depends_on": [
+        "phase-3-loop-iterations"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Run report CLI command (v1 and v2 templates) and verify no errors",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "uv run feedship --debug report --since 2026-04-07 --until 2026-04-10 --language zh 2>&1 | tail -10",
+            "expected": "Report renders OR graceful 'No articles found' — no traceback"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Run pytest test suite and verify all tests pass",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "uv run pytest tests/ -v --tb=short 2>&1 | tail -30",
+            "expected": "All tests pass (FAIL=0, PASS=n)"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "Run pre-commit hooks and verify no failures",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "uv run pre-commit run --all 2>&1 | tail -20",
+            "expected": "No failures reported"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-4",
+          "description": "Verify no sync-DB-inside-gather or asyncio loop misuse patterns introduced",
+          "service": "main",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/report.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "grep -n 'run_until_complete\\|new_event_loop' src/application/report.py",
+            "expected": "No matches"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 4,
+    "total_subtasks": 16,
+    "services_involved": [
+      "main"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 1,
+      "parallel_groups": [],
+      "recommended_workers": 1,
+      "speedup_estimate": "Sequential execution — each phase depends on previous phase completion"
+    },
+    "startup_command": "cd /Users/y3/feedship && uv run feedship --debug report --since 2026-04-07 --until 2026-04-10 --language zh"
+  },
+  "verification_strategy": {
+    "risk_level": "medium",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "unit",
+      "integration"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "Report CLI runs without errors on specified date range",
+      "All existing tests pass",
+      "No sync-DB-inside-gather or asyncio loop misuse patterns introduced",
+      "AI Architect / AI News Analyst loop produces documented quality scores per iteration",
+      "Pre-commit hooks pass"
+    ],
+    "verification_steps": [
+      {
+        "name": "Report CLI (v1)",
+        "command": "uv run feedship --debug report --since 2026-04-07 --until 2026-04-10 --language zh",
+        "expected_outcome": "Report renders without traceback errors",
+        "type": "cli",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Report CLI (v2)",
+        "command": "uv run feedship --debug report --since 2026-04-07 --until 2026-04-10 --language zh --template v2",
+        "expected_outcome": "Report renders v2 template without traceback errors",
+        "type": "cli",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Unit + Integration Tests",
+        "command": "uv run pytest tests/ -v --tb=short",
+        "expected_outcome": "All tests pass (FAIL=0)",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Pre-commit Hooks",
+        "command": "uv run pre-commit run --all",
+        "expected_outcome": "No hook failures",
+        "type": "command",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Async Safety Audit",
+        "command": "grep -n 'run_until_complete\\|new_event_loop' src/application/report.py",
+        "expected_outcome": "No matches (all async loop misuse fixed)",
+        "type": "security",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Medium risk: modifies async code in report pipeline. No new external dependencies, no schema changes, no security-sensitive code. Unit/integration tests + CLI verification sufficient. The AI agent loop is self-validating through AI News Analyst quality scores."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "uv run pytest tests/ -v --tb=short"
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": true,
+      "commands": [
+        "uv run pytest tests/test_cli.py -v"
+      ],
+      "services_to_test": [
+        "main"
+      ]
+    },
+    "e2e_tests": {
+      "required": true,
+      "commands": [
+        "uv run feedship --debug report --since 2026-04-07 --until 2026-04-10 --language zh"
+      ],
+      "flows": [
+        "report-generation",
+        "report-v2-generation"
+      ]
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    }
+  },
+  "qa_signoff": null,
+  "lastEvent": {
+    "eventId": "1dc1e362-ca13-4bf4-b091-888936e2e305",
+    "sequence": 0,
+    "type": "PLANNING_COMPLETE",
+    "timestamp": "2026-04-08T19:11:15.240839+00:00"
+  },
+  "last_updated": "2026-04-08T19:19:38.285441+00:00"
+}
