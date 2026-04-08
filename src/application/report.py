@@ -9,7 +9,7 @@ from typing import Any
 
 from src.application.summarize import summarize_article_content
 from src.llm.core import llm_complete
-from src.storage import get_article_with_llm, list_articles_for_llm
+from src.storage import get_article_with_llm, list_articles_for_llm, update_article_llm
 
 logger = logging.getLogger(__name__)
 
@@ -125,11 +125,13 @@ def cluster_articles_for_report(
         layer_summaries (dict of layer -> summary text), date_range,
         summarized_on_demand (count of articles summarized during generation)
     """
-    # Fetch articles in date range that have summaries
+    # Fetch ALL articles in date range (unsummarized_only=False)
+    # On-demand summarize handles weight-based gating inside _cluster_articles_async
     articles = list_articles_for_llm(
         limit=limit,
         since=since,
         until=until,
+        unsummarized_only=False,
     )
 
     return asyncio.run(_cluster_articles_async(articles, since, until, auto_summarize))
@@ -142,12 +144,8 @@ async def _cluster_articles_async(
     auto_summarize: bool = True,
 ) -> dict[str, Any]:
     """Async helper to cluster articles by layer."""
-    # Fetch articles with summaries
-    articles = list_articles_for_llm(
-        limit=200,
-        since=since,
-        until=until,
-    )
+    # Use pre-fetched articles directly (from cluster_articles_for_report)
+    articles = pre_fetched_articles
 
     # Classify each article into a layer
     results: dict[str, list] = {cat: [] for cat in FIVE_LAYER_CATEGORIES}
@@ -162,10 +160,11 @@ async def _cluster_articles_async(
 
         summary = full.get("summary") or ""
         title = full.get("title", "")
+        feed_weight = full.get("feed_weight", 0)
 
-        # On-demand summarize if missing
+        # On-demand summarize if missing AND feed weight >= 0.7
         nonlocal summarized_on_demand
-        if not summary and auto_summarize:
+        if not summary and auto_summarize and feed_weight >= 0.7:
             content = full.get("content") or full.get("description") or ""
             if content:
                 try:
@@ -175,6 +174,16 @@ async def _cluster_articles_async(
                     full["summary"] = summary
                     full["quality_score"] = quality
                     summarized_on_demand += 1
+                    # Update local summary for text classification below
+                    full["summary"] = summary
+                    # Persist to database
+                    update_article_llm(
+                        aid,
+                        summary=summary,
+                        quality_score=quality,
+                        keywords=[],
+                        tags=[],
+                    )
                 except Exception as e:
                     logger.warning("On-demand summarize failed for %s: %s", aid, e)
 

@@ -1054,8 +1054,9 @@ def list_articles_for_llm(
     since: str | None = None,
     until: str | None = None,
     min_quality: float | None = None,
+    unsummarized_only: bool = True,
 ) -> list[dict]:
-    """List articles that need LLM processing (summary IS NULL).
+    """List articles for LLM processing.
 
     Args:
         limit: Maximum number of articles to return.
@@ -1064,6 +1065,7 @@ def list_articles_for_llm(
         since: Optional start date (YYYY-MM-DD).
         until: Optional end date (YYYY-MM-DD).
         min_quality: Minimum quality score threshold.
+        unsummarized_only: If True, only return articles without summaries.
 
     Returns:
         List of article dicts (without LLM fields filled).
@@ -1076,7 +1078,9 @@ def list_articles_for_llm(
 
     tz = get_timezone()
 
-    conditions = ["a.summary IS NULL"]
+    conditions = []
+    if unsummarized_only:
+        conditions.append("(a.summary IS NULL OR a.summary = '')")
     params = []
 
     if feed_id:

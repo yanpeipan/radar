@@ -112,17 +112,17 @@ def report(
                 print_json(
                     {
                         "success": True,
-                        "message": "No summarized articles found in date range",
+                        "message": "No articles found in date range",
                         "date_range": {"since": since, "until": until},
                         "total_articles": 0,
                     }
                 )
             else:
                 console.print(
-                    f"[yellow]No summarized articles found for {since} ~ {until}[/yellow]"
+                    f"[yellow]No articles found for {since} ~ {until}[/yellow]"
                 )
                 console.print(
-                    "Run 'feedship summarize --all' first to generate summaries."
+                    "Try a different date range or run 'feedship summarize --all' first."
                 )
             return
 
