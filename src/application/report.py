@@ -70,12 +70,30 @@ async def generate_cluster_summary(articles: list[dict], layer: str) -> str:
         for a in articles[:10]  # Max 10 articles in prompt
     )
 
-    try:
-        chain = get_layer_summary_chain()
-        return await chain.ainvoke({"layer": layer, "article_list": article_list})
-    except Exception as e:
-        logger.warning("Failed to generate cluster summary: %s", e)
-        return "（暂无总结）"
+    # Retry with exponential backoff: 2s, 4s, 8s
+    delays = [2, 4, 8]
+    for attempt, delay in enumerate(delays):
+        try:
+            chain = get_layer_summary_chain()
+            return await chain.ainvoke({"layer": layer, "article_list": article_list})
+        except Exception as e:
+            if attempt < len(delays) - 1:
+                logger.warning(
+                    "Cluster summary attempt %d failed: %s. Retrying in %ds...",
+                    attempt + 1,
+                    e,
+                    delay,
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.warning(
+                    "Cluster summary all %d attempts failed: %s. Returning fallback.",
+                    len(delays),
+                    e,
+                )
+
+    # After 3 failures, return fallback instead of empty
+    return "（本周暂无重大进展）"
 
 
 def cluster_articles_for_report(
@@ -264,7 +282,7 @@ _DEFAULT_TEMPLATE_MARKDOWN = """\
 {% for layer in ["AI应用", "AI模型", "AI基础设施", "芯片", "能源"] %}
 {% set articles = articles_by_layer.get(layer, []) %}
 {% set summary = layer_summaries.get(layer, "") %}
-{% if articles %}
+{% if articles and summary and summary|trim %}
 ### {{ loop.index }}. {{ layer }}
 
 {{ summary }}
