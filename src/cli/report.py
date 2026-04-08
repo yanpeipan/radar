@@ -47,7 +47,7 @@ console = Console()
 @click.option(
     "--language",
     default="zh",
-    type=click.Choice(["zh", "en", "ja", "ko"]),
+    type=click.Choice(["zh", "en"]),
     help="Report output language (default: zh)",
 )
 @click.pass_context

@@ -26,8 +26,6 @@ LAYER_KEYS = ["AI应用", "AI模型", "AI基础设施", "芯片", "能源"]
 LAYER_NAMES = {
     "zh": ["AI应用", "AI模型", "AI基础设施", "芯片", "能源"],
     "en": ["AI Application", "AI Model", "AI Infrastructure", "Chip", "Energy"],
-    "ja": ["AI応用", "AIモデル", "AIインフラ", "チップ", "エネルギー"],
-    "ko": ["AI 응용", "AI 모델", "AI 인프라", "칩", "에너지"],
 }
 
 LANG_NAMES = {"zh": "Chinese", "en": "English", "ja": "Japanese", "ko": "Korean"}
