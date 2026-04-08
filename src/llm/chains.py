@@ -136,6 +136,29 @@ def get_layer_summary_chain():
     return LAYER_SUMMARY_PROMPT | _get_llm_wrapper() | StrOutputParser()
 
 
+# Topic title generation chain — generates a short title for an article cluster
+TOPIC_TITLE_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a news editor. Given a group of articles on the same topic, generate a concise descriptive title (10-20 characters) that captures the key theme. Write in {target_lang}.",
+        ),
+        (
+            "human",
+            """Articles on this topic:
+{article_list}
+
+Generate one concise title (max 20 characters) that captures the key theme. Return ONLY the title.""",
+        ),
+    ]
+)
+
+
+def get_topic_title_chain():
+    """Returns LCEL chain for generating a short title for an article cluster."""
+    return TOPIC_TITLE_PROMPT | _get_llm_wrapper() | StrOutputParser()
+
+
 # Report quality evaluation chain
 EVALUATE_PROMPT = ChatPromptTemplate.from_messages(
     [
