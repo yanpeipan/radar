@@ -38,18 +38,6 @@ console = Console()
     default=True,
     help="Automatically summarize unsummarized articles on-demand (default: True)",
 )
-@click.option(
-    "--run-improvement-loop",
-    is_flag=True,
-    default=False,
-    help="Run automated 100-iteration quality improvement loop",
-)
-@click.option(
-    "--iterations",
-    default=100,
-    type=int,
-    help="Number of iterations for improvement loop (default: 100)",
-)
 @click.pass_context
 def report(
     ctx: click.Context,
@@ -60,8 +48,6 @@ def report(
     json_output: bool,
     limit: int,
     auto_summarize: bool,
-    run_improvement_loop: bool,
-    iterations: int,
 ) -> None:
     """Generate a structured daily report from clustered articles.
 
@@ -73,27 +59,7 @@ def report(
         feedship report --since 2026-04-01 --until 2026-04-07
         feedship report --since 2026-04-01 --until 2026-04-07 --output report.md
         feedship report --since 2026-04-01 --until 2026-04-07 --json
-        feedship report --since 2026-04-01 --until 2026-04-07 --run-improvement-loop --iterations 50
     """
-    # Handle improvement loop mode
-    if run_improvement_loop:
-        from src.llm.evaluator import run_improvement_loop as run_loop
-
-        console.print(
-            f"[cyan]Running {iterations}-iteration quality improvement loop...[/cyan]"
-        )
-        result = run_loop(
-            since=since,
-            until=until,
-            iterations=iterations,
-            auto_summarize=auto_summarize,
-        )
-        console.print(
-            f"[green]Completed {result['iterations']} iterations, avg quality: {result['avg_quality']:.3f}[/green]"
-        )
-        console.print("[cyan]Logs saved to ~/.config/feedship/improvement_logs/[/cyan]")
-        return
-
     try:
         # Cluster articles
         with console.status("[cyan]Fetching and clustering articles..."):
