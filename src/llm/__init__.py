@@ -3,7 +3,7 @@
 Public API:
     from src.llm import LLMConfig, LLMClient, get_llm_client, llm_complete
     from src.llm import summarize_text, score_quality, extract_keywords
-    from src.llm import evaluate_report, run_improvement_loop
+    from src.llm import evaluate_report
 """
 
 from src.llm.core import (
@@ -29,7 +29,6 @@ from src.llm.evaluator import (
     QualityScore,
     evaluate_report,
     log_improvement,
-    run_improvement_loop,
     suggest_improvements,
 )
 
@@ -57,5 +56,4 @@ __all__ = [
     "evaluate_report",
     "suggest_improvements",
     "log_improvement",
-    "run_improvement_loop",
 ]
