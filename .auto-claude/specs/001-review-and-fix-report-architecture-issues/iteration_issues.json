@@ -1,0 +1,119 @@
+{
+  "iteration": 1,
+  "reviewed_files": [
+    "src/application/report.py",
+    "src/llm/chains.py",
+    "src/llm/evaluator.py",
+    "src/application/dedup.py",
+    "src/storage/vector.py"
+  ],
+  "summary": "AI Architect code review of Phase 1 identified 5 issues across report.py and evaluator.py. DB write safety pattern is CORRECTLY implemented. Async event loop pattern has issues in 3 locations.",
+  "total_issues": 5,
+  "issues": [
+    {
+      "id": "report-001",
+      "severity": "HIGH",
+      "file": "src/application/report.py",
+      "line_range": "1154-1163",
+      "category": "async_event_loop",
+      "title": "translate_report: asyncio.new_event_loop() creates unused/leaked loop inside ThreadPoolExecutor",
+      "root_cause": "The _run() inner function calls asyncio.new_event_loop() which creates a new event loop L1 that is NEVER USED — asyncio.run() creates its own loop L2 internally. L1 is closed by loop.close() in the finally block, but L2 is the one actually used. This makes the new_event_loop() call dead code that creates a resource leak. Additionally, wrapping asyncio.run() in a ThreadPoolExecutor is unnecessary overhead — asyncio.run() can be called directly from a sync function.",
+      "evidence": "Line 1155: loop = asyncio.new_event_loop()  # created but never used\nLine 1157: asyncio.run(...)  # creates its own loop L2\nLine 1159: loop.close()  # closes L1, not L2\nThe function translate_report() is never called from anywhere in the codebase — it is DEAD CODE.",
+      "proposed_fix": "Remove the _run() wrapper and ThreadPoolExecutor entirely. Replace with:\n\ndef translate_report(report_text: str, target_lang: str) -> str:\n    if target_lang == \"zh\":\n        return report_text\n    return asyncio.run(_translate_report_async(report_text, target_lang))\n\nThis eliminates the new_event_loop() dead code, the ThreadPoolExecutor overhead, and the leaked event loop concern.",
+      "auto_fixable": true
+    },
+    {
+      "id": "report-002",
+      "severity": "HIGH",
+      "file": "src/application/report.py",
+      "line_range": "436-453",
+      "category": "async_event_loop",
+      "title": "_translate_title_sync: asyncio.get_event_loop() pattern is unsafe when called from async context",
+      "root_cause": "_translate_title_sync() calls asyncio.get_event_loop().run_until_complete(). While this works in the current call path (Jinja2 template rendering, called after asyncio.run() completes in render_report/render_report_v2), it will raise 'RuntimeError: asyncio.run() cannot be called from a running event loop' if _translate_title_sync or _format_article_title is ever called from within an already-running async context (e.g., if a template filter is called inside asyncio.gather()). The pattern also triggers DeprecationWarning in Python 3.10+.",
+      "evidence": "Line 447-449:\nloop = asyncio.get_event_loop()\ntranslated = loop.run_until_complete(\n    get_translate_chain().ainvoke(...)\n)\n\nCalled from: _format_article_title (line 492) -> used as Jinja2 filter in template.render() -> called in render_report (sync) and render_report_v2 (sync). Currently safe but fragile.",
+      "proposed_fix": "Use asyncio.get_running_loop() to detect if inside async context, and if so, schedule on the existing loop using asyncio.ensure_future() + asyncio.wait() or run_in_executor():\n\ndef _translate_title_sync(title: str, target_lang: str) -> str:\n    if target_lang == \"zh\":\n        return title\n    cache_key = (title, target_lang)\n    if cache_key in _title_translate_cache:\n        return _title_translate_cache[cache_key]\n\n    import asyncio\n    try:\n        loop = asyncio.get_running_loop()\n    except RuntimeError:\n        # No running loop — safe to use get_event_loop/run_until_complete\n        loop = asyncio.get_event_loop()\n        translated = loop.run_until_complete(\n            get_translate_chain().ainvoke({\"text\": title, \"target_lang\": target_lang})\n        )\n    else:\n        # Inside async context — create a future and wait\n        import concurrent.futures\n        with concurrent.futures.ThreadPoolExecutor() as executor:\n            future = executor.submit(\n                asyncio.run,\n                get_translate_chain().ainvoke({\"text\": title, \"target_lang\": target_lang})\n            )\n            translated = future.result()\n\n    _title_translate_cache[cache_key] = translated\n    return translated\n\nAlternatively (preferred): make _format_article_title async and eliminate _translate_title_sync entirely.",
+      "auto_fixable": false
+    },
+    {
+      "id": "report-003",
+      "severity": "HIGH",
+      "file": "src/application/report.py",
+      "line_range": "126-205 (dedup.py), reported here",
+      "category": "index_error",
+      "title": "_level3_embedding_dedup: out-of-bounds IndexError when articles mix with/without embeddings",
+      "root_cause": "In _level3_embedding_dedup (dedup.py lines 192-202), articles WITHOUT embeddings are always appended to result AND increment emb_idx. But duplicate_flags only has entries for articles WITH embeddings. When there are N articles with embeddings and M articles without, duplicate_flags has N entries but emb_idx goes up to N+M-1, causing IndexError on duplicate_flags[emb_idx] when processing articles near the end of the list.\n\nExample: articles = [A+, B-, C+] (A+ has embedding, B- does not, C+ has embedding). articles_with_emb = [A+, C+], duplicate_flags = [False, False]. Processing: A+ -> emb_idx=0 OK, B- -> emb_idx=1 -> duplicate_flags[1]=False OK, C+ -> emb_idx=2 -> IndexError (only indices 0,1 exist).",
+      "evidence": "dedup.py lines 192-202:\nfor a in articles:\n    e = id_to_embedding.get(a[\"id\"])\n    if e is None:\n        result.append(a)       # B- appended, emb_idx NOT incremented here!\n    else:\n        if not duplicate_flags[emb_idx]:  # IndexError when emb_idx >= len(duplicate_flags)\n            result.append(a)\n        emb_idx += 1\n\nThe counter emb_idx only increments for articles WITH embeddings, but it is incremented AFTER the duplicate_flags check, so when a without-embedding article is followed by a with-embedding article, emb_idx advances past duplicate_flags bounds.",
+      "proposed_fix": "Split articles into two lists and process separately:\n\narticles_with_emb = [a for a in articles if id_to_embedding.get(a[\"id\"]) is not None]\narticles_without_emb = [a for a in articles if id_to_embedding.get(a[\"id\"]) is None]\n\n# Process articles with embeddings (builds duplicate_flags correctly)\nif len(articles_with_emb) >= 2:\n    # ... existing similarity computation ...\n    emb_idx = 0\n    for a in articles_with_emb:\n        if not duplicate_flags[emb_idx]:\n            result.append(a)\n        emb_idx += 1\n\n# Articles without embeddings always pass through\nfor a in articles_without_emb:\n    result.append(a)",
+      "auto_fixable": true
+    },
+    {
+      "id": "report-004",
+      "severity": "MEDIUM",
+      "file": "src/application/report.py",
+      "line_range": "248-259",
+      "category": "clustering_logic",
+      "title": "_cluster_articles_into_topics: merged cluster articles appear DUPLICATED in topics list (v1 and v2)",
+      "root_cause": "In the small-cluster merge loop, when cluster[i] (size<=3) merges into clusters[best_j]:\n1. clusters[best_j].extend(group)  — best_j list now includes group's articles\n2. new_clusters.append(clusters[best_j])  — merged list added\n3. new_clusters.append(group)  — group (SAME list as clusters[best_j]) added AGAIN\n\nResult: all articles from group appear TWICE in new_clusters, corrupting topic sources_count and centroid computations.\n\nSame bug exists in the v1 fallback branch (lines 329-336) and the v2 branch (lines 878-886) — the v1 main branch correctly deduplicates using a seen set, but the K-Means path and v2 paths do not.",
+      "evidence": "Lines 249-253:\nclusters[best_j].extend(group)   # best_j now contains group's articles\nskip.add(i)\nskip.add(best_j)\nnew_clusters.append(clusters[best_j])   # merged list added\nnew_clusters.append(group)               # group = clusters[best_j] (same list) — DUPLICATE!\n\nContrast with v1 fallback (lines 339-350) which correctly uses:\nseen = set()\nfor t in new_topics:\n    key = id(t)\n    if key not in seen:\n        seen.add(key)\n        filtered.append(t)",
+      "proposed_fix": "Remove the duplicate append in the merge branch:\n\n# Change from:\nnew_clusters.append(clusters[best_j])\nnew_clusters.append(group)\n\n# To (add seen dedup after the while loop, same pattern as v1 fallback):\nseen = set()\ndeduped = []\nfor c in new_clusters:\n    key = id(c)\n    if key not in seen:\n        seen.add(key)\n        deduped.append(c)\nnew_clusters = deduped\n\nOr simply: do NOT append group separately when merging — only append clusters[best_j]. The if branch already appends clusters[best_j] which contains the merged data.",
+      "auto_fixable": true
+    },
+    {
+      "id": "report-005",
+      "severity": "LOW",
+      "file": "src/application/report.py",
+      "line_range": "215-226",
+      "category": "performance",
+      "title": "_cluster_articles_into_topics: O(n²) centroid computation due to repeated list.index() calls",
+      "root_cause": "In the centroid recomputation loop (lines 215-226), for each group g in clusters, the code calls articles_with_emb.index(a) to find the embedding index for each article. articles_with_emb.index() is O(n) and this is called inside a nested loop over all groups and all articles, making the overall centroid computation O(n²). For a dataset of 200 articles, this can be significant.",
+      "evidence": "Line 215-218:\nindices = [\n    articles_with_emb.index(a)     # O(n) per call\n    for a in g\n    if a in articles_with_emb\n]\n\narticles_with_emb is a list of dicts. dict identity checks via 'a in articles_with_emb' are O(n), and articles_with_emb.index(a) is another O(n). Nested inside group loop = O(n²).",
+      "proposed_fix": "Pre-compute a dict mapping article id -> embedding index:\n\nid_to_emb_idx = {a[\"id\"]: i for i, a in enumerate(articles_with_emb)}\n\nThen in the centroid loop:\nindices = [id_to_emb_idx[a[\"id\"]] for a in g if a[\"id\"] in id_to_emb_idx]\n\nThis is O(1) per lookup, reducing overall complexity to O(n*k) where k is avg cluster size.",
+      "auto_fixable": true
+    }
+  ],
+  "cross_file_issues": [
+    {
+      "id": "evaluator-001",
+      "severity": "MEDIUM",
+      "file": "src/llm/evaluator.py",
+      "line_range": "71-80",
+      "category": "scoring_bug",
+      "title": "evaluate_report: score parsing divides by 100 but LLM may return 0-1 range",
+      "root_cause": "The EVALUATE_PROMPT in chains.py says 'score each dimension 0.0-1.0'. The parser in evaluate_report divides by 100 (lines 76-79). If the LLM returns 0.8 (correct per prompt), it becomes 0.008 — 100x too small. If it returns 80 (treating it as 0-100), it becomes 0.8 — correct. The LLM is not explicitly told 'multiply by 100' so it may return either format, causing inconsistent scoring.",
+      "evidence": "chains.py lines 173-178:\n'Return ONLY valid JSON with four scores: coherence (0.0-1.0), relevance (0.0-1.0), depth (0.0-1.0), structure (0.0-1.0). Example: {\"coherence\": 0.8, \"relevance\": 0.7, ...}'\n\nevaluator.py lines 76-79:\ncoherence=scores.get(\"coherence\", 0) / 100,\n# If LLM returns 0.8 → 0.008 (WRONG)\n# If LLM returns 80 → 0.8 (correct by accident)",
+      "proposed_fix": "Normalize after parsing — handle both ranges:\n\nscore = scores.get(\"coherence\", 0)\nif score > 1.0:\n    score = score / 100.0\ncoherence = score",
+      "auto_fixable": true
+    }
+  ],
+  "db_write_safety": {
+    "status": "CORRECT",
+    "note": "Both v1 (_cluster_articles_async) and v2 (_cluster_articles_v2_async) correctly collect pending_writes list during gather() and execute update_article_llm() sequentially AFTER gather completes. No synchronous SQLite calls inside asyncio.gather(). This pattern is correctly implemented per Fix #3 in the spec."
+  },
+  "async_pattern_status": {
+    "summary": "PARTIALLY CORRECT — 3 issues found",
+    "correct_patterns": [
+      "DB writes collected after gather (Fix #3) — CORRECT",
+      "Semaphore concurrency control — CORRECT (Semaphore(5) in translate, Semaphore(10) in process_one)",
+      "asyncio.gather with return_exceptions=True — CORRECT",
+      "_translate_titles_batch_async: proper batch async pattern — CORRECT"
+    ],
+    "incorrect_patterns": [
+      "translate_report: asyncio.new_event_loop() dead code (Issue report-001)",
+      "_translate_title_sync: get_event_loop().run_until_complete() pattern risky (Issue report-002)",
+      "render_report_v2 / render_report: asyncio.run() at lines 966/1029 (safe in current call path, but fragile)"
+    ]
+  },
+  "clustering_logic": {
+    "status": "HAS_BUGS",
+    "issues": [
+      "Duplicate articles in merged clusters (Issue report-004) — HIGH",
+      "O(n²) centroid computation (Issue report-005) — LOW"
+    ]
+  },
+  "top_3_issues_for_phase_2": [
+    "report-001: asyncio.new_event_loop() dead code in translate_report",
+    "report-003: out-of-bounds IndexError in _level3_embedding_dedup",
+    "report-004: duplicate articles in merged topic clusters"
+  ],
+  "reviewed_at": "2026-04-09"
+}
