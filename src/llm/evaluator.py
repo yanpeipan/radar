@@ -69,14 +69,17 @@ async def evaluate_report(report_text: str) -> QualityScore:
 
     try:
         result = await chain.ainvoke({"report": report_text[:2000]})
-        # Try to parse as JSON
-        scores = json.loads(result)
+        # JsonOutputParser returns a dict directly (chains-005 fix: JsonOutputParser instead of StrOutputParser).
+        # EVALUATE_PROMPT instructs LLM to return 0.0-1.0 scores, so values arrive as-is — no /100 needed.
+        # Defensive: if LLM returns 0-100 range by mistake, normalize.
+        scores = result if isinstance(result, dict) else json.loads(result)
+        _normalize = lambda v: v / 100.0 if v > 1.0 else v
         return QualityScore(
-            overall=sum(scores.values()) / (4 * 100),
-            coherence=scores.get("coherence", 0) / 100,
-            relevance=scores.get("relevance", 0) / 100,
-            depth=scores.get("depth", 0) / 100,
-            structure=scores.get("structure", 0) / 100,
+            overall=sum(_normalize(scores.get(k, 0)) for k in ["coherence", "relevance", "depth", "structure"]) / 4,
+            coherence=_normalize(scores.get("coherence", 0)),
+            relevance=_normalize(scores.get("relevance", 0)),
+            depth=_normalize(scores.get("depth", 0)),
+            structure=_normalize(scores.get("structure", 0)),
         )
     except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
         logger.warning(

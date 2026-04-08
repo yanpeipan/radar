@@ -260,6 +260,19 @@ async def _cluster_articles_into_topics(
             else:
                 break
 
+        # Deduplicate new_clusters to fix report-004: after merging, clusters[best_j]
+        # and group are the SAME list object. Both get appended to new_clusters,
+        # causing duplicate topic entries. Deduplicate by object id (same pattern as
+        # the v1 fallback branch at lines 341-350).
+        seen: set[int] = set()
+        deduped_clusters: list[list[dict]] = []
+        for c in new_clusters:
+            key = id(c)
+            if key not in seen:
+                seen.add(key)
+                deduped_clusters.append(c)
+        new_clusters = deduped_clusters
+
         topics: list[dict] = [
             {
                 "title": "",
