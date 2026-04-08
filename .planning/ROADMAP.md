@@ -2,7 +2,7 @@
 
 ## Milestones
 
-- 🟢 **v1.11 LLM 智能报告生成** — Phases 20-23 (in progress)
+- 🟢 **v1.11 LLM 智能报告生成** — Phases 20-24 (in progress)
 - 🟢 **v1.10 article view 增强** — Phase 19 (shipped 2026-04-06)
 - 🟡 **v1.9 fetch --url** — Phase 18 (planned)
 - ✅ **v1.8 OpenClaw 本地测试与 Skill 迭代** — Phases 14-17 (shipped 2026-04-05)
@@ -20,6 +20,7 @@
 - [x] **Phase 21: Storage Extension** — SQLite migration, storage functions, ChromaDB collections
 - [x] **Phase 22: Summarization Commands** — Summarize command, quality scoring, keywords, CLI integration
 - [x] **Phase 23: Report Generation** — Topic clustering, daily report command
+- [ ] **Phase 24: Milestone Verification** — Create VERIFICATION.md for phases 20-23
 
 ---
 
@@ -113,6 +114,26 @@
 
 ---
 
+### Phase 24: Milestone Verification
+
+**Goal:** Create VERIFICATION.md for phases 20-23 to close audit gaps
+
+**Depends on:** Phase 23
+
+**Gap Closure:** Closes audit gaps from v1.11-MILESTONE-AUDIT.md (missing VERIFICATION.md files)
+
+**Success Criteria** (what must be TRUE):
+1. VERIFICATION.md exists for Phase 20 (LLM Infrastructure)
+2. VERIFICATION.md exists for Phase 21 (Storage Extension)
+3. VERIFICATION.md exists for Phase 22 (Summarization Commands)
+4. VERIFICATION.md exists for Phase 23 (Report Generation)
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -121,6 +142,7 @@
 | 21. Storage Extension | v1.11 | 1/1 | Complete | 2026-04-08 |
 | 22. Summarization Commands | v1.11 | 1/1 | Complete | 2026-04-08 |
 | 23. Report Generation | v1.11 | 1/1 | Complete | 2026-04-08 |
+| 24. Milestone Verification | v1.11 | 0/1 | Not Started | — |
 | 19. article view 增强 | v1.10 | 1/1 | Complete | 2026-04-06 |
 | 18. fetch --url 实现 | v1.9 | 0/1 | Not Started | — |
 

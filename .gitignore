@@ -62,3 +62,6 @@ pip-lock.json
 
 # Ignore dynaconf secret files
 .secrets.*
+
+# Auto Claude data directory
+.auto-claude/

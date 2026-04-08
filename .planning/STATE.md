@@ -24,7 +24,7 @@ progress:
 Phase: 23 (Report Generation) — Complete
 Plan: 23-PLAN.md
 Status: Implementation complete
-Last activity: 2026-04-08 — Phase 23 Report Generation complete
+Last activity: 2026-04-08 — Completed quick task 260409-20c: 优化 report pipeline：每簇分类而非每篇分类，降低 LLM 调用次数
 
 ## Current Milestone: v1.11 — LLM 智能报告生成
 
@@ -59,6 +59,7 @@ Last activity: 2026-04-08 — Phase 23 Report Generation complete
 | 260408-jgw | 100次迭代报告质量评估+增强evaluator | 2026-04-08 | 637109b | [260408-jgw-100](./quick/260408-jgw-100/) |
 | 260408-l0b | 完整使用LangChain — LCEL chains接入report生成 | 2026-04-08 | 4630503 | [260408-l0b-langchain-lcel-chains-report](./quick/260408-l0b-langchain-lcel-chains-report/) |
 | 260408-lp2 | AI架构师+新闻记者视角report质量优化10项修复 | 2026-04-08 | 8a8c8d0 | [260408-lp2-ai-report-10](./quick/260408-lp2-ai-report-10/) |
+| 260409-20c | 优化 report pipeline：每簇分类而非每篇分类，降低 LLM 调用次数 | 2026-04-08 | a84ec4f | [260409-20c-report-pipeline-llm](./quick/260409-20c-report-pipeline-llm/) |
 | 260408-mks | report增加翻译流程，--language指定最终报告语言 | 2026-04-08 | 8731675 | [260408-mks-report-language](./quick/260408-mks-report-language/) |
 | 260408-o21 | 实现 report v2 模板数据结构 | 2026-04-08 | 998db43 | [260408-o21-report-v2](./quick/260408-o21-report-v2/) |
 | 260408-p1q | loop 50次迭代测试report命令 | 2026-04-08 | 998db43 | — |
