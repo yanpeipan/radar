@@ -1152,19 +1152,7 @@ def translate_report(report_text: str, target_lang: str) -> str:
     if target_lang == "zh":
         return report_text
 
-    import asyncio
-    import concurrent.futures
-
-    def _run():
-        loop = asyncio.new_event_loop()
-        try:
-            return asyncio.run(_translate_report_async(report_text, target_lang))
-        finally:
-            loop.close()
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(_run)
-        return future.result()
+    return asyncio.run(_translate_report_async(report_text, target_lang))
 
 
 # Built-in default template (used when file not found)
