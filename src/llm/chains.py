@@ -147,8 +147,7 @@ EVALUATE_PROMPT = ChatPromptTemplate.from_messages(
 Report:
 {report}
 
-Return ONLY valid JSON with four scores:
-{{"{"}}"coherence":0.0-1.0, "relevance":0.0-1.0, "depth":0.0-1.0, "structure":0.0-1.0}}""",
+Return ONLY valid JSON with four scores: coherence (0.0-1.0), relevance (0.0-1.0), depth (0.0-1.0), structure (0.0-1.0). Example: {"coherence": 0.8, "relevance": 0.7, "depth": 0.6, "structure": 0.9}""",
         ),
     ]
 )
