@@ -43,12 +43,13 @@ class AsyncLLMWrapper(Runnable):
     async def ainvoke(
         self,
         input: Any,
+        config: Any = None,
         **kwargs: Any,
     ) -> str:
         """Async invoke — compatible with LCEL chain."""
         return await self._ainvoke_raw(input)
 
-    def invoke(self, input: Any, **kwargs: Any) -> str:
+    def invoke(self, input: Any, config: Any = None, **kwargs: Any) -> str:
         """Sync invoke — delegates to async version via thread pool."""
         import asyncio
         import concurrent.futures
