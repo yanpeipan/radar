@@ -231,10 +231,10 @@ async def _cluster_articles_into_topics(
 
                     best_score = -1.0
                     best_j = -1
-                    for j, other in enumerate(clusters):
+                    for j, _other in enumerate(clusters):
                         if j == i or j in skip:
                             continue
-                        if not centroids[i] or not centroids[other]:
+                        if not centroids[i] or not centroids[j]:
                             continue
                         try:
                             sim = cosine_similarity([centroids[i]], [centroids[j]])[0][
