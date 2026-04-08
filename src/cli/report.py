@@ -8,7 +8,11 @@ import sys
 import click
 from rich.console import Console
 
-from src.application.report import cluster_articles_for_report, render_report
+from src.application.report import (
+    cluster_articles_for_report,
+    render_report,
+    translate_report,
+)
 from src.cli import cli
 from src.cli.ui import print_json, print_json_error
 
@@ -38,6 +42,12 @@ console = Console()
     default=True,
     help="Automatically summarize unsummarized articles on-demand (default: True)",
 )
+@click.option(
+    "--language",
+    default="zh",
+    type=click.Choice(["zh", "en", "ja", "ko"]),
+    help="Report output language (default: zh)",
+)
 @click.pass_context
 def report(
     ctx: click.Context,
@@ -48,6 +58,7 @@ def report(
     json_output: bool,
     limit: int,
     auto_summarize: bool,
+    language: str,
 ) -> None:
     """Generate a structured daily report from clustered articles.
 
@@ -132,6 +143,10 @@ def report(
             return
 
         # Plain text output
+        # Translate report if needed (skip for zh)
+        if language != "zh":
+            report_text = translate_report(report_text, language)
+
         if output:
             Path(output).write_text(report_text)
             console.print(f"[green]Report saved to {output}[/green]")

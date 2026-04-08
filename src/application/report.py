@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from src.application.summarize import summarize_article_content
-from src.llm.chains import get_classify_chain, get_layer_summary_chain
+from src.llm.chains import (
+    get_classify_chain,
+    get_layer_summary_chain,
+    get_translate_chain,
+)
 from src.storage import get_article_with_llm, list_articles_for_llm, update_article_llm
 
 logger = logging.getLogger(__name__)
@@ -271,6 +275,54 @@ def _create_default_template() -> None:
     if not template_path.exists():
         template_path.write_text(_DEFAULT_TEMPLATE_MARKDOWN)
         logger.info("Created default template at %s", template_path)
+
+
+async def _translate_report_async(report_text: str, target_lang: str) -> str:
+    """Internal async translation implementation."""
+    if target_lang == "zh":
+        return report_text
+
+    chain = get_translate_chain()
+    lines = report_text.splitlines()
+    translated_lines = []
+
+    for line in lines:
+        # Preserve article bullet points (lines containing link pattern)
+        if "]((" in line or "](http" in line or "](https" in line:
+            translated_lines.append(line)
+        else:
+            result = await chain.ainvoke({"text": line, "target_lang": target_lang})
+            translated_lines.append(result)
+
+    return "\n".join(translated_lines)
+
+
+def translate_report(report_text: str, target_lang: str) -> str:
+    """Translate report text to target language.
+
+    Args:
+        report_text: The rendered report text.
+        target_lang: Target language code (zh, en, ja, ko).
+
+    Returns:
+        Translated report text, or original if target_lang is "zh".
+    """
+    if target_lang == "zh":
+        return report_text
+
+    import asyncio
+    import concurrent.futures
+
+    def _run():
+        loop = asyncio.new_event_loop()
+        try:
+            return asyncio.run(_translate_report_async(report_text, target_lang))
+        finally:
+            loop.close()
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(_run)
+        return future.result()
 
 
 # Built-in default template (used when file not found)

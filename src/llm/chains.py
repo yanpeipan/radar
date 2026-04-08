@@ -156,3 +156,23 @@ Return ONLY valid JSON with four scores: coherence (0.0-1.0), relevance (0.0-1.0
 def get_evaluate_chain():
     """Returns LCEL chain for report quality evaluation."""
     return EVALUATE_PROMPT | _get_llm_wrapper() | StrOutputParser()
+
+
+# Translation chain
+TRANSLATE_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a professional translator. Translate the following text to {target_lang}. Preserve all markdown formatting, bullet points, and links. Do NOT translate article titles, proper nouns, or content inside [text](url) link patterns.",
+        ),
+        (
+            "human",
+            "Text to translate:\n{text}",
+        ),
+    ]
+)
+
+
+def get_translate_chain():
+    """Returns LCEL chain for report translation."""
+    return TRANSLATE_PROMPT | _get_llm_wrapper() | StrOutputParser()
