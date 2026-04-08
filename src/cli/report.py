@@ -6,6 +6,7 @@ import logging
 import sys
 
 import click
+import platformdirs
 from rich.console import Console
 
 from src.application.report import (
@@ -172,12 +173,21 @@ def report(
             print_json(output_json)
             return
 
-        # Plain text output
+        # Plain text output - always save report_text and print to console
         if output:
-            Path(output).write_text(report_text)
-            console.print(f"[green]Report saved to {output}[/green]")
+            output_path = Path(output)
         else:
-            console.print(report_text)
+            # Auto-save to ~/.local/share/feedship/reports/{since}_{until}_{template}.md
+            reports_dir = (
+                Path(platformdirs.user_data_dir("feedship", appauthor=False))
+                / "reports"
+            )
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            filename = f"{since}_{until}_{template}.md"
+            output_path = reports_dir / filename
+
+        output_path.write_text(report_text)
+        console.print(f"[green]Report saved to {output_path}[/green]")
 
     except Exception as e:
         if json_output:
