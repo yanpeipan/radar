@@ -146,7 +146,11 @@ CLASSIFY_PROMPT = ChatPromptTemplate.from_messages(
 
 def get_classify_chain() -> Runnable:
     """Returns LCEL chain for article classification."""
-    return CLASSIFY_PROMPT | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["classify"]) | StrOutputParser()
+    return (
+        CLASSIFY_PROMPT
+        | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["classify"])
+        | StrOutputParser()
+    )
 
 
 # Layer summary generation chain

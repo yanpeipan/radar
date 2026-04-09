@@ -850,8 +850,6 @@ async def _cluster_articles_v2_async(
         update_article_llm(*params)
 
     # Three-level deduplication FIRST (before any clustering)
-
-    # Three-level deduplication FIRST (before any clustering)
     all_processed = deduplicate_articles(all_processed)
 
     # Cluster ALL deduplicated articles together (not per-layer)
@@ -1143,9 +1141,7 @@ async def _translate_report_async(report_text: str, target_lang: str) -> str:
     return "\n".join(translated_lines)
 
 
-async def translate_report_async(
-    report_text: str, target_lang: str
-) -> str:
+async def translate_report_async(report_text: str, target_lang: str) -> str:
     """Async translate report text to target language (Fix #3).
 
     Args:
