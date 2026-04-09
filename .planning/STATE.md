@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-09T13:23:01.104Z"
-last_activity: "2026-04-09 — Completed quick task 260409-sv2: 合并topic_title和classify_cluster_layer为一次LLM调用"
+last_activity: "2026-04-09 — Completed quick task 260409-ty1: 去重前置+批量摘要优化"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -72,3 +72,4 @@ Last activity: 2026-04-09 — Completed quick task 260409-3a7: 修复 report.py 
 | 260409-qbr | 修复日报质量问题（链接、聚合、翻译诊断） | 2026-04-09 | — | [260409-qbr-fix-report](./quick/260409-qbr-fix-report/) |
 | 260409-r5y | 最终日报不完整，没有翻译 | 2026-04-09 | 2e5103f | [260409-r5y-ultimate-report-incomplete-no-translation](./quick/260409-r5y-ultimate-report-incomplete-no-translation/) |
 | 260409-sv2 | 合并topic_title和classify_cluster_layer为一次LLM调用 | 2026-04-09 | 9f24fc1 | [260409-sv2](./quick/260409-sv2/) |
+| 260409-ty1 | 去重前置+批量摘要优化 | 2026-04-09 | ff01c9e | [260409-ty1](./quick/260409-ty1/) |

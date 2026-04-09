@@ -11,24 +11,17 @@
       "Edit(./**)",
       "Glob(./**)",
       "Grep(./**)",
-      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
-      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
-      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
-      "Glob(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
-      "Grep(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
-      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/.auto-claude/specs/002-master/**)",
-      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/.auto-claude/specs/002-master/**)",
-      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/.auto-claude/specs/002-master/**)",
-      "Read(/Users/y3/feedship/.auto-claude/**)",
-      "Write(/Users/y3/feedship/.auto-claude/**)",
-      "Edit(/Users/y3/feedship/.auto-claude/**)",
-      "Glob(/Users/y3/feedship/.auto-claude/**)",
-      "Grep(/Users/y3/feedship/.auto-claude/**)",
+      "Read(/Users/y3/feedship/**)",
+      "Write(/Users/y3/feedship/**)",
+      "Edit(/Users/y3/feedship/**)",
+      "Glob(/Users/y3/feedship/**)",
+      "Grep(/Users/y3/feedship/**)",
+      "Read(/Users/y3/feedship/.auto-claude/ideation/**)",
+      "Write(/Users/y3/feedship/.auto-claude/ideation/**)",
+      "Edit(/Users/y3/feedship/.auto-claude/ideation/**)",
       "Bash(*)",
       "WebFetch(*)",
-      "WebSearch(*)",
-      "mcp__context7__resolve-library-id(*)",
-      "mcp__context7__query-docs(*)"
+      "WebSearch(*)"
     ]
   }
 }
