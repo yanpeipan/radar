@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: LLM 智能报告生成
 status: in_progress
 last_updated: "2026-04-08T00:00:00Z"
-last_activity: 2026-04-09 — Completed quick task 260409-3a7: 修复 report.py 3个高优先级asyncio问题 + centroids索引bug
+last_activity: 2026-04-09 — Completed quick task 260409-pg8: 去掉所有v2命名，统一使用cluster-first pipeline
 progress:
   total_phases: 4
   completed_phases: 4
@@ -66,4 +66,5 @@ Last activity: 2026-04-09 — Completed quick task 260409-3a7: 修复 report.py 
 | 260408-p1q | loop 50次迭代测试report命令 | 2026-04-08 | 998db43 | — |
 | 260408-sfv | report自动保存markdown到~/.local/share/feedship/reports/ | 2026-04-08 | 70cc58f | [260408-sfv-report-markdown](./quick/260408-sfv-report-markdown/) |
 | 260408-uf8 | 大规模去重+话题聚类+智能摘要生成 | 2026-04-08 | 4b49dfe | [260408-uf8-dedup-cluster](./quick/260408-uf8-dedup-cluster/) |
+| 260409-pg8 | 去掉所有v2命名，统一使用cluster-first pipeline | 2026-04-09 | 060a3ac | [260409-pg8-v2](./quick/260409-pg8-v2/) |
 | 260409-3a7 | 修复 report.py 3个高优先级asyncio问题 + centroids索引bug | 2026-04-09 | 5cc1084 | [260409-3a7-ai-report-ai](./quick/260409-3a7-ai-report-ai/) |
