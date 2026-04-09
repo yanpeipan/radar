@@ -26,6 +26,26 @@ from src.storage.vector import (
 logger = logging.getLogger(__name__)
 
 
+async def summarize_article_content_dep(
+    content: str,
+    title: str,
+) -> tuple[str, bool, float, list[str]]:
+    """Summarize article content without writing to storage.
+
+    Pure LLM transformation for on-demand use during report generation.
+    Returns (summary, was_truncated, quality_score, keywords).
+    """
+    summary_task = summarize_text(content, title)
+    quality_task = score_quality(content, title)
+    keywords_task = extract_keywords(content)
+
+    summary, was_truncated = await summary_task
+    quality_score = await quality_task
+    keywords = await keywords_task
+
+    return summary, was_truncated, quality_score, keywords
+
+
 async def process_article_llm(
     article_id: str,
     *,

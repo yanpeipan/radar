@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import sys
 
 import click
 from rich.console import Console
 
+from src.application.config import get_reports_dir
 from src.application.report import (
     cluster_articles_for_report,
     cluster_articles_for_report_v2,
@@ -44,6 +44,12 @@ console = Console()
     default=True,
     help="Automatically summarize unsummarized articles on-demand (default: True)",
 )
+@click.option(
+    "--language",
+    default="zh",
+    type=click.Choice(["zh", "en"]),
+    help="Report output language (default: zh)",
+)
 @click.pass_context
 def report(
     ctx: click.Context,
@@ -54,6 +60,7 @@ def report(
     json_output: bool,
     limit: int,
     auto_summarize: bool,
+    language: str,
 ) -> None:
     """Generate a structured daily report from clustered articles.
 
@@ -75,17 +82,12 @@ def report(
                     until=until,
                     limit=limit,
                     auto_summarize=auto_summarize,
+                    target_lang=language,
                 )
                 total_articles = sum(
-                    len(art)
+                    len(t["sources"])
                     for layer in data.get("layers", [])
-                    for topic in layer.get("topics", [])
-                    for art in topic.get("sources", [])
-                )
-                total_articles += sum(
-                    len(arts)
-                    for sig in data.get("signals", {}).values()
-                    for arts in sig.values()
+                    for t in layer.get("topics", [])
                 )
             else:
                 data = cluster_articles_for_report(
@@ -93,6 +95,7 @@ def report(
                     until=until,
                     limit=limit,
                     auto_summarize=auto_summarize,
+                    target_lang=language,
                 )
                 total_articles = sum(
                     len(arts) for arts in data["articles_by_layer"].values()
@@ -104,17 +107,17 @@ def report(
                 print_json(
                     {
                         "success": True,
-                        "message": "No summarized articles found in date range",
+                        "message": "No articles found in date range",
                         "date_range": {"since": since, "until": until},
                         "total_articles": 0,
                     }
                 )
             else:
                 console.print(
-                    f"[yellow]No summarized articles found for {since} ~ {until}[/yellow]"
+                    f"[yellow]No articles found for {since} ~ {until}[/yellow]"
                 )
                 console.print(
-                    "Run 'feedship summarize --all' first to generate summaries."
+                    "Try a different date range or run 'feedship summarize --all' first."
                 )
             return
 
@@ -126,11 +129,13 @@ def report(
         # Render report
         try:
             if template == "v2":
-                report_text = asyncio.run(
-                    render_report_v2(data, template_name=template)
+                report_text = render_report_v2(
+                    data, template_name="v2", target_lang=language
                 )
             else:
-                report_text = asyncio.run(render_report(data, template_name=template))
+                report_text = render_report(
+                    data, template_name=template, target_lang=language
+                )
         except Exception as e:
             if json_output:
                 print_json_error(f"Failed to render template: {e}", "template_error")
@@ -143,30 +148,13 @@ def report(
                 "date_range": data["date_range"],
                 "total_articles": total_articles,
                 "template": template,
-                "layers": {},
             }
             if template == "v2":
-                for layer in data.get("layers", []):
-                    layer_name = layer.get("name", "")
-                    output_json["layers"][layer_name] = {
-                        "topics": [
-                            {
-                                "title": t.get("title", ""),
-                                "summary": t.get("summary", ""),
-                                "articles": [
-                                    {
-                                        "id": a["id"],
-                                        "title": a["title"],
-                                        "link": a["link"],
-                                        "quality_score": a.get("quality_score"),
-                                    }
-                                    for a in t.get("sources", [])
-                                ],
-                            }
-                            for t in layer.get("topics", [])
-                        ],
-                    }
+                output_json["layers"] = data.get("layers", [])
+                output_json["signals"] = data.get("signals", {})
+                output_json["creation"] = data.get("creation", [])
             else:
+                output_json["layers"] = {}
                 for layer, arts in data["articles_by_layer"].items():
                     if arts:
                         output_json["layers"][layer] = {
@@ -184,12 +172,18 @@ def report(
             print_json(output_json)
             return
 
-        # Plain text output
+        # Plain text output - always save report_text and print to console
         if output:
-            Path(output).write_text(report_text)
-            console.print(f"[green]Report saved to {output}[/green]")
+            output_path = Path(output)
         else:
-            console.print(report_text)
+            # Auto-save to configured reports_dir (default: ~/.local/share/feedship/reports/)
+            reports_dir = get_reports_dir()
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            filename = f"{since}_{until}_{template}.md"
+            output_path = reports_dir / filename
+
+        output_path.write_text(report_text)
+        console.print(f"[green]Report saved to {output_path}[/green]")
 
     except Exception as e:
         if json_output:

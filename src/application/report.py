@@ -453,6 +453,7 @@ def _translate_title_sync(title: str, target_lang: str) -> str:
     before template rendering. This function only performs cache lookup
     to avoid asyncio.run_until_complete() misuse in async context.
     """
+
     if target_lang == "zh":
         return title
     cache_key = (title, target_lang)
@@ -467,7 +468,17 @@ def _translate_title_sync(title: str, target_lang: str) -> str:
         title[:50],
         target_lang,
     )
-    return title
+
+    import asyncio
+
+    # Use existing event loop instead of creating new one (Fix #5)
+    loop = asyncio.get_event_loop()
+    translated = loop.run_until_complete(
+        get_translate_chain().ainvoke({"text": title, "target_lang": target_lang})
+    )
+
+    _title_translate_cache[cache_key] = translated
+    return translated
 
 
 async def _translate_titles_batch_async(
@@ -941,7 +952,17 @@ async def render_report_v2(
     template_name: str = "v2",
     target_lang: str = "zh",
 ) -> str:
-    """Render a v2 report using Jinja2 template (async, Fix #3)."""
+    """Render a v2 report using Jinja2 template.
+
+    Args:
+        data: Report data from cluster_articles_for_report_v2()
+        template_name: Template name (without extension)
+        target_lang: Target language code (zh, en, ja, ko).
+
+    Returns:
+        Rendered markdown string.
+    """
+
     # Pre-translate all titles before template rendering (Fix #5)
     if target_lang != "zh":
         all_titles: list[str] = []
@@ -969,8 +990,9 @@ async def render_report_v2(
         if all_titles:
             # Deduplicate titles to avoid redundant LLM calls
             unique_titles = list(dict.fromkeys(all_titles))
-            pre_translated = await _translate_titles_batch_async(
-                unique_titles, target_lang
+
+            pre_translated = asyncio.run(
+                _translate_titles_batch_async(unique_titles, target_lang)
             )
             # Populate cache for template filters
             for orig, translated in pre_translated.items():
@@ -1143,6 +1165,7 @@ async def _translate_report_async(report_text: str, target_lang: str) -> str:
 
 async def translate_report_async(report_text: str, target_lang: str) -> str:
     """Async translate report text to target language (Fix #3).
+
 
     Args:
         report_text: The rendered report text.

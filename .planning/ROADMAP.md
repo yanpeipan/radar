@@ -2,96 +2,149 @@
 
 ## Milestones
 
+- 🟢 **v1.11 LLM 智能报告生成** — Phases 20-24 (in progress)
 - 🟢 **v1.10 article view 增强** — Phase 19 (shipped 2026-04-06)
 - 🟡 **v1.9 fetch --url** — Phase 18 (planned)
 - ✅ **v1.8 OpenClaw 本地测试与 Skill 迭代** — Phases 14-17 (shipped 2026-04-05)
 - ✅ **v1.7 OpenClaw AI Daily Report** — Phases 11-13 (shipped 2026-04-04)
 - ✅ **v1.6 OpenClaw Skills** — Phase 10 (shipped 2026-04-03)
 - ✅ **v1.5 Info Command** — SHIPPED 2026-04-03
-- **v1.4 Patch Releases** — Complete (v1.4.4)
-- **v1.3 Optimization** — Complete
-- **v1.2 Twitter/X via Nitter** — Complete (v1.2.5)
 
 ---
 
 ## Phases
 
-### v1.10 (Shipped)
+### v1.11 (In Progress)
 
-<details>
-<summary>✅ v1.10 article view 增强 — Phase 19 (SHIPPED 2026-04-06)</summary>
-
-- [x] Phase 19: article view 命令增强 (1/1 plan) — completed 2026-04-06
-
-**Goal:** 增强 `feedship article view` 命令，支持 --url/--id/--json 参数，Trafilatura 最佳实践提取内容
-
-**Archived:** `.planning/milestones/v1.10-ROADMAP.md`
-
-</details>
-
-### 🚧 v1.9 fetch --url
-
-**Goal:** 实现 `--url` 参数和 `articles` 字段返回
-
-**Depends on:** None
-
-**Requirements:** FETCH-01, FETCH-02, FETCH-03, FETCH-04, FETCH-05, FETCH-06
-
-**Success Criteria** (what must be TRUE):
-1. `feedship fetch --url https://github.com/trending --json` 能抓取并返回 articles
-2. 返回的 JSON 包含 `articles` 数组，每个 article 有 title/link/description/published_at
-3. `--url` 和 `--id` 互斥，同时使用时报错
-4. 无效 URL 或无 provider 时返回友好错误信息
-5. GitHub Trending URL 抓取成功
-
-**Plans**:
-- [ ] 18-01-PLAN.md — fetch --url 实现 (FETCH-01~06)
+- [x] **Phase 20: LLM Infrastructure** — LiteLLM client, cost architecture, truncation, async, fallback, rate limiting
+- [x] **Phase 21: Storage Extension** — SQLite migration, storage functions, ChromaDB collections
+- [x] **Phase 22: Summarization Commands** — Summarize command, quality scoring, keywords, CLI integration
+- [x] **Phase 23: Report Generation** — Topic clustering, daily report command
+- [ ] **Phase 24: Milestone Verification** — Create VERIFICATION.md for phases 20-23
 
 ---
 
-### Phase 14: 基础流程测试
+## Phase Details
 
-**Goal:** 验证 feedship-ai-daily skill 在 OpenClaw 中的基础运行流程
+### Phase 20: LLM Infrastructure
+
+**Goal:** LLM client is available and reliable for all downstream features
 
 **Depends on:** None
 
-**Requirements:** FUND-01, FUND-02, FUND-03, FUND-04
+**Requirements:** INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06
 
 **Success Criteria** (what must be TRUE):
-1. `openclaw run feedship-ai-daily` 能被 OpenClaw 正确加载
-2. `feedship fetch --all` 正常抓取所有订阅源
-3. `feedship article list --since YYYY-MM-DD` 正确按日期过滤
-4. `feedship search` 语义搜索返回相关结果
+1. LiteLLM client can call OpenAI API with valid API key
+2. LiteLLM client can call Ollama when available, falls back to OpenAI when offline
+3. Articles over 8K tokens are truncated with warning displayed to user
+4. Concurrent LLM calls respect max 5 limit with exponential backoff on failures
+5. `--force-provider` flag allows manual override of provider selection
 
-**Plans**:
-- [x] 14-01-PLAN.md — 基础流程测试 (FUND-01~04)
+**Plans**: TBD
+
+**UI hint**: no
 
 ---
 
-**Archived milestones:**
+### Phase 21: Storage Extension
 
-<details>
-<summary>✅ v1.8 OpenClaw 本地测试与 Skill 迭代 — Phases 14-17 (SHIPPED 2026-04-04)</summary>
+**Goal:** LLM outputs are persisted and queryable in SQLite and ChromaDB
 
-- [x] Phase 14: 基础流程测试 (1/1 plan) — completed 2026-04-04
-- [x] Phase 15: Cron 与 Isolated Session 验证 (1/1 plan) — completed 2026-04-04
-- [x] Phase 16: 报告格式验证 (1/1 plan) — completed 2026-04-04
-- [x] Phase 17: 频道投递与边界情况 (1/1 plan) — completed 2026-04-04
+**Depends on:** Phase 20
 
-**Archived:** `.planning/milestones/v1.8-ROADMAP.md`
+**Requirements:** STOR-01, STOR-02, STOR-03
 
-</details>
+**Success Criteria** (what must be TRUE):
+1. SQLite articles table has new columns: summary, quality_score, keywords, tags, summarized_at
+2. `update_article_llm()` successfully writes all 5 LLM fields to an existing article
+3. `get_article_with_llm()` retrieves article with LLM metadata populated
+4. ChromaDB collections `article_summaries` and `article_keywords` are initialized and queryable
+5. `list_articles_for_llm()` returns articles lacking LLM data for batch processing
+
+**Plans**: TBD
+
+**UI hint**: no
+
+---
+
+### Phase 22: Summarization Commands
+
+**Goal:** Users can summarize articles individually or in batch, with quality scoring and keyword extraction
+
+**Depends on:** Phase 20, Phase 21
+
+**Requirements:** SUMM-01, SUMM-02, SUMM-03, SUMM-04, SUMM-05, SUMM-06, QUAL-01, QUAL-02, QUAL-03, QUAL-04, KEYW-01, KEYW-02, KEYW-03, CLI-01, CLI-02, CLI-03
+
+**Success Criteria** (what must be TRUE):
+1. `feedship summarize --url <url>` outputs 3-5 sentence summary to console and stores in SQLite
+2. `feedship summarize --id <id> --force` regenerates summary for specific article
+3. `feedship summarize --group <name>` processes all unsummarized articles in that group
+4. `feedship summarize --all --dry-run` previews articles to process without calling LLM
+5. `feedship article list --sort quality` and `--min-quality 0.5` correctly filter and sort by quality_score
+6. JSON output includes summary, tokens_used, model_used fields
+7. Keywords (3-5 per article) are extracted and stored in SQLite keywords field and ChromaDB
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 23: Report Generation
+
+**Goal:** Users can generate structured daily reports from clustered articles using customizable Jinja2 templates
+
+**Depends on:** Phase 22
+
+**Requirements:** CLUST-01, CLUST-02, CLUST-03, REPORT-01, REPORT-02, REPORT-03, REPORT-04, REPORT-05, REPORT-06, REPORT-07
+
+**Success Criteria** (what must be TRUE):
+1. `feedship report --template default --since 2026-04-01 --until 2026-04-07` outputs markdown with sections
+2. Report sections contain single-sentence summaries, source article lists, and section-specific fields
+3. `feedship report --output report.md` saves report to file; `--json` outputs machine-readable format
+4. Articles are clustered using AI Five-Layer Cake taxonomy (Application/Model/Infrastructure/Chip/Energy)
+5. Each cluster has a 2-3 paragraph summary generated by LLM
+6. Templates in `~/.config/feedship/templates/` are loaded and rendered correctly
+7. AI can extend template for article categories not pre-defined
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
+
+### Phase 24: Milestone Verification
+
+**Goal:** Create VERIFICATION.md for phases 20-23 to close audit gaps
+
+**Depends on:** Phase 23
+
+**Gap Closure:** Closes audit gaps from v1.11-MILESTONE-AUDIT.md (missing VERIFICATION.md files)
+
+**Success Criteria** (what must be TRUE):
+1. VERIFICATION.md exists for Phase 20 (LLM Infrastructure)
+2. VERIFICATION.md exists for Phase 21 (Storage Extension)
+3. VERIFICATION.md exists for Phase 22 (Summarization Commands)
+4. VERIFICATION.md exists for Phase 23 (Report Generation)
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+---
 
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
+| 20. LLM Infrastructure | v1.11 | 1/1 | Complete | 2026-04-08 |
+| 21. Storage Extension | v1.11 | 1/1 | Complete | 2026-04-08 |
+| 22. Summarization Commands | v1.11 | 1/1 | Complete | 2026-04-08 |
+| 23. Report Generation | v1.11 | 1/1 | Complete | 2026-04-08 |
+| 24. Milestone Verification | v1.11 | 0/1 | Not Started | — |
 | 19. article view 增强 | v1.10 | 1/1 | Complete | 2026-04-06 |
 | 18. fetch --url 实现 | v1.9 | 0/1 | Not Started | — |
-| 14. 基础流程测试 | v1.8 | 1/1 | Complete | 2026-04-04 |
-| 15. Cron 与 Isolated Session | v1.8 | 1/1 | Complete | 2026-04-04 |
-| 16. 报告格式验证 | v1.8 | 1/1 | Complete | 2026-04-04 |
-| 17. 频道投递与边界情况 | v1.8 | 1/1 | Complete | 2026-04-04 |
 
 ---
 

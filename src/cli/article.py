@@ -117,6 +117,18 @@ def article(ctx: click.Context) -> None:
 @click.option(
     "--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)"
 )
+@click.option(
+    "--sort",
+    default=None,
+    type=click.Choice(["quality"]),
+    help="Sort by quality (requires --min-quality to be useful; sorts by quality_score DESC)",
+)
+@click.option(
+    "--min-quality",
+    default=None,
+    type=float,
+    help="Filter to articles with quality_score >= value (0.0-1.0)",
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def article_list(
@@ -127,6 +139,8 @@ def article_list(
     until: str | None,
     on: tuple,
     groups: str | None,
+    sort: str | None,
+    min_quality: float | None,
     json_output: bool,
 ) -> None:
     """List recent articles from all feeds or a specific feed."""
@@ -140,6 +154,8 @@ def article_list(
             until=until,
             on=on_list,
             groups=groups_list,
+            sort_by=sort,
+            min_quality=min_quality,
         )
         if json_output:
             print_json(format_article_list(articles, limit))

@@ -11,14 +11,14 @@
       "Edit(./**)",
       "Glob(./**)",
       "Grep(./**)",
-      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/**)",
-      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/**)",
-      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/**)",
-      "Glob(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/**)",
-      "Grep(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/**)",
-      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/.auto-claude/specs/001-review-and-fix-report-architecture-issues/**)",
-      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/.auto-claude/specs/001-review-and-fix-report-architecture-issues/**)",
-      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/001-review-and-fix-report-architecture-issues/.auto-claude/specs/001-review-and-fix-report-architecture-issues/**)",
+      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
+      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
+      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
+      "Glob(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
+      "Grep(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/**)",
+      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/.auto-claude/specs/002-master/**)",
+      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/.auto-claude/specs/002-master/**)",
+      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/002-master/.auto-claude/specs/002-master/**)",
       "Read(/Users/y3/feedship/.auto-claude/**)",
       "Write(/Users/y3/feedship/.auto-claude/**)",
       "Edit(/Users/y3/feedship/.auto-claude/**)",
@@ -28,12 +28,7 @@
       "WebFetch(*)",
       "WebSearch(*)",
       "mcp__context7__resolve-library-id(*)",
-      "mcp__context7__query-docs(*)",
-      "mcp__graphiti-memory__search_nodes(*)",
-      "mcp__graphiti-memory__search_facts(*)",
-      "mcp__graphiti-memory__add_episode(*)",
-      "mcp__graphiti-memory__get_episodes(*)",
-      "mcp__graphiti-memory__get_entity_edge(*)"
+      "mcp__context7__query-docs(*)"
     ]
   }
 }

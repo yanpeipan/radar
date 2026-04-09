@@ -82,6 +82,7 @@ def _level2_minhash_dedup(articles: list[dict]) -> list[dict]:
     """
     # Build LSH index from articles that have signatures
     lsh = MinHashLSH(threshold=_MINHASH_THRESHOLD, num_perm=_NUM_PERM)
+    signature_map: dict[str, dict] = {}  # key -> article
 
     for a in articles:
         sig_blob = a.get("minhash_signature")
@@ -91,6 +92,8 @@ def _level2_minhash_dedup(articles: list[dict]) -> list[dict]:
             m = pickle.loads(sig_blob)
             key = a.get("content_hash") or id(a)
             lsh.insert(key, m)
+
+            signature_map[key] = a
         except Exception as e:
             logger.warning("Failed to load MinHash for article %s: %s", a.get("id"), e)
 
@@ -111,6 +114,8 @@ def _level2_minhash_dedup(articles: list[dict]) -> list[dict]:
                 result.append(a)
                 # Add to LSH so later articles can dedup against it
                 lsh.insert(key, m)
+
+                signature_map[key] = a
         except Exception as e:
             logger.warning(
                 "MinHash LSH query failed for article %s: %s", a.get("id"), e

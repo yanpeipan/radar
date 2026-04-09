@@ -24,6 +24,13 @@ from src.llm.core import (
     summarize_text,
     truncate_content,
 )
+from src.llm.evaluator import (
+    ImprovementRecord,
+    QualityScore,
+    evaluate_report,
+    log_improvement,
+    suggest_improvements,
+)
 
 __all__ = [
     # core
@@ -43,4 +50,10 @@ __all__ = [
     "truncate_content",
     "get_encoding_for_model",
     "compute_content_hash",
+    # evaluator
+    "QualityScore",
+    "ImprovementRecord",
+    "evaluate_report",
+    "suggest_improvements",
+    "log_improvement",
 ]

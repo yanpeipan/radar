@@ -25,12 +25,14 @@ class FeedshipSettings(BaseSettings):
     timezone: str = Field(default="Asia/Shanghai")
     bm25_factor: float = Field(default=0.5)
     feed_default_weight: float = Field(default=0.3)
+    reports_dir: str | None = Field(default=None)
 
-    # Complex nested config stored as dict (rate limiting, tavily, nitter, webpage_sites)
+    # Complex nested config stored as dict (rate limiting, tavily, nitter, webpage_sites, llm)
     rate_limit: dict = Field(default_factory=dict)
     tavily: dict = Field(default_factory=dict)
     nitter: dict = Field(default_factory=dict)
     webpage_sites: dict = Field(default_factory=dict)
+    llm: dict = Field(default_factory=dict)
 
     @field_validator("timezone")
     @classmethod
@@ -102,6 +104,18 @@ def _create_default_config(config_path: Path) -> None:
         "tavily": {},
         "nitter": {},
         "webpage_sites": {},
+        "llm": {
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "ollama_base_url": "http://localhost:11434",
+            "fallback_chain": ["openai", "azure", "anthropic"],
+            "max_concurrency": 5,
+            "timeout_seconds": 60,
+            "max_tokens_per_call": 8000,
+            "daily_cap": 1000,
+            "weight_gate_min": 0.7,
+            "recency_gate_hours": 48,
+        },
     }
     with open(config_path, "w") as f:
         yaml.safe_dump(default_config, f, default_flow_style=False)
@@ -121,3 +135,11 @@ def get_default_feed_weight() -> float:
 def get_bm25_factor() -> float:
     """Return the BM25 sigmoid normalization factor (default 0.5)."""
     return _get_settings().bm25_factor
+
+
+def get_reports_dir() -> Path:
+    """Return the reports directory from config, or a sensible default."""
+    reports_dir = _get_settings().reports_dir
+    if reports_dir:
+        return Path(reports_dir)
+    return Path(platformdirs.user_data_dir("feedship", appauthor=False)) / "reports"
