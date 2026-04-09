@@ -18,12 +18,27 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
+import litellm
 import tiktoken
 
 # LiteLLM — unified LLM client
 from litellm import acompletion
 
 from src.application.config import _get_settings
+
+# Register MiniMax-M2.7 with zero cost to prevent litellm cost calculator from
+# raising "model not mapped" exceptions (litellm 1.52+ strict model validation)
+litellm.register_model(
+    {
+        "minimax/MiniMax-M2.7": {
+            "max_tokens": 32000,
+            "input_cost_per_token": 0.0,
+            "output_cost_per_token": 0.0,
+            "litellm_provider": "minimax",
+            "mode": "chat",
+        },
+    }
+)
 
 logger = logging.getLogger(__name__)
 

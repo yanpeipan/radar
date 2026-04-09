@@ -537,15 +537,17 @@ async def classify_article_layer(text: str, title: str = "") -> str:
         try:
             chain = get_classify_chain()
             result = await chain.ainvoke({"title": title, "content": sample})
+            # Strip thinking blocks that MiniMax injects (e.g. <think>...</think>)
+            clean_result = re.sub(r"<[^>]+>", "", result).strip()
             # Match against known categories
             for cat in LAYER_KEYS:
-                if cat in result:
+                if cat in clean_result:
                     return cat
             # Fallback: return first match or default
             for cat in LAYER_KEYS:
-                if cat.split("(")[0].strip() in result:
+                if cat.split("(")[0].strip() in clean_result:
                     return cat
-            logger.warning("Could not classify article layer from: %s", result.strip())
+            logger.warning("Could not classify article layer from: %s", clean_result)
             return "AI应用"  # Default fallback
         except Exception as e:
             if attempt < len(delays) - 1:
@@ -593,13 +595,14 @@ async def classify_cluster_layer(articles: list[dict], target_lang: str = "zh") 
             result = await chain.ainvoke(
                 {"title": "Cluster Classification", "content": sample}
             )
+            clean_result = re.sub(r"<[^>]+>", "", result).strip()
             for cat in LAYER_KEYS:
-                if cat in result:
+                if cat in clean_result:
                     return cat
                 for c in LAYER_KEYS:
-                    if c.split("(")[0].strip() in result:
+                    if c.split("(")[0].strip() in clean_result:
                         return c
-            logger.warning("Could not classify cluster layer from: %s", result.strip())
+            logger.warning("Could not classify cluster layer from: %s", clean_result)
             return "AI应用"
         except Exception as e:
             if attempt < len(delays) - 1:
