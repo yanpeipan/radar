@@ -483,3 +483,121 @@ Keywords:"""
     except Exception:
         pass
     return []
+
+
+async def batch_summarize_articles(
+    articles: list[dict],
+    target_lang: str = "en",
+    batch_size: int = 3,
+) -> list[dict]:
+    """Batch summarize multiple articles in one LLM call.
+
+    Args:
+        articles: list of dicts with 'content', 'title', 'id' keys
+        target_lang: target language for summaries
+        batch_size: number of articles per LLM call (default 3)
+
+    Returns:
+        list of dicts with 'id', 'summary', 'quality_score', 'keywords'
+    """
+    if not articles:
+        return []
+
+    results: list[dict] = []
+    pending: list[dict] = []  # articles not yet successfully batched
+
+    # Process in batches
+    for i in range(0, len(articles), batch_size):
+        batch = articles[i : i + batch_size]
+
+        # Build prompt with N articles
+        article_texts = []
+        for idx, article in enumerate(batch, start=1):
+            title = article.get("title", "Untitled")[:100]
+            content = article.get("content") or article.get("description") or ""
+            # Truncate content to avoid token overflow
+            content_sample = " ".join(content.split()[:200]) if content else ""
+            article_texts.append(
+                f"{idx}. [Title] {title}\n[Content] {content_sample[:500]}"
+            )
+
+        articles_block = "\n\n".join(article_texts)
+
+        prompt = f"""You are a research article analyst. For each article, provide a summary, quality score (0-1), and keywords.
+
+{articles_block}
+
+Return JSON array (one object per article in order):
+[
+  {{"id": "article_id", "summary": "...", "quality_score": 0.75, "keywords": ["AI", "transformer"]}}
+]
+
+Return ONLY the JSON array, no markdown code blocks or other text."""
+
+        try:
+            response = await llm_complete(prompt, max_tokens=2000, temperature=0.3)
+            # Strip markdown code blocks if present
+            clean_response = response.strip()
+            if clean_response.startswith("```"):
+                lines = clean_response.split("\n")
+                clean_response = "\n".join(
+                    lines[1:-1] if lines[-1].startswith("```") else lines[1:]
+                )
+            # Parse JSON
+            parsed = json.loads(clean_response)
+            if isinstance(parsed, list):
+                for item in parsed:
+                    if isinstance(item, dict) and "id" in item:
+                        results.append(
+                            {
+                                "id": item["id"],
+                                "summary": item.get("summary", ""),
+                                "quality_score": float(item.get("quality_score", 0.5)),
+                                "keywords": item.get("keywords", []),
+                            }
+                        )
+            else:
+                raise LLMError(f"Expected JSON array, got {type(parsed)}")
+        except Exception as e:
+            logger.warning(
+                "Batch summarize failed for batch %d: %s", i // batch_size, e
+            )
+            # Fall back to individual processing for failed items
+            for article in batch:
+                pending.append(article)
+
+    # Process pending articles individually
+    if pending:
+        from src.application.summarize import summarize_article_content
+
+        for article in pending:
+            try:
+                content = article.get("content") or article.get("description") or ""
+                summary, _, quality, keywords = await summarize_article_content(
+                    article.get("url", article.get("id", "")),
+                    article.get("title", ""),
+                    content,
+                    target_lang,
+                )
+                results.append(
+                    {
+                        "id": article.get("id", ""),
+                        "summary": summary,
+                        "quality_score": quality,
+                        "keywords": keywords,
+                    }
+                )
+            except Exception as e:
+                logger.warning(
+                    "Individual summarize failed for %s: %s", article.get("id", ""), e
+                )
+                results.append(
+                    {
+                        "id": article.get("id", ""),
+                        "summary": "",
+                        "quality_score": 0.0,
+                        "keywords": [],
+                    }
+                )
+
+    return results
