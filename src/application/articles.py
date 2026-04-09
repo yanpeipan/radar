@@ -57,6 +57,7 @@ class ArticleListItem:
     source_weight: float = 0.3
     ce_score: float = 0.0
     score: float = 0.0
+    quality_score: float = 0.0
 
 
 def list_articles(

@@ -73,9 +73,16 @@ async def evaluate_report(report_text: str) -> QualityScore:
         # EVALUATE_PROMPT instructs LLM to return 0.0-1.0 scores, so values arrive as-is — no /100 needed.
         # Defensive: if LLM returns 0-100 range by mistake, normalize.
         scores = result if isinstance(result, dict) else json.loads(result)
-        _normalize = lambda v: v / 100.0 if v > 1.0 else v
+
+        def _normalize(v: float) -> float:
+            return v / 100.0 if v > 1.0 else v
+
         return QualityScore(
-            overall=sum(_normalize(scores.get(k, 0)) for k in ["coherence", "relevance", "depth", "structure"]) / 4,
+            overall=sum(
+                _normalize(scores.get(k, 0))
+                for k in ["coherence", "relevance", "depth", "structure"]
+            )
+            / 4,
             coherence=_normalize(scores.get("coherence", 0)),
             relevance=_normalize(scores.get("relevance", 0)),
             depth=_normalize(scores.get("depth", 0)),
