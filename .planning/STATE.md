@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: LLM 智能报告生成
 status: in_progress
 last_updated: "2026-04-08T00:00:00Z"
-last_activity: 2026-04-09 — Completed quick task 260409-pou: 运行report命令、解决异常、评估新闻质量
+last_activity: 2026-04-09 — Completed quick task 260409-qbr: 修复日报质量问题（链接、聚合限制、翻译问题诊断）
 progress:
   total_phases: 4
   completed_phases: 4
@@ -68,4 +68,5 @@ Last activity: 2026-04-09 — Completed quick task 260409-3a7: 修复 report.py 
 | 260408-uf8 | 大规模去重+话题聚类+智能摘要生成 | 2026-04-08 | 4b49dfe | [260408-uf8-dedup-cluster](./quick/260408-uf8-dedup-cluster/) |
 | 260409-pg8 | 去掉所有v2命名，统一使用cluster-first pipeline | 2026-04-09 | 060a3ac | [260409-pg8-v2](./quick/260409-pg8-v2/) |
 | 260409-pou | 运行report命令、解决异常、评估新闻质量 | 2026-04-09 | e1c7da5 | [260409-pou-report](./quick/260409-pou-report/) |
+| 260409-qbr | 修复日报质量问题（链接、聚合、翻译诊断） | 2026-04-09 | — | [260409-qbr-fix-report](./quick/260409-qbr-fix-report/) |
 | 260409-3a7 | 修复 report.py 3个高优先级asyncio问题 + centroids索引bug | 2026-04-09 | 5cc1084 | [260409-3a7-ai-report-ai](./quick/260409-3a7-ai-report-ai/) |
