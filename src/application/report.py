@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 from src.application.dedup import deduplicate_articles
-from src.application.summarize import summarize_article_content
 from src.llm.chains import (
     get_classify_chain,
     get_layer_summary_chain,
@@ -704,36 +703,34 @@ async def _cluster_articles_async(
 
     # Collect pending DB writes to execute after gather (Fix #3)
     pending_writes_v2: list[tuple] = []
+    # Collect articles needing summarization for batch processing
+    needs_summarize: list[dict] = []
 
     async def process_one(article: dict) -> dict:
-        """Process article: on-demand summarize if needed. No layer classification."""
+        """Process article: collect for batch summarize if needed. No layer classification."""
         full = article
         summary = full.get("summary") or ""
         title = full.get("title", "")
         feed_weight = full.get("feed_weight", 0)
         feed_id = full.get("feed_id", "unknown")
+        content = full.get("content") or full.get("description") or ""
 
-        if not summary and auto_summarize and feed_weight >= 0.7:
-            content = full.get("content") or full.get("description") or ""
-            if content:
-                try:
-                    summary, _, quality, _ = await summarize_article_content(
-                        content, title
-                    )
-                    full["summary"] = summary
-                    full["quality_score"] = quality
-                    # Collect write params for post-gather batch (Fix #3: no sync DB inside gather)
-                    pending_writes_v2.append((article["id"], summary, quality, [], []))
-                except Exception as e:
-                    logger.warning(
-                        "On-demand summarize failed for %s: %s", article["id"], e
-                    )
+        if not summary and auto_summarize and feed_weight >= 0.7 and content:
+            # Collect for batch summarization (done after gather)
+            needs_summarize.append(
+                {
+                    "id": article["id"],
+                    "title": title,
+                    "content": content,
+                    "url": full.get("link", ""),
+                }
+            )
 
         processed = {
             "id": article["id"],
             "title": title,
             "link": full.get("link", ""),
-            "summary": full.get("summary", ""),
+            "summary": summary,
             "quality_score": full.get("quality_score"),
             "published_at": full.get("published_at"),
             "feed_id": feed_id,
@@ -745,7 +742,7 @@ async def _cluster_articles_async(
 
     # Process all unique articles (no LLM layer classification yet)
     all_processed: list[dict] = []
-    semaphore = asyncio.Semaphore(1)
+    semaphore = asyncio.Semaphore(5)  # was 1, now 5 for parallel I/O
 
     async def bounded_process(a: dict) -> dict:
         async with semaphore:
@@ -761,6 +758,53 @@ async def _cluster_articles_async(
                 continue
             processed = item
             all_processed.append(processed)
+
+    # Batch summarize articles collected during gather (instead of per-article LLM calls)
+    if needs_summarize:
+        try:
+            from src.llm.core import batch_summarize_articles
+
+            batch_results = await batch_summarize_articles(
+                needs_summarize, target_lang=target_lang, batch_size=3
+            )
+            # Populate summaries into all_processed and pending_writes_v2
+            summary_map = {r["id"]: r for r in batch_results}
+            for processed in all_processed:
+                article_id = processed["id"]
+                if article_id in summary_map:
+                    r = summary_map[article_id]
+                    processed["summary"] = r["summary"]
+                    processed["quality_score"] = r["quality_score"]
+                    pending_writes_v2.append(
+                        (article_id, r["summary"], r["quality_score"], [], [])
+                    )
+        except Exception as e:
+            logger.warning(
+                "Batch summarization failed, falling back to individual: %s", e
+            )
+            # Fall back to per-article summarization for articles still needing it
+            for article in needs_summarize:
+                try:
+                    from src.application.summarize import summarize_article_content
+
+                    content = article.get("content", "")
+                    summary, _, quality, _ = await summarize_article_content(
+                        article.get("url", article.get("id", "")),
+                        article.get("title", ""),
+                        content,
+                        target_lang,
+                    )
+                    # Update in all_processed
+                    for processed in all_processed:
+                        if processed["id"] == article["id"]:
+                            processed["summary"] = summary
+                            processed["quality_score"] = quality
+                            break
+                    pending_writes_v2.append((article["id"], summary, quality, [], []))
+                except Exception as ex:
+                    logger.warning(
+                        "Fallback summarize failed for %s: %s", article["id"], ex
+                    )
 
     # Execute pending DB writes sequentially after gather (Fix #3)
     for params in pending_writes_v2:
