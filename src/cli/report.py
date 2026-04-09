@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
+from pathlib import Path
 
 import click
 from rich.console import Console
 
 from src.application.config import get_reports_dir
 from src.application.report import (
-    cluster_articles_for_report,
     cluster_articles_for_report_v2,
-    render_report,
     render_report_v2,
 )
 from src.cli import cli
@@ -23,11 +23,6 @@ console = Console()
 
 
 @cli.command("report")
-@click.option(
-    "--template",
-    default="default",
-    help="Template name (default: 'default'). Templates stored in ~/.config/feedship/templates/",
-)
 @click.option("--since", required=True, help="Start date (YYYY-MM-DD)")
 @click.option("--until", required=True, help="End date (YYYY-MM-DD)")
 @click.option("--output", default=None, help="Save report to file path")
@@ -50,10 +45,7 @@ console = Console()
     type=click.Choice(["zh", "en"]),
     help="Report output language (default: zh)",
 )
-@click.pass_context
 def report(
-    ctx: click.Context,
-    template: str,
     since: str,
     until: str,
     output: str | None,
@@ -74,32 +66,20 @@ def report(
         feedship report --since 2026-04-01 --until 2026-04-07 --json
     """
     try:
-        # Cluster articles
+        # Cluster articles (v2 only)
         with console.status("[cyan]Fetching and clustering articles..."):
-            if template == "v2":
-                data = cluster_articles_for_report_v2(
-                    since=since,
-                    until=until,
-                    limit=limit,
-                    auto_summarize=auto_summarize,
-                    target_lang=language,
-                )
-                total_articles = sum(
-                    len(t["sources"])
-                    for layer in data.get("layers", [])
-                    for t in layer.get("topics", [])
-                )
-            else:
-                data = cluster_articles_for_report(
-                    since=since,
-                    until=until,
-                    limit=limit,
-                    auto_summarize=auto_summarize,
-                    target_lang=language,
-                )
-                total_articles = sum(
-                    len(arts) for arts in data["articles_by_layer"].values()
-                )
+            data = cluster_articles_for_report_v2(
+                since=since,
+                until=until,
+                limit=limit,
+                auto_summarize=auto_summarize,
+                target_lang=language,
+            )
+            total_articles = sum(
+                len(t["sources"])
+                for layer in data.get("layers", [])
+                for t in layer.get("topics", [])
+            )
         summarized_on_demand = data.get("summarized_on_demand", 0)
 
         if total_articles == 0:
@@ -126,18 +106,11 @@ def report(
                 f"[cyan]Summarized {summarized_on_demand} articles on-demand[/cyan]"
             )
 
-        # Render report (async functions must be awaited)
+        # Render report
         try:
-            import asyncio
-
-            if template == "v2":
-                report_text = asyncio.run(
-                    render_report_v2(data, template_name="v2", target_lang=language)
-                )
-            else:
-                report_text = asyncio.run(
-                    render_report(data, template_name=template, target_lang=language)
-                )
+            report_text = asyncio.run(
+                render_report_v2(data, template_name="default", target_lang=language)
+            )
         except Exception as e:
             if json_output:
                 print_json_error(f"Failed to render template: {e}", "template_error")
@@ -145,43 +118,23 @@ def report(
             sys.exit(1)
 
         if json_output:
-            # Build a clean JSON representation
             output_json = {
                 "date_range": data["date_range"],
                 "total_articles": total_articles,
-                "template": template,
+                "layers": data.get("layers", []),
+                "signals": data.get("signals", {}),
+                "creation": data.get("creation", []),
             }
-            if template == "v2":
-                output_json["layers"] = data.get("layers", [])
-                output_json["signals"] = data.get("signals", {})
-                output_json["creation"] = data.get("creation", [])
-            else:
-                output_json["layers"] = {}
-                for layer, arts in data["articles_by_layer"].items():
-                    if arts:
-                        output_json["layers"][layer] = {
-                            "summary": data["layer_summaries"].get(layer, ""),
-                            "articles": [
-                                {
-                                    "id": a["id"],
-                                    "title": a["title"],
-                                    "link": a["link"],
-                                    "quality_score": a["quality_score"],
-                                }
-                                for a in arts
-                            ],
-                        }
             print_json(output_json)
             return
 
-        # Plain text output - always save report_text and print to console
+        # Plain text output
         if output:
             output_path = Path(output)
         else:
-            # Auto-save to configured reports_dir (default: ~/.local/share/feedship/reports/)
             reports_dir = get_reports_dir()
             reports_dir.mkdir(parents=True, exist_ok=True)
-            filename = f"{since}_{until}_{template}.md"
+            filename = f"{since}_{until}.md"
             output_path = reports_dir / filename
 
         output_path.write_text(report_text)
@@ -194,7 +147,3 @@ def report(
         console.print(f"[red]Error: {e}[/red]")
         logger.exception("Failed to generate report")
         sys.exit(1)
-
-
-# Needed for Path in the CLI
-from pathlib import Path
