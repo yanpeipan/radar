@@ -4,7 +4,7 @@ version = "1.7.9"
 description = "A personal information delivery system - collect, subscribe to, and organize information sources from the internet"
 requires-python = ">=3.10, <3.13"
 dependencies = [
-    "feedparser>=6.0.0,<7",
+    "feedparser>=6.0.0,<7",  # CVE: XML entity expansion / billion-laughs (historic CVEs in <6.0)
     "httpx>=0.28.0,<0.29.0",  # SSRF CVEs fixed in 0.27+; grype will track future vulns
     "click>=8.1.0",
     "beautifulsoup4>=4.12.0",
