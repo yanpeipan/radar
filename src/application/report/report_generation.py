@@ -19,7 +19,7 @@ from src.application.entity_report import (
     TLDRGenerator,
 )
 from src.llm.core import get_llm_client
-from src.storage import list_articles_for_llm
+from src.storage import list_articles
 
 logger = logging.getLogger(__name__)
 
@@ -423,14 +423,31 @@ def cluster_articles_for_report(
         dict with keys: rendered (markdown str), tldr_top10, by_layer,
         by_dimension, entity_topics, date_range ({since, until}).
     """
-    articles = list_articles_for_llm(
+    articles = list_articles(
         limit=limit,
         since=since,
         until=until,
-        unsummarized_only=False,
     )
+    # Convert ArticleListItem to dict for downstream pipeline
+    article_dicts = [
+        {
+            "id": a.id,
+            "feed_id": a.feed_id,
+            "feed_name": a.feed_name,
+            "feed_weight": a.feed_weight,
+            "title": a.title,
+            "link": a.link,
+            "published_at": a.published_at,
+            "description": a.description,
+            "content": a.content,
+            "summary": a.summary,
+            "quality_score": a.quality_score,
+            "feed_url": a.feed_url,
+        }
+        for a in articles
+    ]
     return asyncio.run(
-        _entity_report_async(articles, since, until, auto_summarize, target_lang)
+        _entity_report_async(article_dicts, since, until, auto_summarize, target_lang)
     )
 
 

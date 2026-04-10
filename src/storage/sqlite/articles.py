@@ -507,9 +507,9 @@ def list_articles(
         cursor = conn.cursor()
         cursor.execute(  # nosec B608
             f"""
-            SELECT a.id, a.feed_id, f.name as feed_name,
-                   a.title, a.link, a.guid, a.published_at, a.description,
-                   a.quality_score
+            SELECT a.id, a.feed_id, f.name as feed_name, f.weight as feed_weight,
+                   a.title, a.link, a.guid, a.published_at, a.description, a.content,
+                   a.summary, f.url as feed_url
             FROM articles a
             JOIN feeds f ON a.feed_id = f.id
             WHERE {where_clause}
@@ -543,6 +543,10 @@ def list_articles(
                 ce_score=0.0,
                 score=0.0,
                 quality_score=row["quality_score"],
+                content=row["content"],
+                summary=row["summary"],
+                feed_weight=row["feed_weight"],
+                feed_url=row["feed_url"],
             )
 
         return [_compute_article_item(row) for row in rows]

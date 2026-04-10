@@ -69,7 +69,6 @@ from src.storage.sqlite.feeds import (  # noqa: F401, E402
 # ---------------------------------------------------------------------------
 from src.storage.sqlite.llm import (  # noqa: F401, E402
     get_article_with_llm,
-    list_articles_for_llm,
     update_article_llm,
 )
 

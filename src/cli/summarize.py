@@ -18,7 +18,7 @@ from rich.progress import (
 
 from src.cli import cli
 from src.cli.ui import print_json, print_json_error
-from src.storage import list_articles_for_llm
+from src.storage import list_articles
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -49,14 +49,14 @@ def _resolve_article_ids(
     if article_id:
         return [article_id], "id"
     if group:
-        articles = list_articles_for_llm(limit=limit, groups=[group])
-        return [a["id"] for a in articles], f"group:{group}"
+        articles = list_articles(limit=limit, groups=[group])
+        return [a.id for a in articles], f"group:{group}"
     if feed_id:
-        articles = list_articles_for_llm(limit=limit, feed_id=feed_id)
-        return [a["id"] for a in articles], f"feed:{feed_id}"
+        articles = list_articles(limit=limit, feed_id=feed_id)
+        return [a.id for a in articles], f"feed:{feed_id}"
     if all_:
-        articles = list_articles_for_llm(limit=limit)
-        return [a["id"] for a in articles], "all feeds"
+        articles = list_articles(limit=limit)
+        return [a.id for a in articles], "all feeds"
 
 
 @cli.command("summarize")

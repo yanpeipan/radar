@@ -31,7 +31,6 @@ from src.storage.sqlite.feeds import (
 from src.storage.sqlite.init import DatabaseInitializer
 from src.storage.sqlite.llm import (
     get_article_with_llm,
-    list_articles_for_llm,
     update_article_llm,
 )
 from src.storage.sqlite.search import search_articles_fts
@@ -61,5 +60,4 @@ __all__ = [
     "get_articles_by_ids",
     "update_article_llm",
     "get_article_with_llm",
-    "list_articles_for_llm",
 ]

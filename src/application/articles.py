@@ -80,6 +80,10 @@ class ArticleListItem:
     ce_score: float = 0.0
     score: float = 0.0
     quality_score: float | None = None
+    content: str | None = None
+    summary: str | None = None
+    feed_weight: float | None = None
+    feed_url: str | None = None
 
 
 def list_articles(
