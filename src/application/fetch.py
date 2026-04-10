@@ -34,6 +34,26 @@ class FeedSizeLimitError(Exception):
 logger = logging.getLogger(__name__)
 
 
+def _check_ml_dependencies() -> bool:
+    """Check whether optional ML dependencies (chromadb, sentence-transformers) are available.
+
+    Returns:
+        True if all ML dependencies are installed.
+
+    Raises:
+        RuntimeError: If any ML dependency is missing, with an install hint.
+    """
+    try:
+        import chromadb  # noqa: F401
+        from sentence_transformers import SentenceTransformer  # noqa: F401
+    except ImportError as e:
+        raise RuntimeError(
+            "Embedding generation requires chromadb and sentence-transformers. "
+            "Install with: pip install feedship[ml]"
+        ) from e
+    return True
+
+
 async def fetch_one_async(feed: Feed) -> dict:
     """Fetch new articles from a single feed asynchronously.
 
@@ -130,6 +150,7 @@ async def fetch_one_async(feed: Feed) -> dict:
     # Batch add embeddings
     if new_count > 0:
         try:
+            _check_ml_dependencies()
             from src.storage.vector import add_article_embeddings
 
             # Build article dicts for batch embedding

@@ -3,7 +3,7 @@
   "spec": "008-improve-semantic-search-error-messaging-when-ml-de",
   "state": "building",
   "subtasks": {
-    "completed": 3,
+    "completed": 4,
     "total": 7,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 5,
+    "number": 6,
     "started_at": "2026-04-10T17:05:23.869951"
   },
-  "last_update": "2026-04-10T17:23:25.061206"
+  "last_update": "2026-04-10T17:28:45.459102"
 }

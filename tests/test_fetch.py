@@ -134,7 +134,10 @@ async def test_fetch_one_async_no_provider():
     # Mock match_first to return None so no provider matches
     with patch("src.application.fetch.match_first", return_value=None):
         result = await fetch_one_async(test_feed)
-    assert result == {"new_articles": 0, "error": "No provider for https://example.invalid/no-provider-path"}
+    assert result == {
+        "new_articles": 0,
+        "error": "No provider for https://example.invalid/no-provider-path",
+    }
 
 
 @pytest.mark.asyncio
