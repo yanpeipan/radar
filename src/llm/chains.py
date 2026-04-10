@@ -64,14 +64,14 @@ class AsyncLLMWrapper(Runnable):
         else:
             text = str(input)
         max_tokens = self._resolve_max_tokens(config)
-        extra_body = {}
+        # Build extra_body from config first
+        extra_body: dict[str, Any] = {}
         if isinstance(config, dict):
-            extra_body = config.get("extra_body", {})
+            extra_body = dict(config.get("extra_body", {}))
+        # Then overlay instance-level settings (these MUST be applied)
         if self._response_format:
-            extra_body = dict(extra_body)
             extra_body["response_format"] = self._response_format
         if self._thinking:
-            extra_body = dict(extra_body)
             extra_body["thinking"] = self._thinking
         return await self.client.complete(
             text, max_tokens=max_tokens, extra_body=extra_body
@@ -121,7 +121,9 @@ class AsyncLLMWrapper(Runnable):
 
 
 # Cache of wrappers per (max_tokens, response_format, thinking) to avoid per-call instantiation
-_llm_wrapper_cache: dict[tuple[int, frozenset[tuple[str, Any]], frozenset[tuple[str, Any]]], AsyncLLMWrapper] = {}
+_llm_wrapper_cache: dict[
+    tuple[int, frozenset[tuple[str, Any]], frozenset[tuple[str, Any]]], AsyncLLMWrapper
+] = {}
 
 
 def _get_llm_wrapper(
