@@ -25,6 +25,31 @@ from src.storage.vector import (
 
 logger = logging.getLogger(__name__)
 
+_chromadb_available = None
+
+
+def _check_chromadb():
+    """Lazily check that ChromaDB and chromadb are available.
+
+    Caches the result on first call to avoid repeated import attempts.
+
+    Raises:
+        RuntimeError: If chromadb cannot be imported.
+    """
+    global _chromadb_available
+    if _chromadb_available is None:
+        try:
+            import chromadb  # noqa: F401
+
+            _chromadb_available = True
+        except ImportError as e:
+            _chromadb_available = False
+            raise RuntimeError(
+                "ChromaDB is required for semantic search. "
+                "Install with: pip install chromadb"
+            ) from e
+    return _chromadb_available
+
 
 async def summarize_article_content_dep(
     content: str,
@@ -139,6 +164,7 @@ async def process_article_llm(
     published_at = article.get("published_at")
 
     try:
+        _check_chromadb()
         upsert_article_summary(
             article_id=article_id,
             summary=summary,
@@ -146,10 +172,13 @@ async def process_article_llm(
             url=url,
             published_at=published_at,
         )
+    except RuntimeError as e:
+        logger.warning("ChromaDB unavailable, skipping summary upsert: %s", e)
     except Exception as e:
         logger.warning("Failed to upsert summary to ChromaDB: %s", e)
 
     try:
+        _check_chromadb()
         upsert_article_keywords(
             article_id=article_id,
             keywords=keywords,
@@ -157,6 +186,8 @@ async def process_article_llm(
             url=url,
             published_at=published_at,
         )
+    except RuntimeError as e:
+        logger.warning("ChromaDB unavailable, skipping keywords upsert: %s", e)
     except Exception as e:
         logger.warning("Failed to upsert keywords to ChromaDB: %s", e)
 
