@@ -34,7 +34,9 @@ from src.application.report.render import (
 )
 from src.application.report.tldr import TLDRGenerator
 
-_report_py = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "report.py")
+_report_py = _os.path.join(
+    _os.path.dirname(_os.path.dirname(__file__)), "report_generation.py"
+)
 _loader = importlib.machinery.SourceFileLoader(
     "src.application.report.report", _report_py
 )

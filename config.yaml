@@ -1,9 +1,12 @@
 # LLM configuration
 llm:
-  provider: minimax
-  model: anthropic/MiniMax-M2.7
-  api_key: ${MINIMAX_API_KEY}
-  base_url: https://api.minimaxi.com/anthropic
+  model_list:
+    - model_name: minimax/MiniMax-M2.7
+      litellm_params:
+        model: anthropic/MiniMax-M2.7
+        api_key: ${OPENAI_API_KEY}
+        api_base: https://api.minimaxi.com/anthropic
+        rpm: 60
 
 # Application configuration
 timezone: Asia/Shanghai

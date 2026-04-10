@@ -1,5 +1,6 @@
 """Application configuration using Pydantic BaseSettings."""
 
+import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -9,6 +10,35 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _settings: "FeedshipSettings | None" = None
 _cached_timezone: "ZoneInfo | None" = None
+
+
+def _resolve_env_vars(value: str) -> str:
+    """Resolve ${VAR} environment variable references in config strings."""
+    if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
+        return os.environ.get(value[2:-1], value)
+    return value
+
+
+def _resolve_dict_env_vars(data: dict) -> dict:
+    """Recursively resolve ${VAR} references in dict values."""
+    result = {}
+    for k, v in data.items():
+        if isinstance(v, str):
+            result[k] = _resolve_env_vars(v)
+        elif isinstance(v, dict):
+            result[k] = _resolve_dict_env_vars(v)
+        elif isinstance(v, list):
+            result[k] = [
+                _resolve_dict_env_vars(item)
+                if isinstance(item, dict)
+                else _resolve_env_vars(item)
+                if isinstance(item, str)
+                else item
+                for item in v
+            ]
+        else:
+            result[k] = v
+    return result
 
 
 class FeedshipSettings(BaseSettings):
@@ -89,6 +119,10 @@ def _get_settings() -> FeedshipSettings:
             _create_default_config(config_path)
 
         _settings = FeedshipSettings.from_yaml(config_path)
+        # Resolve ${VAR} env var references in loaded config
+        raw = _settings.model_dump()
+        resolved = _resolve_dict_env_vars(raw)
+        _settings = FeedshipSettings.model_validate(resolved)
 
     return _settings
 

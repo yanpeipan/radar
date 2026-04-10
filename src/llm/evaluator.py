@@ -298,7 +298,7 @@ def run_improvement_loop(
     """
     import asyncio
 
-    from src.application.report import cluster_articles_for_report, render_report
+    from src.application.report_generation import cluster_articles_for_report, render_report
 
     results = []
     for i in range(1, iterations + 1):

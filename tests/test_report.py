@@ -13,7 +13,7 @@ import pytest
 from click.testing import CliRunner
 
 from src.application.dedup import deduplicate_articles
-from src.application.report import LAYER_KEYS
+from src.application.report_generation import LAYER_KEYS
 from src.cli import cli
 
 # =============================================================================
@@ -425,7 +425,7 @@ class TestV2Clustering:
 
     def test_report_v2_clustering_empty_returns_empty_layers(self, initialized_db):
         """cluster_articles_for_report returns empty layers when no articles."""
-        from src.application.report import cluster_articles_for_report
+        from src.application.report_generation import cluster_articles_for_report
 
         with (
             patch(

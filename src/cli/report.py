@@ -11,7 +11,7 @@ import click
 from rich.console import Console
 
 from src.application.config import get_reports_dir
-from src.application.report import (
+from src.application.report_generation import (
     cluster_articles_for_report,
     render_report,
 )

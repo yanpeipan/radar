@@ -1104,3 +1104,27 @@ async def render_report(
         date_range=data.get("date_range", {}),
         target_lang=target_lang,
     )
+
+
+# Re-export entity clustering classes from entity_report/ subpackage
+from src.application.entity_report import (
+    ArticleEnriched,
+    EntityTag,
+    EntityTopic,
+    ReportData,
+    SignalFilter,
+    NERExtractor,
+    EntityClusterer,
+    TLDRGenerator,
+)
+
+__all__ = [
+    "ArticleEnriched",
+    "EntityTag",
+    "EntityTopic",
+    "ReportData",
+    "SignalFilter",
+    "NERExtractor",
+    "EntityClusterer",
+    "TLDRGenerator",
+]
