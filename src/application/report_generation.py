@@ -462,19 +462,33 @@ def _clean_translation(text: str) -> str:
 
     text = text.strip()
 
-    # Try to find "final answer" / "最后答案" marker first (before first Chinese)
-    # This skips the user's prompt that's embedded in the thinking block
+    # MiniMax thinking block embeds the user's prompt AND the answer.
+    # The answer is typically in quotes like "Chinese translation".
+    # Find all double-quoted strings containing Chinese, skip the prompt
+    # (which has mixed Chinese+English with : between), return the pure Chinese one.
+    quoted = re.findall(r'"([^"]*)"', text)
+    for q in quoted:
+        if re.search(r"[\u4e00-\u9fff]", q):
+            # Skip if contains English letters (it's the prompt, not translation)
+            if re.search(r"[a-zA-Z]", q):
+                continue
+            # Skip if too short (likely the prompt "直接翻译成中文，不要解释")
+            if len(q.strip()) <= 10:
+                continue
+            q = re.sub(r"[.。]+$", "", q)
+            if q.strip():
+                return q.strip()
+
+    # Fallback: find first Chinese character sequence after answer/答案 marker
     answer_match = re.search(
-        r'(?:final answer|最后答案|answer|答案)[:：]\s*["\']?([\u4e00-\u9fff]',
+        r'(?:final answer|最后答案|answer|答案)[:：]\s*["\']?(.+?)(?:\n|$)',
         text,
-        re.IGNORECASE,
+        re.IGNORECASE | re.DOTALL,
     )
     if answer_match:
-        # Extract from Chinese char after the answer marker
-        start = answer_match.start(1)
-        result = text[start:].strip().strip('"').strip("'")
+        result = answer_match.group(1).strip().strip('"').strip("'")
         result = re.sub(r"[.。]+$", "", result)
-        if result:
+        if result and re.search(r"[\u4e00-\u9fff]", result):
             return result
 
     # Fallback: find first Chinese character and extract from there
@@ -531,7 +545,6 @@ async def _translate_titles_batch_async(
     """
     if not titles:
         return {}
-    print(f"_translate_titles_batch_async: {len(titles)} titles")
     client = get_llm_client()
     semaphore = asyncio.Semaphore(1)
 
@@ -540,7 +553,6 @@ async def _translate_titles_batch_async(
             prompt = f"直接翻译成中文，不要解释：{title}"
             result = await client.complete(prompt, max_tokens=300)
             cleaned = _clean_translation(result.strip())
-            print(f"  CLEANED: {title[:40]} -> {cleaned[:80]}")
             return (title, cleaned)
 
     results = await asyncio.gather(
@@ -1111,11 +1123,9 @@ async def render_report(
         unique_titles = list(dict.fromkeys(all_titles))
 
         pre_translated = await _translate_titles_batch_async(unique_titles, target_lang)
-        print(f"PRE-TRANSLATED count={len(pre_translated)}")
         # Populate cache for template filters
         for orig, translated in pre_translated.items():
             _title_translate_cache[(orig, target_lang)] = translated
-        print(f"Cache now has {len(_title_translate_cache)} entries")
 
     try:
         from jinja2 import Environment, FileSystemLoader
