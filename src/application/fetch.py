@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from src.application.feed import FeedNotFoundError, fetch_one, get_feed
+from src.application.feed import FeedNotFoundError, get_feed
 from src.models import Feed, FeedType
 from src.providers import match_first
 from src.storage import list_feeds as storage_list_feeds
@@ -350,34 +350,119 @@ async def fetch_ids_async(ids: list[str], concurrency: int = 10):
     (default 10). SQLite writes are serialized via asyncio.Lock + asyncio.to_thread()
     to prevent 'database is locked' errors.
 
+    Embeddings are added in a single batch call after all feeds are processed,
+    rather than per-feed, for efficiency.
+
+    This is an async generator that yields results as each feed completes,
+    enabling real-time progress tracking via asyncio.as_completed().
+
     Args:
         ids: List of feed IDs to fetch.
         concurrency: Maximum number of concurrent fetches. Default is 10.
 
     Yields:
-        Dict with feed_id, new_articles, error (if any).
-        Skips "Feed not found" errors gracefully (does not yield them).
+        Dict with feed_id, feed_name, new_articles, error (if any).
     """
     if not ids:
         return
 
+    # Resolve feed IDs to Feed objects, skipping missing ones
+    feeds: list[Feed] = []
+    for id in ids:
+        try:
+            feed = get_feed(id)
+            if feed:
+                feeds.append(feed)
+        except Exception:
+            # Skip feeds that can't be resolved
+            continue
+
+    if not feeds:
+        return
+
     semaphore = asyncio.Semaphore(concurrency)
+    all_embedding_articles: list = []
 
-    async def fetch_one_with_semaphore(id: str):
+    async def process_feed_with_semaphore(feed: Feed) -> tuple:
+        """Process a single feed within the semaphore limit.
+
+        Uses _fetch_one_core directly (no per-feed embeddings).
+        Returns (feed, new_count, embedding_articles, error).
+        """
         async with semaphore:
+            # Parse feed_type from metadata JSON string
+            feed_type = None
+            if feed.metadata:
+                import json
+
+                try:
+                    meta = json.loads(feed.metadata)
+                    if meta.get("feed_type"):
+                        feed_type = FeedType(meta["feed_type"])
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+            # Use match_first to find provider for this feed URL
+            provider = match_first(feed.url, feed_type=feed_type)
+            if not provider:
+                return feed, 0, [], f"No provider for {feed.url}"
+
+            # Get or create circuit breaker for this provider
+            provider_name = provider.__class__.__name__
+            async with _circuit_lock:
+                if provider_name not in _provider_circuits:
+                    from src.utils.scraping_utils import CircuitBreakerState
+
+                    _provider_circuits[provider_name] = CircuitBreakerState()
+                circuit = _provider_circuits[provider_name]
+
+            # Check if circuit allows execution
+            if not await circuit.can_execute():
+                logger.warning(
+                    "Circuit open for %s, skipping %s", provider_name, feed.url
+                )
+                return feed, 0, [], f"Circuit open for {provider_name}"
+
+            # Crawl using the discovered provider's async method
             try:
-                result = await asyncio.to_thread(fetch_one, id)
-                return {"feed_id": id, **result}
-            except FeedNotFoundError:
-                # Skip "Feed not found" - feed doesn't exist in DB
-                return None
+                result = await asyncio.to_thread(provider.fetch_articles, feed)
+                await circuit.record_success()
             except Exception as e:
-                # Yield other errors but continue to next feed
-                return {"feed_id": id, "new_articles": 0, "error": str(e)}
+                await circuit.record_failure()
+                logger.error("Failed to fetch_articles %s: %s", feed.url, e)
+                return feed, 0, [], str(e)
 
-    tasks = [fetch_one_with_semaphore(id) for id in ids]
+            # Delegate to the async core (returns upsert results, not embeddings)
+            new_count, embedding_articles, error = await _fetch_one_core(
+                feed, result.articles
+            )
+            if error:
+                return feed, 0, [], error
 
+            return feed, new_count, embedding_articles, None
+
+    # Create tasks for all feeds - semaphore limits actual concurrency
+    tasks = [process_feed_with_semaphore(feed) for feed in feeds]
+
+    # Use as_completed to yield results as they complete and collect embedding articles
     for coro in asyncio.as_completed(tasks):
-        result = await coro
-        if result is not None:
-            yield result
+        feed, new_count, embedding_articles, error = await coro
+        if embedding_articles:
+            all_embedding_articles.extend(embedding_articles)
+        yield {
+            "feed_id": feed.id,
+            "feed_name": feed.name,
+            "new_articles": new_count,
+            "error": error,
+        }
+
+    # Batch add embeddings after all feeds are processed
+    if all_embedding_articles:
+        try:
+            _check_ml_dependencies()
+            from src.storage.vector import add_article_embeddings
+
+            await asyncio.to_thread(add_article_embeddings, all_embedding_articles)
+        except Exception as e:
+            logger.warning("Failed to batch-add embeddings: %s", e)
+            # Don't fail the fetch — embeddings are non-critical
