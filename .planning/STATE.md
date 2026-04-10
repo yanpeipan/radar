@@ -24,7 +24,7 @@ progress:
 Phase: 23 (Report Generation) — Complete
 Plan: 23-PLAN.md
 Status: Implementation complete
-Last activity: 2026-04-10 — Completed quick task 260410-wx0: Report 架构 P0/P1 问题修复：LLM resilience + 统一 pipeline
+Last activity: 2026-04-10 — Completed quick task 260410-x81: Report P1 pipeline — thematic clustering 废弃，统一走 entity-based
 
 ## Current Milestone: v1.11 — LLM 智能报告生成
 
@@ -76,4 +76,5 @@ Last activity: 2026-04-10 — Completed quick task 260410-wx0: Report 架构 P0/
 | 260409-ty1 | 去重前置+批量摘要优化 | 2026-04-09 | ff01c9e | [260409-ty1](./quick/260409-ty1/) |
 | 260410-qgc | 使用 litellm Router 配置 minimax 模型 | 2026-04-10 | 21712b0 | | [260410-qgc-litellm-router-minimax](./quick/260410-qgc-litellm-router-minimax/) |
 | 260410-qux | 精简 src/llm/core.py 代码 | 2026-04-10 | 837fc9e | ✅ | [260410-qux-src-llm-core-py](./quick/260410-qux-src-llm-core-py/) |
-| 260410-wx0 | Report 架构 P0/P1 问题修复：LLM resilience + 统一 pipeline | 2026-04-10 | f655624 | Verified | [260410-wx0-report-p0-p1-llm-resilience-pipeline](./quick/260410-wx0-report-p0-p1-llm-resilience-pipeline/) |
+| 260410-wx0 | Report P0 LLM resilience: NER + EntityTopic chain retry | 2026-04-10 | f655624 | Verified | [260410-wx0-report-p0-p1-llm-resilience-pipeline](./quick/260410-wx0-report-p0-p1-llm-resilience-pipeline/) |
+| 260410-x81 | Report P1 pipeline: 废弃 thematic clustering，统一走 entity-based | 2026-04-10 | f04de0b | Verified | [260410-x81-report-p1-pipeline-thematic-clustering-e](./quick/260410-x81-report-p1-pipeline-thematic-clustering-e/) |
