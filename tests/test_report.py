@@ -327,7 +327,7 @@ class TestReportIntegration:
         )
 
         # Update article with summary and quality (simulating summarize step)
-        from src.storage.sqlite.impl import get_db
+        from src.storage.sqlite import get_db
 
         with get_db() as conn:
             conn.execute(
