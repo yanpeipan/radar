@@ -70,7 +70,7 @@ class EntityClusterer:
         # Rank by quality_weight and take top max_entities
         ranked = sorted(
             entity_groups.items(),
-            key=lambda x: sum(a.quality_score for a in x[1]) * len(x[1]),
+            key=lambda x: sum((a.quality_score or 0) for a in x[1]) * len(x[1]),
             reverse=True,
         )
         ranked = ranked[: self.max_entities]
@@ -136,7 +136,9 @@ class EntityClusterer:
                         articles_count=len(entity_articles),
                         signals=[],
                         tldr="",
-                        quality_weight=sum(a.quality_score for a in entity_articles)
+                        quality_weight=sum(
+                            (a.quality_score or 0) for a in entity_articles
+                        )
                         * len(entity_articles),
                     )
 
@@ -153,7 +155,7 @@ class EntityClusterer:
                     articles_count=len(entity_articles),
                     signals=result.get("signals", []),
                     tldr="",
-                    quality_weight=sum(a.quality_score for a in entity_articles)
+                    quality_weight=sum((a.quality_score or 0) for a in entity_articles)
                     * len(entity_articles),
                 )
 
