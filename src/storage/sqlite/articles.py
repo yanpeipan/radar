@@ -159,9 +159,8 @@ def store_article(
     Returns:
         article_id: The ID of the stored article.
     """
-    from src.storage.sqlite.conn import get_db
-
     from src.application.config import get_timezone
+    from src.storage.sqlite.conn import get_db
 
     tz = get_timezone()
     now = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -463,10 +462,9 @@ def list_articles(
     import math
     from datetime import datetime, timezone
 
-    from src.storage.sqlite.conn import get_db
-
     from src.application.articles import ArticleListItem
     from src.application.config import get_timezone
+    from src.storage.sqlite.conn import get_db
     from src.storage.vector import _published_at_to_timestamp
 
     tz = get_timezone()
@@ -552,9 +550,8 @@ def list_articles(
 
 def get_article(article_id: str) -> list | None:
     """Get a single article by ID."""
-    from src.storage.sqlite.conn import get_db
-
     from src.application.articles import ArticleListItem
+    from src.storage.sqlite.conn import get_db
 
     with get_db() as conn:
         cursor = conn.cursor()

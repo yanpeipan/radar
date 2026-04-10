@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-09T13:23:01.104Z"
-last_activity: "2026-04-10 — Completed quick task 260411-0sg: report pipeline LLM call analysis and optimization"
+last_activity: "2026-04-10 — Completed quick task 260411-11i: remove per-title translation, translate report once"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -79,3 +79,4 @@ Last activity: 2026-04-10 — Completed quick task 260410-x81: Report P1 pipelin
 | 260410-wx0 | Report P0 LLM resilience: NER + EntityTopic chain retry | 2026-04-10 | f655624 | Verified | [260410-wx0-report-p0-p1-llm-resilience-pipeline](./quick/260410-wx0-report-p0-p1-llm-resilience-pipeline/) |
 | 260410-x81 | Report P1 pipeline: 废弃 thematic clustering，统一走 entity-based | 2026-04-10 | f04de0b | Verified | [260410-x81-report-p1-pipeline-thematic-clustering-e](./quick/260410-x81-report-p1-pipeline-thematic-clustering-e/) |
 | 260411-0sg | 梳理report逻辑架构并计算3333篇新闻LLM调用次数，激活AI架构师给出完整优化方案 | 2026-04-10 | faadc78 | Verified | [260411-0sg-report-3333-llm](./quick/260411-0sg-report-3333-llm/) |
+| 260411-11i | 移除逐条标题翻译，改为最终报告一次性翻译，大幅减少LLM调用 | 2026-04-10 | d510140 | ✅ | [260411-11i-llm](./quick/260411-11i-llm/) |

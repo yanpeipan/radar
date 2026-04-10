@@ -15,6 +15,24 @@ to work without modification.
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
+# articles.py - Article CRUD and listing
+# ---------------------------------------------------------------------------
+from src.storage.sqlite.articles import (  # noqa: F401, E402
+    _batch_upsert_articles,
+    _get_article_field,
+    get_article,
+    get_article_detail,
+    get_article_id_by_url,
+    get_articles_by_ids,
+    list_articles,
+    store_article,
+    store_article_async,
+    update_article_content,
+    upsert_articles,
+    upsert_articles_async,
+)
+
+# ---------------------------------------------------------------------------
 # conn.py  - DB connection, write lock, date utilities
 # ---------------------------------------------------------------------------
 from src.storage.sqlite.conn import (  # noqa: F401, E402
@@ -44,24 +62,6 @@ from src.storage.sqlite.feeds import (  # noqa: F401, E402
     update_feed,
     update_feed_metadata,
     upsert_feed,
-)
-
-# ---------------------------------------------------------------------------
-# articles.py - Article CRUD and listing
-# ---------------------------------------------------------------------------
-from src.storage.sqlite.articles import (  # noqa: F401, E402
-    _batch_upsert_articles,
-    _get_article_field,
-    get_article,
-    get_article_detail,
-    get_article_id_by_url,
-    get_articles_by_ids,
-    list_articles,
-    store_article,
-    store_article_async,
-    update_article_content,
-    upsert_articles,
-    upsert_articles_async,
 )
 
 # ---------------------------------------------------------------------------

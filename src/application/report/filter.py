@@ -74,7 +74,8 @@ class SignalFilter:
         seen_hashes.add(h)
 
         # Rule 2: Quality gate (with optional event boost)
-        quality = article.get("quality_score", 0.0)
+        # Use "or 0.0" to handle None values (key exists but value is None)
+        quality = article.get("quality_score") or 0.0
         title = article.get("title", "")
         effective_quality = quality
         if self.event_signal_boost and self._has_event_signal(title):
