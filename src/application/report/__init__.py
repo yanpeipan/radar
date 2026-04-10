@@ -7,8 +7,14 @@ Modules:
 - tldr: TLDRGenerator (Layer 3)
 - render: render_entity_report (Layer 4)
 
-For the CLI entry point, see src/application/report.py.
+For CLI entry point functions, import from src.application.report directly
+(e.g. from src.application.report import cluster_articles_for_report).
 """
+
+# Re-export CLI entry points from report.py (the module, not the package).
+# Use importlib to avoid circular import since report.py imports from this package.
+import importlib.machinery
+import os as _os
 
 from src.application.report.entity_cluster import EntityClusterer
 from src.application.report.filter import SignalFilter
@@ -28,6 +34,15 @@ from src.application.report.render import (
 )
 from src.application.report.tldr import TLDRGenerator
 
+_report_py = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "report.py")
+_loader = importlib.machinery.SourceFileLoader(
+    "src.application.report.report", _report_py
+)
+_report_mod = _loader.load_module()
+
+cluster_articles_for_report = _report_mod.cluster_articles_for_report
+render_report = _report_mod.render_report
+
 __all__ = [
     "SignalFilter",
     "NERExtractor",
@@ -42,4 +57,6 @@ __all__ = [
     "EntityTag",
     "EntityTopic",
     "ReportData",
+    "cluster_articles_for_report",
+    "render_report",
 ]

@@ -918,15 +918,71 @@ async def _entity_report_async(
             tldr_top10, since, until, target_lang, template_name="entity"
         )
 
-        # Group for backward-compatible return dict
-        by_layer = group_by_layer(entity_topics)
-        by_dimension = group_by_dimension(entity_topics)
+        # Build CLI-compatible layers structure from entity topics
+        # Each EntityTopic -> topic dict with "sources" (flattened from dimensions)
+        entity_topic_dicts: list[dict] = []
+        for topic in entity_topics:
+            # Flatten all articles from all dimensions into sources (as dicts)
+            sources = []
+            for dim_arts in topic.dimensions.values():
+                for art in dim_arts:
+                    sources.append(
+                        {
+                            "id": art.id,
+                            "title": art.title,
+                            "link": art.link,
+                            "summary": art.summary,
+                            "quality_score": art.quality_score,
+                            "feed_weight": art.feed_weight,
+                            "published_at": art.published_at,
+                            "feed_id": art.feed_id,
+                            "entities": [
+                                {
+                                    "name": e.name,
+                                    "type": e.type,
+                                    "normalized": e.normalized,
+                                }
+                                for e in art.entities
+                            ],
+                        }
+                    )
+            topic_dict = {
+                "title": topic.entity_name,
+                "headline": topic.headline,
+                "layer": topic.layer,
+                "signals": topic.signals,
+                "sources": sources,
+            }
+            entity_topic_dicts.append(topic_dict)
+
+        # Group entity topic dicts by layer (same structure as thematic pipeline)
+        articles_by_layer: dict[str, list[dict]] = {cat: [] for cat in LAYER_KEYS}
+        for topic_dict in entity_topic_dicts:
+            layer = topic_dict.get("layer", "AI应用")
+            if layer in articles_by_layer:
+                articles_by_layer[layer].append(topic_dict)
+
+        layers_data: list[dict] = []
+        for layer_name in LAYER_KEYS:
+            layers_data.append(
+                {
+                    "name": layer_name,
+                    "topics": articles_by_layer.get(layer_name, []),
+                }
+            )
+
+        # Entity pipeline doesn't compute signals/creation separately
+        signals_data: dict[str, list] = {"leverage": [], "business": []}
+        creation_data: list[dict] = []
 
         return {
             "rendered": rendered,
             "tldr_top10": tldr_top10,
-            "by_layer": by_layer,
-            "by_dimension": by_dimension,
+            "layers": layers_data,
+            "signals": signals_data,
+            "creation": creation_data,
+            "by_layer": group_by_layer(entity_topics),
+            "by_dimension": group_by_dimension(entity_topics),
             "entity_topics": entity_topics,
             "date_range": {"since": since, "until": until},
         }
