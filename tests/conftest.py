@@ -26,15 +26,18 @@ def temp_db_path(tmp_path):
 def initialized_db(temp_db_path, monkeypatch):
     """Database that has been initialized with schema (tables created).
 
-    Patches impl module _DB_PATH to use temp_db_path before initialization.
+    Patches conn module _DB_PATH to use temp_db_path before initialization.
+    After the domain split (conn.py / feeds.py / articles.py / llm.py /
+    search.py), _DB_PATH lives in conn.py — patch it there so that get_db()
+    and init_db() both use the temp path.
     """
-    from src.storage.sqlite import impl
+    from src.storage.sqlite import conn
 
-    # Patch _DB_PATH in impl module (where it's actually defined)
-    monkeypatch.setattr(impl, "_DB_PATH", Path(temp_db_path))
+    # Patch _DB_PATH in conn module (where it's actually defined)
+    monkeypatch.setattr(conn, "_DB_PATH", Path(temp_db_path))
 
     # Initialize the schema
-    impl.init_db()
+    conn.init_db()
 
     yield temp_db_path
 
