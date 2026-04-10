@@ -3,8 +3,8 @@
   "spec": "007-reduce-chromadb-chroma-lock-contention-with-per-co",
   "state": "building",
   "subtasks": {
-    "completed": 8,
-    "total": 9,
+    "completed": 1,
+    "total": 2,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,6 +18,7 @@
     "max": 1
   },
   "session": {
+
     "number": 10,
     "started_at": "2026-04-10T15:06:52.016159"
   },

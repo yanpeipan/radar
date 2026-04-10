@@ -8,6 +8,7 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _settings: "FeedshipSettings | None" = None
+_cached_timezone: "ZoneInfo | None" = None
 
 
 class FeedshipSettings(BaseSettings):
@@ -122,9 +123,14 @@ def _create_default_config(config_path: Path) -> None:
 
 
 def get_timezone() -> ZoneInfo:
-    """Return the configured timezone as a ZoneInfo object."""
-    tz_name = _get_settings().timezone
-    return ZoneInfo(tz_name)
+    """Return the configured timezone as a ZoneInfo object (cached)."""
+    global _cached_timezone
+
+    if _cached_timezone is None:
+        tz_name = _get_settings().timezone
+        _cached_timezone = ZoneInfo(tz_name)
+
+    return _cached_timezone
 
 
 def get_default_feed_weight() -> float:
