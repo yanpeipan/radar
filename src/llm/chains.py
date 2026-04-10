@@ -297,3 +297,72 @@ def get_translate_chain() -> Runnable:
         | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["translate"])
         | StrOutputParser()
     )
+
+
+# NER chain — batch extract named entities from articles
+NER_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a named entity recognition system. Extract entities from articles. "
+            "Return ONLY valid JSON array.",
+        ),
+        (
+            "human",
+            "Articles:\n{articles_block}\n\n"
+            'Return JSON array of {{"id": "article_id", "entities": [{{"name": "...", "type": "ORG|PRODUCT|MODEL|PERSON|EVENT", "normalized": "..."}}]}} for each article.',
+        ),
+    ]
+)
+
+
+def get_ner_chain() -> Runnable:
+    """Returns LCEL chain for batch NER extraction."""
+    return NER_PROMPT | _get_llm_wrapper(200) | JsonOutputParser()
+
+
+# Entity topic chain — headline + layer + signals for one entity
+ENTITY_TOPIC_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a news analyst. For the given entity and its articles, "
+            "generate: (1) a headline (max 30 chars), (2) the AI five-layer cake layer, "
+            "(3) signal tags, (4) a 1-sentence insight. "
+            "Return ONLY valid JSON. "
+            "Layers: AI应用, AI模型, AI基础设施, 芯片, 能源.",
+        ),
+        (
+            "human",
+            "Entity: {entity_name}\nArticles ({article_count}):\n{article_list}\n\n"
+            "Return JSON with: headline, layer, signals (list), insight.",
+        ),
+    ]
+)
+
+
+def get_entity_topic_chain() -> Runnable:
+    """Returns LCEL chain for entity topic headline + layer + signals."""
+    return ENTITY_TOPIC_PROMPT | _get_llm_wrapper(150) | JsonOutputParser()
+
+
+# TLDR chain — generate 1-sentence TLDR for multiple entities at once
+TLDR_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a news editor. Generate a 1-sentence TLDR for each entity topic. "
+            "Focus on: what happened, why it matters. Write in {target_lang}.",
+        ),
+        (
+            "human",
+            "Entity Topics:\n{topics_block}\n\n"
+            'Return JSON array of {{"entity_id": "...", "tldr": "..."}} for each topic.',
+        ),
+    ]
+)
+
+
+def get_tldr_chain() -> Runnable:
+    """Returns LCEL chain for batch TLDR generation."""
+    return TLDR_PROMPT | _get_llm_wrapper(300) | JsonOutputParser()
