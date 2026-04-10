@@ -1285,8 +1285,12 @@ class TestUpsertArticles:
         result_ids = [r[0] for r in results]
         result_guids = [r[1] for r in results]
 
-        assert result_ids[0] == existing_id_1, "Existing article 1 should return original ID"
-        assert result_ids[1] == existing_id_2, "Existing article 2 should return original ID"
+        assert result_ids[0] == existing_id_1, (
+            "Existing article 1 should return original ID"
+        )
+        assert result_ids[1] == existing_id_2, (
+            "Existing article 2 should return original ID"
+        )
         assert result_guids[0] == "existing-guid-1"
         assert result_guids[1] == "existing-guid-2"
 
@@ -1295,7 +1299,9 @@ class TestUpsertArticles:
         assert result_ids[2] != existing_id_2
         assert result_ids[3] != existing_id_1
         assert result_ids[3] != existing_id_2
-        assert result_ids[2] != result_ids[3]  # Two new articles must have different IDs
+        assert (
+            result_ids[2] != result_ids[3]
+        )  # Two new articles must have different IDs
         assert result_guids[2] == "new-guid-1"
         assert result_guids[3] == "new-guid-2"
 
