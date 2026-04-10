@@ -509,7 +509,7 @@ def list_articles(
             f"""
             SELECT a.id, a.feed_id, f.name as feed_name, f.weight as feed_weight,
                    a.title, a.link, a.guid, a.published_at, a.description, a.content,
-                   a.summary, f.url as feed_url
+                   a.summary, f.url as feed_url, a.content_hash, a.minhash_signature
             FROM articles a
             JOIN feeds f ON a.feed_id = f.id
             WHERE {where_clause}
@@ -547,6 +547,8 @@ def list_articles(
                 summary=row["summary"],
                 feed_weight=row["feed_weight"],
                 feed_url=row["feed_url"],
+                content_hash=row["content_hash"],
+                minhash_signature=row["minhash_signature"],
             )
 
         return [_compute_article_item(row) for row in rows]

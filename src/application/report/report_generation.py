@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from src.application.dedup import deduplicate_articles
 from src.application.entity_report import (
     ArticleEnriched,
     EntityClusterer,
@@ -443,11 +444,14 @@ def cluster_articles_for_report(
             "summary": a.summary,
             "quality_score": a.quality_score,
             "feed_url": a.feed_url,
+            "content_hash": a.content_hash,
+            "minhash_signature": a.minhash_signature,
         }
         for a in articles
     ]
+    deduped = deduplicate_articles(article_dicts)
     return asyncio.run(
-        _entity_report_async(article_dicts, since, until, auto_summarize, target_lang)
+        _entity_report_async(deduped, since, until, auto_summarize, target_lang)
     )
 
 

@@ -84,6 +84,8 @@ class ArticleListItem:
     summary: str | None = None
     feed_weight: float | None = None
     feed_url: str | None = None
+    content_hash: str | None = None
+    minhash_signature: bytes | None = None
 
 
 def list_articles(
