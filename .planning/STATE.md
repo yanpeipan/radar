@@ -24,7 +24,7 @@ progress:
 Phase: 23 (Report Generation) — Complete
 Plan: 23-PLAN.md
 Status: Implementation complete
-Last activity: 2026-04-11 — Completed quick task 260411-27t: wire three-level dedup into report pipeline
+Last activity: 2026-04-10 — Completed quick task 260411-42p: 参考litellm最佳实践，使用JSON格式
 
 ## Current Milestone: v1.11 — LLM 智能报告生成
 
@@ -82,3 +82,4 @@ Last activity: 2026-04-11 — Completed quick task 260411-27t: wire three-level 
 | 260411-11i | 移除逐条标题翻译，改为最终报告一次性翻译，大幅减少LLM调用 | 2026-04-10 | d510140 | ✅ | [260411-11i-llm](./quick/260411-11i-llm/) |
 | 260411-2z5 | 清空废弃代码 - 删除 src/llm/chains.py 中5个废弃 chain 函数 | 2026-04-10 | 7e0ac9d | Verified | [260411-2z5-clear-deprecated-chains](./quick/260411-2z5-clear-deprecated-chains/) |
 | 260411-3cc | 修复 NER/EntityTopic JSON 解析失败，移除废弃标题翻译代码 | 2026-04-11 | 795166f | Verified | [260411-3cc-report-pipeline-ner-entitytopic-json](./quick/260411-3cc-report-pipeline-ner-entitytopic-json/) |
+| 260411-42p | 参考litellm最佳实践，使用JSON格式 | 2026-04-10 | 495fae2 | Verified | [260411-42p-litellm-json-https-docs-litellm-ai-docs-](./quick/260411-42p-litellm-json-https-docs-litellm-ai-docs-/) |
