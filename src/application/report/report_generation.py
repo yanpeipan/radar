@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +17,6 @@ from src.application.entity_report import (
     SignalFilter,
     TLDRGenerator,
 )
-from src.llm.core import get_llm_client
 from src.storage import list_articles
 
 logger = logging.getLogger(__name__)
@@ -142,133 +140,6 @@ def _classify_creation(article: dict) -> bool:
         + article.get("description", "")
     ).lower()
     return any(kw in text for kw in _CREATION_KEYWORDS)
-
-
-def _clean_translation(text: str) -> str:
-    """Strip thinking/analysis prefix from LLM translation response.
-
-    MiniMax returns thinking blocks that pollute the clean translation.
-    Extract the actual Chinese translation from the answer portion.
-    """
-    import re
-
-    text = text.strip()
-
-    # MiniMax thinking block embeds the user's prompt AND the answer.
-    # The answer is typically in quotes like "Chinese translation".
-    # Find all double-quoted strings containing Chinese, skip the prompt
-    # (which has mixed Chinese+English with : between), return the pure Chinese one.
-    quoted = re.findall(r'"([^"]*)"', text)
-    for q in quoted:
-        if re.search(r"[\u4e00-\u9fff]", q):
-            # Skip if contains English letters (it's the prompt, not translation)
-            if re.search(r"[a-zA-Z]", q):
-                continue
-            # Skip if too short (likely the prompt "直接翻译成中文，不要解释")
-            if len(q.strip()) <= 10:
-                continue
-            q = re.sub(r"[.。]+$", "", q)
-            if q.strip():
-                return q.strip()
-
-    # Fallback: find first Chinese character sequence after answer/答案 marker
-    answer_match = re.search(
-        r'(?:final answer|最后答案|answer|答案)[:：]\s*["\']?(.+?)(?:\n|$)',
-        text,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if answer_match:
-        result = answer_match.group(1).strip().strip('"').strip("'")
-        result = re.sub(r"[.。]+$", "", result)
-        if result and re.search(r"[\u4e00-\u9fff]", result):
-            return result
-
-    # Fallback: find first Chinese character and extract from there
-    chinese_start = re.search(r"[\u4e00-\u9fff]", text)
-    if chinese_start:
-        result = text[chinese_start.start() :].strip()
-        result = re.sub(r'["\']+$', "", result)
-        result = re.sub(r"[.。]+$", "", result)
-        if result:
-            return result
-
-    return text.strip().strip('"').strip("'")
-
-    return text.strip().strip('"').strip("'")
-
-
-def _is_chinese(text: str) -> bool:
-    """Detect if text contains Chinese characters."""
-    return bool(re.search(r"[\u4e00-\u9fff]", text))
-
-
-# In-memory cache for title translations to avoid repeated LLM calls
-_title_translate_cache: dict[tuple[str, str], str] = {}
-
-
-def _translate_title_sync(title: str, target_lang: str) -> str:
-    """Translate article title to target language (sync, for template use).
-
-    Titles should be pre-translated by render_report
-    before template rendering. This function only performs cache lookup
-    to avoid asyncio.run_until_complete() misuse in async context.
-    """
-    cache_key = (title, target_lang)
-    if cache_key in _title_translate_cache:
-        return _title_translate_cache[cache_key]
-
-    # Cache miss — pre-translation should have populated the cache.
-    # Return original title as fallback; do NOT call async LLM from sync Jinja2 context.
-    logger.warning(
-        "Title translation cache miss for '%s' -> %s. "
-        "Pre-translation may not have run correctly.",
-        title[:50],
-        target_lang,
-    )
-    return title
-
-
-async def _translate_titles_batch_async(
-    titles: list[str], target_lang: str
-) -> dict[str, str]:
-    """Pre-translate all titles in batch to avoid per-title event loop creation (Fix #5).
-
-    Returns a dict mapping original title -> translated title.
-    """
-    if not titles:
-        return {}
-    client = get_llm_client()
-    semaphore = asyncio.Semaphore(1)
-
-    async def translate_one(title: str) -> tuple[str, str]:
-        async with semaphore:
-            prompt = f"直接翻译成中文，不要解释：{title}"
-            result = await client.complete(prompt, max_tokens=300)
-            cleaned = _clean_translation(result.strip())
-            return (title, cleaned)
-
-    results = await asyncio.gather(
-        *[translate_one(t) for t in titles], return_exceptions=True
-    )
-    return {item[0]: item[1] for item in results if not isinstance(item, Exception)}
-
-
-def _format_article_title(title: str, target_lang: str) -> str:
-    """Format article title with translation if needed.
-
-    Returns:
-        - translated title (if title is not Chinese and target_lang != en)
-        - title（translated）if title is Chinese and target_lang == en
-        - title otherwise
-    """
-    if target_lang == "en" and _is_chinese(title):
-        # Show English title when target is English, with Chinese original
-        translated = _translate_title_sync(title, target_lang)
-        return f"{title}（{translated}）"
-    if target_lang != "en" and not _is_chinese(title):
-        # Translate non-Chinese titles (e.g. English -> Chinese)
-        return _translate_title_sync(title, target_lang)
-    return title
 
 
 # Template directory
@@ -485,9 +356,6 @@ async def render_report(
         env = Environment(
             loader=FileSystemLoader(template_path.parent),
             autoescape=False,
-        )
-        env.filters["format_title"] = lambda title: _format_article_title(
-            title, target_lang
         )
         template = env.get_template(template_path.name)
     else:

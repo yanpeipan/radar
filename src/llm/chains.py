@@ -153,7 +153,9 @@ def get_evaluate_chain() -> Runnable:
     """
     return (
         EVALUATE_PROMPT
-        | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["evaluate"])
+        | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["evaluate"]).with_config(
+            extra_body={"thinking": {"type": "disabled"}}
+        )
         | JsonOutputParser()
     )
 
@@ -177,7 +179,9 @@ def get_translate_chain() -> Runnable:
     """Returns LCEL chain for report section translation."""
     return (
         TRANSLATE_PROMPT
-        | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["translate"])
+        | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["translate"]).with_config(
+            extra_body={"thinking": {"type": "disabled"}}
+        )
         | StrOutputParser()
     )
 
@@ -201,7 +205,13 @@ NER_PROMPT = ChatPromptTemplate.from_messages(
 
 def get_ner_chain() -> Runnable:
     """Returns LCEL chain for batch NER extraction."""
-    return NER_PROMPT | _get_llm_wrapper(200) | JsonOutputParser()
+    return (
+        NER_PROMPT
+        | _get_llm_wrapper(200).with_config(
+            extra_body={"thinking": {"type": "disabled"}}
+        )
+        | JsonOutputParser()
+    )
 
 
 # Entity topic chain — headline + layer + signals for one entity
@@ -226,7 +236,13 @@ ENTITY_TOPIC_PROMPT = ChatPromptTemplate.from_messages(
 
 def get_entity_topic_chain() -> Runnable:
     """Returns LCEL chain for entity topic headline + layer + signals."""
-    return ENTITY_TOPIC_PROMPT | _get_llm_wrapper(150) | JsonOutputParser()
+    return (
+        ENTITY_TOPIC_PROMPT
+        | _get_llm_wrapper(150).with_config(
+            extra_body={"thinking": {"type": "disabled"}}
+        )
+        | JsonOutputParser()
+    )
 
 
 # TLDR chain — generate 1-sentence TLDR for multiple entities at once
@@ -248,4 +264,10 @@ TLDR_PROMPT = ChatPromptTemplate.from_messages(
 
 def get_tldr_chain() -> Runnable:
     """Returns LCEL chain for batch TLDR generation."""
-    return TLDR_PROMPT | _get_llm_wrapper(300) | JsonOutputParser()
+    return (
+        TLDR_PROMPT
+        | _get_llm_wrapper(300).with_config(
+            extra_body={"thinking": {"type": "disabled"}}
+        )
+        | JsonOutputParser()
+    )
