@@ -1196,3 +1196,167 @@ class TestUpdateArticleContent:
         # Verify second update overwrote first
         detail = get_article_detail(article_id)
         assert detail["content"] == "Second update"
+
+
+# =============================================================================
+# TestUpsertArticles
+# =============================================================================
+
+
+class TestUpsertArticles:
+    """Tests for upsert_articles batch upsert with mixed new and existing articles."""
+
+    def test_upsert_articles_returns_existing_ids_for_duplicates(self, initialized_db):
+        """upsert_articles() ON CONFLICT returns existing article IDs, not new ones."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, store_article, upsert_articles
+
+        feed = Feed(
+            id="batch-feed",
+            name="Batch Feed",
+            url="https://example.com/batch.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        # Pre-store two articles (simulate existing articles)
+        existing_id_1 = store_article(
+            guid="existing-guid-1",
+            title="Existing Article 1",
+            content="Existing content 1",
+            link="https://example.com/existing1",
+            feed_id="batch-feed",
+            published_at="2024-01-10T10:00:00+00:00",
+        )
+        existing_id_2 = store_article(
+            guid="existing-guid-2",
+            title="Existing Article 2",
+            content="Existing content 2",
+            link="https://example.com/existing2",
+            feed_id="batch-feed",
+            published_at="2024-01-11T10:00:00+00:00",
+        )
+
+        # Batch upsert with 2 existing + 2 new articles
+        articles = [
+            {
+                "guid": "existing-guid-1",
+                "title": "Updated Existing 1",
+                "content": "Updated content 1",
+                "link": "https://example.com/existing1",
+                "feed_id": "batch-feed",
+                "published_at": "2024-01-10T10:00:00+00:00",
+            },
+            {
+                "guid": "existing-guid-2",
+                "title": "Updated Existing 2",
+                "content": "Updated content 2",
+                "link": "https://example.com/existing2",
+                "feed_id": "batch-feed",
+                "published_at": "2024-01-11T10:00:00+00:00",
+            },
+            {
+                "guid": "new-guid-1",
+                "title": "New Article 1",
+                "content": "New content 1",
+                "link": "https://example.com/new1",
+                "feed_id": "batch-feed",
+                "published_at": "2024-01-20T10:00:00+00:00",
+            },
+            {
+                "guid": "new-guid-2",
+                "title": "New Article 2",
+                "content": "New content 2",
+                "link": "https://example.com/new2",
+                "feed_id": "batch-feed",
+                "published_at": "2024-01-21T10:00:00+00:00",
+            },
+        ]
+
+        results = upsert_articles(articles)
+
+        # Must return 4 results in the same order as input
+        assert len(results) == 4
+
+        # Existing articles must return the SAME IDs (not new ones)
+        result_ids = [r[0] for r in results]
+        result_guids = [r[1] for r in results]
+
+        assert result_ids[0] == existing_id_1, "Existing article 1 should return original ID"
+        assert result_ids[1] == existing_id_2, "Existing article 2 should return original ID"
+        assert result_guids[0] == "existing-guid-1"
+        assert result_guids[1] == "existing-guid-2"
+
+        # New articles must return new IDs (different from existing)
+        assert result_ids[2] != existing_id_1
+        assert result_ids[2] != existing_id_2
+        assert result_ids[3] != existing_id_1
+        assert result_ids[3] != existing_id_2
+        assert result_ids[2] != result_ids[3]  # Two new articles must have different IDs
+        assert result_guids[2] == "new-guid-1"
+        assert result_guids[3] == "new-guid-2"
+
+    def test_upsert_articles_all_new_returns_distinct_ids(self, initialized_db):
+        """upsert_articles() returns distinct IDs when all articles are new."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, upsert_articles
+
+        feed = Feed(
+            id="new-batch-feed",
+            name="New Batch Feed",
+            url="https://example.com/newbatch.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        articles = [
+            {
+                "guid": "allnew-guid-1",
+                "title": "All New 1",
+                "content": "Content 1",
+                "link": "https://example.com/allnew1",
+                "feed_id": "new-batch-feed",
+                "published_at": "2024-01-20T10:00:00+00:00",
+            },
+            {
+                "guid": "allnew-guid-2",
+                "title": "All New 2",
+                "content": "Content 2",
+                "link": "https://example.com/allnew2",
+                "feed_id": "new-batch-feed",
+                "published_at": "2024-01-21T10:00:00+00:00",
+            },
+            {
+                "guid": "allnew-guid-3",
+                "title": "All New 3",
+                "content": "Content 3",
+                "link": "https://example.com/allnew3",
+                "feed_id": "new-batch-feed",
+                "published_at": "2024-01-22T10:00:00+00:00",
+            },
+        ]
+
+        results = upsert_articles(articles)
+
+        assert len(results) == 3
+        ids = [r[0] for r in results]
+
+        # All IDs must be distinct
+        assert len(set(ids)) == 3
+        # All IDs must be non-empty strings
+        for article_id in ids:
+            assert isinstance(article_id, str)
+            assert len(article_id) > 0
+
+    def test_upsert_articles_empty_list_returns_empty(self, initialized_db):
+        """upsert_articles() with empty list returns empty list."""
+        from src.storage.sqlite import upsert_articles
+
+        results = upsert_articles([])
+        assert results == []
