@@ -18,27 +18,12 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
-import litellm
 import tiktoken
 
 # LiteLLM — unified LLM client
 from litellm import acompletion
 
 from src.application.config import _get_settings
-
-# Register MiniMax-M2.7 with zero cost to prevent litellm cost calculator from
-# raising "model not mapped" exceptions (litellm 1.52+ strict model validation)
-litellm.register_model(
-    {
-        "minimax/MiniMax-M2.7": {
-            "max_tokens": 32000,
-            "input_cost_per_token": 0.0,
-            "output_cost_per_token": 0.0,
-            "litellm_provider": "minimax",
-            "mode": "chat",
-        },
-    }
-)
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +64,7 @@ class LLMConfig:
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     api_key: str | None = None
+    base_url: str | None = None
     ollama_base_url: str = "http://localhost:11434"
     fallback_chain: list[str] = field(
         default_factory=lambda: ["openai", "azure", "anthropic"]
@@ -112,6 +98,7 @@ class LLMConfig:
             provider=llm_data.get("provider", "openai"),
             model=llm_data.get("model", "gpt-4o-mini"),
             api_key=api_key,
+            base_url=llm_data.get("base_url"),
             ollama_base_url=llm_data.get("ollama_base_url", "http://localhost:11434"),
             fallback_chain=llm_data.get(
                 "fallback_chain", ["openai", "azure", "anthropic"]
@@ -137,7 +124,6 @@ _PROVIDER_MODEL_MAP: dict[str, str] = {
     "ollama": "ollama/",
     "together": "together/",
     "ai21": "ai21/",
-    "minimax": "minimax/",
 }
 
 
@@ -234,13 +220,13 @@ class LLMClient:
             "max_retries": 3,
         }
         p = provider or self.config.provider
-        if p == "openai":
+        if self.config.base_url:
+            kwargs["api_base"] = self.config.base_url
+        elif p == "openai":
             if self.config.api_key:
                 kwargs["api_key"] = self.config.api_key
         elif p == "ollama":
             kwargs["api_base"] = self.config.ollama_base_url
-        elif p == "minimax":
-            kwargs["api_base"] = "https://api.minimaxi.com/v1"
         elif p == "azure":
             if self.config.api_key:
                 kwargs["api_key"] = self.config.api_key
