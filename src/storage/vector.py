@@ -323,14 +323,14 @@ def add_article_embeddings(articles: list[dict]) -> None:
     if not embedding_texts:
         return
 
-    # Serialize encoding + ChromaDB operations per collection to avoid concurrency issues
+    # Acquire per-collection write lock (defined before encoding so Phase 2 can use it)
+    col_lock = _col_locks.setdefault("articles", threading.Lock())
+
+    # Phase 1: Serialize encoding (cross-collection lock to prevent GPU/MPS contention)
     import time
 
-    col_lock = _col_locks.setdefault("articles", threading.Lock())
-    with _embedding_lock, col_lock:
-        collection = get_chroma_collection()
+    with _embedding_lock:
         embedding_fn = get_embedding_function()
-
         t0 = time.monotonic()
         total_chars = sum(len(t) for t in embedding_texts)
         try:
@@ -352,9 +352,11 @@ def add_article_embeddings(articles: list[dict]) -> None:
                 e,
             )
             raise
-
         embedding_vectors = emb.tolist()
 
+    # Phase 2: Serialize ChromaDB write per collection
+    with col_lock:
+        collection = get_chroma_collection()
         t1 = time.monotonic()
         try:
             collection.add(
