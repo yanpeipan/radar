@@ -74,3 +74,4 @@ Last activity: 2026-04-09 — Completed quick task 260409-3a7: 修复 report.py 
 | 260409-r5y | 最终日报不完整，没有翻译 | 2026-04-09 | 2e5103f | [260409-r5y-ultimate-report-incomplete-no-translation](./quick/260409-r5y-ultimate-report-incomplete-no-translation/) |
 | 260409-sv2 | 合并topic_title和classify_cluster_layer为一次LLM调用 | 2026-04-09 | 9f24fc1 | [260409-sv2](./quick/260409-sv2/) |
 | 260409-ty1 | 去重前置+批量摘要优化 | 2026-04-09 | ff01c9e | [260409-ty1](./quick/260409-ty1/) |
+| 260410-qgc | 使用 litellm Router 配置 minimax 模型 | 2026-04-10 | 21712b0 | | [260410-qgc-litellm-router-minimax](./quick/260410-qgc-litellm-router-minimax/) |
