@@ -48,7 +48,7 @@ class SignalFilter:
 
     def __init__(
         self,
-        quality_threshold: float = 0.6,
+        quality_threshold: float = 0,  # 0 disables quality gate; None quality_score handled by "or 0.0"
         feed_weight_threshold: float = 0.5,
         event_signal_boost: bool = True,
     ):
