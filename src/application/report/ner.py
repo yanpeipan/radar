@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from typing import Any
 
 from src.application.report.models import ArticleEnriched, EntityTag
 from src.llm.chains import get_ner_chain
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_entity(name: str, _type: str | None = None) -> str:
@@ -47,10 +50,31 @@ class NERExtractor:
                     f"Article {i + 1} (id={a['id']}): {a.get('title', '')[:200]}"
                     for i, a in enumerate(batch)
                 )
-                try:
-                    raw = await chain.ainvoke({"articles_block": articles_block})
-                    parsed = json_mod.loads(raw) if isinstance(raw, str) else raw
-                except Exception:
+
+                delays = [2, 4, 8]
+                parsed = None
+                for attempt, delay in enumerate(delays):
+                    try:
+                        raw = await chain.ainvoke({"articles_block": articles_block})
+                        parsed = json_mod.loads(raw) if isinstance(raw, str) else raw
+                        if isinstance(parsed, list) and len(parsed) == len(batch):
+                            break  # Valid result
+                        raise ValueError(
+                            f"Unexpected parsed length: {len(parsed) if parsed else 0} vs {len(batch)}"
+                        )
+                    except Exception as e:
+                        if attempt < len(delays) - 1:
+                            logger.warning(
+                                f"NER batch failed (attempt {attempt + 1}/{len(delays)}): {e}, retrying in {delay}s"
+                            )
+                            await asyncio.sleep(delay)
+                        else:
+                            logger.warning(
+                                f"NER batch failed after {len(delays)} attempts, using empty entities fallback: {e}"
+                            )
+                            parsed = None
+
+                if parsed is None:
                     return [
                         ArticleEnriched(
                             id=a["id"],

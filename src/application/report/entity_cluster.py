@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from src.application.report.models import ArticleEnriched, EntityTopic
 from src.llm.chains import get_entity_topic_chain
+
+logger = logging.getLogger(__name__)
 
 # Dimension keywords for rule-based classification
 _DIMENSION_KEYWORDS: dict[str, list[str]] = {
@@ -98,16 +101,32 @@ class EntityClusterer:
                     else entity_id
                 )
 
-                try:
-                    result = await chain.ainvoke(
-                        {
-                            "entity_name": entity_name,
-                            "article_count": len(entity_articles),
-                            "article_list": article_list,
-                            "target_lang": target_lang,
-                        }
-                    )
-                except Exception:
+                result = None
+                delays = [1, 2]
+                for attempt, delay in enumerate(delays):
+                    try:
+                        result = await chain.ainvoke(
+                            {
+                                "entity_name": entity_name,
+                                "article_count": len(entity_articles),
+                                "article_list": article_list,
+                                "target_lang": target_lang,
+                            }
+                        )
+                        break
+                    except Exception as e:
+                        if attempt < len(delays) - 1:
+                            logger.warning(
+                                f"EntityTopic failed for {entity_name} (attempt {attempt + 1}/{len(delays)}): {e}, retrying"
+                            )
+                            await asyncio.sleep(delay)
+                        else:
+                            logger.warning(
+                                f"EntityTopic failed for {entity_name} after {len(delays)} attempts, using fallback: {e}"
+                            )
+                            result = None
+
+                if result is None:
                     return EntityTopic(
                         entity_id=entity_id,
                         entity_name=entity_name,
