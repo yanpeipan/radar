@@ -14,7 +14,7 @@ from src.storage import remove_feed as storage_remove_feed
 from src.storage import update_feed as storage_update_feed
 from src.storage import update_feed_metadata as storage_update_feed_metadata
 from src.storage import upsert_feed
-from src.storage.sqlite.impl import _get_article_field
+from src.storage.sqlite.articles import _get_article_field
 from src.utils import generate_article_id, generate_feed_id
 
 logger = logging.getLogger(__name__)
