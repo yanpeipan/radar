@@ -3,7 +3,7 @@
   "spec": "004-known-cve-prone-dependencies-without-version-pinni",
   "state": "building",
   "subtasks": {
-    "completed": 7,
+    "completed": 8,
     "total": 9,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 9,
+    "number": 10,
     "started_at": "2026-04-10T10:22:16.406007"
   },
-  "last_update": "2026-04-10T10:56:32.075795"
+  "last_update": "2026-04-10T10:58:32.784984"
 }
