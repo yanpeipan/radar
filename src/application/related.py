@@ -2,8 +2,45 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from src.application.articles import ArticleListItem
 from src.storage.vector import get_related_articles as storage_get_related_articles
+
+if TYPE_CHECKING:
+    pass
+
+# Global cache for dependency availability check
+_ml_checked = False
+
+
+def _check_ml_dependencies():
+    """Lazy check that ML dependencies (sentence-transformers, chromadb) are available.
+
+    Raises:
+        RuntimeError: If sentence-transformers or chromadb cannot be imported.
+    """
+    global _ml_checked
+    if _ml_checked:
+        return
+
+    try:
+        import chromadb  # noqa: F401
+    except ImportError as e:
+        raise RuntimeError(
+            "ChromaDB is required for related articles. "
+            "Install with: pip install chromadb"
+        ) from e
+
+    try:
+        import sentence_transformers  # noqa: F401
+    except ImportError as e:
+        raise RuntimeError(
+            "sentence-transformers is required for related articles. "
+            "Install with: pip install sentence-transformers"
+        ) from e
+
+    _ml_checked = True
 
 
 def get_related_articles(article_id: str, limit: int = 5) -> list[ArticleListItem]:
@@ -17,6 +54,7 @@ def get_related_articles(article_id: str, limit: int = 5) -> list[ArticleListIte
         List of ArticleListItem objects sorted by semantic similarity.
         Returns empty list if no related articles found or article has no embedding.
     """
+    _check_ml_dependencies()
     results = storage_get_related_articles(article_id=article_id, limit=limit)
 
     if not results:
