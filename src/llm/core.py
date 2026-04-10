@@ -91,9 +91,7 @@ class LLMConfig:
             env_var = api_key[2:-1]
             api_key = os.environ.get(env_var) or os.environ.get("OPENAI_API_KEY")
         elif not api_key:
-            api_key = os.environ.get("MINIMAX_API_KEY") or os.environ.get(
-                "OPENAI_API_KEY"
-            )
+            api_key = os.environ.get("OPENAI_API_KEY")
         return cls(
             provider=llm_data.get("provider", "openai"),
             model=llm_data.get("model", "gpt-4o-mini"),
