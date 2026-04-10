@@ -41,7 +41,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=9.0.2,<10",  # Testing framework; major cap is belt-and-suspenders
-    "pytest-asyncio>=1.0.0,<1.0",  # Async pytest plugin; stable; conservative
+    "pytest-asyncio>=0.23.0,<1.0",  # Async pytest plugin; stable; conservative
     "pytest-cov>=7.0.0,<8",  # Coverage plugin; stable; major cap is belt-and-suspenders
     "pytest-mock>=3.15.0,<4",  # Mocking plugin; stable; major cap is belt-and-suspenders
     "pytest-click>=1.1.0,<2",  # Click plugin for pytest; major cap is belt-and-suspenders
