@@ -1,10 +1,10 @@
 {
   "active": true,
   "spec": "006-cache-get-timezone-result-called-per-article-in-ho",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 1,
+    "total": 2,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 3,
     "started_at": "2026-04-10T14:46:27.939062"
   },
-  "last_update": "2026-04-10T14:49:45.751157"
+  "last_update": "2026-04-10T14:52:56.786406"
 }
