@@ -1058,7 +1058,7 @@ def get_article_with_llm(article_id: str) -> dict | None:
 
 
 def list_articles_for_llm(
-    limit: int = 100,
+    limit: int = 3333,
     feed_id: str | None = None,
     groups: list[str] | None = None,
     since: str | None = None,
