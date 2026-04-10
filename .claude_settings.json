@@ -19,16 +19,30 @@
       "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/006-cache-get-timezone-result-called-per-article-in-ho/.auto-claude/specs/006-cache-get-timezone-result-called-per-article-in-ho/**)",
       "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/006-cache-get-timezone-result-called-per-article-in-ho/.auto-claude/specs/006-cache-get-timezone-result-called-per-article-in-ho/**)",
       "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/006-cache-get-timezone-result-called-per-article-in-ho/.auto-claude/specs/006-cache-get-timezone-result-called-per-article-in-ho/**)",
+      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
+      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
+      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
+      "Glob(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
+      "Grep(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
+      "Read(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/.auto-claude/specs/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
+      "Write(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/.auto-claude/specs/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
+      "Edit(/Users/y3/feedship/.auto-claude/worktrees/tasks/007-reduce-chromadb-chroma-lock-contention-with-per-co/.auto-claude/specs/007-reduce-chromadb-chroma-lock-contention-with-per-co/**)",
       "Read(/Users/y3/feedship/.auto-claude/**)",
       "Write(/Users/y3/feedship/.auto-claude/**)",
       "Edit(/Users/y3/feedship/.auto-claude/**)",
       "Glob(/Users/y3/feedship/.auto-claude/**)",
       "Grep(/Users/y3/feedship/.auto-claude/**)",
+      "Read(/Users/y3/feedship/**)",
+      "Write(/Users/y3/feedship/**)",
+      "Edit(/Users/y3/feedship/**)",
+      "Glob(/Users/y3/feedship/**)",
+      "Grep(/Users/y3/feedship/**)",
+      "Read(/Users/y3/feedship/.auto-claude/ideation/**)",
+      "Write(/Users/y3/feedship/.auto-claude/ideation/**)",
+      "Edit(/Users/y3/feedship/.auto-claude/ideation/**)",
       "Bash(*)",
       "WebFetch(*)",
-      "WebSearch(*)",
-      "mcp__context7__resolve-library-id(*)",
-      "mcp__context7__query-docs(*)"
+      "WebSearch(*)"
     ]
   }
 }

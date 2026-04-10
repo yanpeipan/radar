@@ -26,7 +26,7 @@ def _extract_content(html: str, url: str) -> dict:
         include_images=False,
         include_tables=True,
         date_extraction_params={},
-        with_metadata=True,
+        only_with_metadata=True,
     )
     if not result:
         return {"error": "Trafilatura extraction failed - no content extracted"}

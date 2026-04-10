@@ -32,7 +32,10 @@ if TYPE_CHECKING:
 # Module-level singleton client
 _chroma_client: PersistentClient | None = None
 _embedding_function: SentenceTransformer | None = None
-_chroma_lock = threading.Lock()
+
+# Per-collection locks for write serialization
+_col_locks: dict[str, threading.Lock] = {}
+_embedding_lock = threading.Lock()
 
 # Memory guard threshold
 MEMORY_THRESHOLD_PERCENT = 80  # Skip embeddings when memory usage exceeds 80%
@@ -209,8 +212,9 @@ def add_article_embedding(
     if not _check_memory_guard():
         return
 
-    # Serialize all encoding + ChromaDB operations to avoid concurrency issues
-    with _chroma_lock:
+    # Serialize ChromaDB operations per collection to avoid concurrency issues
+    col_lock = _col_locks.setdefault("articles", threading.Lock())
+    with col_lock:
         collection = get_chroma_collection()
 
         # Determine embedding text
@@ -319,13 +323,14 @@ def add_article_embeddings(articles: list[dict]) -> None:
     if not embedding_texts:
         return
 
-    # Serialize all encoding + ChromaDB operations to avoid concurrency issues
+    # Acquire per-collection write lock (defined before encoding so Phase 2 can use it)
+    col_lock = _col_locks.setdefault("articles", threading.Lock())
+
+    # Phase 1: Serialize encoding (cross-collection lock to prevent GPU/MPS contention)
     import time
 
-    with _chroma_lock:
-        collection = get_chroma_collection()
+    with _embedding_lock:
         embedding_fn = get_embedding_function()
-
         t0 = time.monotonic()
         total_chars = sum(len(t) for t in embedding_texts)
         try:
@@ -347,9 +352,11 @@ def add_article_embeddings(articles: list[dict]) -> None:
                 e,
             )
             raise
-
         embedding_vectors = emb.tolist()
 
+    # Phase 2: Serialize ChromaDB write per collection
+    with col_lock:
+        collection = get_chroma_collection()
         t1 = time.monotonic()
         try:
             collection.add(
@@ -431,30 +438,31 @@ def search_articles_semantic(
         # Combine with $and
         where_clause = {"$and": [{k: v} for k, v in where_conditions]}
 
-    with _chroma_lock:
-        collection = get_chroma_collection()
-        embedding_fn = get_embedding_function()
-        try:
-            emb = embedding_fn.encode(
-                [query_text], convert_to_numpy=True, normalize_embeddings=True
-            )[0]
-        except Exception as e:
-            logger.error("Encoding failed for semantic query: %s", e)
-            raise
-        embedding_vector = emb.tolist()
+    embedding_fn = get_embedding_function()
+    try:
+        emb = embedding_fn.encode(
+            [query_text], convert_to_numpy=True, normalize_embeddings=True
+        )[0]
+    except Exception as e:
+        logger.error("Encoding failed for semantic query: %s", e)
+        raise
+    embedding_vector = emb.tolist()
 
-        # Fetch more results when groups filter is active to have enough candidates after filtering
-        fetch_limit = limit * 3 if groups else limit
-        try:
-            results = collection.query(
-                query_embeddings=[embedding_vector],
-                n_results=fetch_limit,
-                where=where_clause,
-                include=["documents", "metadatas", "distances"],
-            )
-        except Exception as e:
-            logger.warning("ChromaDB error in search_articles_semantic: %s", e)
-            return []
+    # ChromaDB is thread-safe for reads; no lock needed
+    collection = get_chroma_collection()
+
+    # Fetch more results when groups filter is active to have enough candidates after filtering
+    fetch_limit = limit * 3 if groups else limit
+    try:
+        results = collection.query(
+            query_embeddings=[embedding_vector],
+            n_results=fetch_limit,
+            where=where_clause,
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception as e:
+        logger.warning("ChromaDB error in search_articles_semantic: %s", e)
+        return []
 
     # Flatten and map results
     ids = results.get("ids", [[]])[0]
@@ -546,31 +554,30 @@ def get_related_articles(article_id: str, limit: int = 5) -> list[dict]:
     # article_id is the SQLite nanoid, which is also the ChromaDB ID
     chroma_id = article_id
 
-    with _chroma_lock:
-        collection = get_chroma_collection()
-        # First get the embedding vector for the source article
-        # First get the embedding vector for the source article
-        try:
-            existing = collection.get(ids=[chroma_id], include=["embeddings"])
-        except Exception as e:
-            logger.warning("ChromaDB error in get_related_articles: %s", e)
-            return []
-        embeddings = existing.get("embeddings", [[]])
-        if embeddings is None or len(embeddings) == 0 or len(embeddings[0]) == 0:
-            logger.info("Article %s has no embedding (fetched before v1.8)", article_id)
-            return []
-        source_embedding = embeddings[0]
+    # ChromaDB is thread-safe for reads; no lock needed
+    collection = get_chroma_collection()
+    # First get the embedding vector for the source article
+    try:
+        existing = collection.get(ids=[chroma_id], include=["embeddings"])
+    except Exception as e:
+        logger.warning("ChromaDB error in get_related_articles: %s", e)
+        return []
+    embeddings = existing.get("embeddings", [[]])
+    if embeddings is None or len(embeddings) == 0 or len(embeddings[0]) == 0:
+        logger.info("Article %s has no embedding (fetched before v1.8)", article_id)
+        return []
+    source_embedding = embeddings[0]
 
-        # Now query for similar articles using the source embedding
-        try:
-            results = collection.query(
-                query_embeddings=[source_embedding],
-                n_results=limit + 1,  # +1 because the query article itself is included
-                include=["documents", "metadatas", "distances"],
-            )
-        except Exception as e:
-            logger.warning("ChromaDB error in get_related_articles: %s", e)
-            return []
+    # Now query for similar articles using the source embedding
+    try:
+        results = collection.query(
+            query_embeddings=[source_embedding],
+            n_results=limit + 1,  # +1 because the query article itself is included
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception as e:
+        logger.warning("ChromaDB error in get_related_articles: %s", e)
+        return []
 
     # Flatten and map results, excluding the query article itself
     articles = []
@@ -660,10 +667,11 @@ def upsert_article_summary(
     if not summary:
         return
 
-    with _chroma_lock:
-        collection = get_llm_summary_collection()
-        embedding_fn = get_embedding_function()
+    col_lock = _col_locks.setdefault("article_summaries", threading.Lock())
 
+    # Phase 1: Serialize encoding (cross-collection lock to prevent GPU/MPS contention)
+    with _embedding_lock:
+        embedding_fn = get_embedding_function()
         try:
             emb = embedding_fn.encode(
                 [summary], convert_to_numpy=True, normalize_embeddings=True
@@ -673,12 +681,14 @@ def upsert_article_summary(
             raise
         embedding_vector = emb.tolist()
 
-        metadata = {
-            "title": title or "",
-            "url": url or "",
-            "published_at": _published_at_to_timestamp(published_at),
-        }
-
+    # Phase 2: Serialize ChromaDB write per collection
+    metadata = {
+        "title": title or "",
+        "url": url or "",
+        "published_at": _published_at_to_timestamp(published_at),
+    }
+    with col_lock:
+        collection = get_llm_summary_collection()
         try:
             collection.upsert(
                 ids=[article_id],
@@ -718,10 +728,11 @@ def upsert_article_keywords(
 
     keywords_text = " | ".join(keywords)
 
-    with _chroma_lock:
-        collection = get_llm_keywords_collection()
-        embedding_fn = get_embedding_function()
+    col_lock = _col_locks.setdefault("article_keywords", threading.Lock())
 
+    # Phase 1: Serialize encoding (cross-collection lock to prevent GPU/MPS contention)
+    with _embedding_lock:
+        embedding_fn = get_embedding_function()
         try:
             emb = embedding_fn.encode(
                 [keywords_text], convert_to_numpy=True, normalize_embeddings=True
@@ -731,13 +742,15 @@ def upsert_article_keywords(
             raise
         embedding_vector = emb.tolist()
 
-        metadata = {
-            "title": title or "",
-            "url": url or "",
-            "published_at": _published_at_to_timestamp(published_at),
-            "keywords": keywords_text,
-        }
-
+    # Phase 2: Serialize ChromaDB write per collection
+    metadata = {
+        "title": title or "",
+        "url": url or "",
+        "published_at": _published_at_to_timestamp(published_at),
+        "keywords": keywords_text,
+    }
+    with col_lock:
+        collection = get_llm_keywords_collection()
         try:
             collection.upsert(
                 ids=[article_id],
@@ -786,29 +799,29 @@ def search_llm_summaries(
     elif len(where_conditions) > 1:
         where_clause = {"$and": [{k: v} for k, v in where_conditions]}
 
-    with _chroma_lock:
-        collection = get_llm_summary_collection()
-        embedding_fn = get_embedding_function()
+    embedding_fn = get_embedding_function()
 
-        try:
-            emb = embedding_fn.encode(
-                [query_text], convert_to_numpy=True, normalize_embeddings=True
-            )[0]
-        except Exception as e:
-            logger.error("Encoding failed for summary query: %s", e)
-            raise
-        embedding_vector = emb.tolist()
+    try:
+        emb = embedding_fn.encode(
+            [query_text], convert_to_numpy=True, normalize_embeddings=True
+        )[0]
+    except Exception as e:
+        logger.error("Encoding failed for summary query: %s", e)
+        raise
+    embedding_vector = emb.tolist()
 
-        try:
-            results = collection.query(
-                query_embeddings=[embedding_vector],
-                n_results=limit,
-                where=where_clause,
-                include=["documents", "metadatas", "distances"],
-            )
-        except Exception as e:
-            logger.warning("ChromaDB error in search_llm_summaries: %s", e)
-            return []
+    # ChromaDB is thread-safe for reads; no lock needed
+    collection = get_llm_summary_collection()
+    try:
+        results = collection.query(
+            query_embeddings=[embedding_vector],
+            n_results=limit,
+            where=where_clause,
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception as e:
+        logger.warning("ChromaDB error in search_llm_summaries: %s", e)
+        return []
 
     ids = results.get("ids", [[]])[0]
     documents = results.get("documents", [[]])[0]
@@ -869,29 +882,29 @@ def search_llm_keywords(
     elif len(where_conditions) > 1:
         where_clause = {"$and": [{k: v} for k, v in where_conditions]}
 
-    with _chroma_lock:
-        collection = get_llm_keywords_collection()
-        embedding_fn = get_embedding_function()
+    embedding_fn = get_embedding_function()
 
-        try:
-            emb = embedding_fn.encode(
-                [query_text], convert_to_numpy=True, normalize_embeddings=True
-            )[0]
-        except Exception as e:
-            logger.error("Encoding failed for keyword query: %s", e)
-            raise
-        embedding_vector = emb.tolist()
+    try:
+        emb = embedding_fn.encode(
+            [query_text], convert_to_numpy=True, normalize_embeddings=True
+        )[0]
+    except Exception as e:
+        logger.error("Encoding failed for keyword query: %s", e)
+        raise
+    embedding_vector = emb.tolist()
 
-        try:
-            results = collection.query(
-                query_embeddings=[embedding_vector],
-                n_results=limit,
-                where=where_clause,
-                include=["documents", "metadatas", "distances"],
-            )
-        except Exception as e:
-            logger.warning("ChromaDB error in search_llm_keywords: %s", e)
-            return []
+    # ChromaDB is thread-safe for reads; no lock needed
+    collection = get_llm_keywords_collection()
+    try:
+        results = collection.query(
+            query_embeddings=[embedding_vector],
+            n_results=limit,
+            where=where_clause,
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception as e:
+        logger.warning("ChromaDB error in search_llm_keywords: %s", e)
+        return []
 
     ids = results.get("ids", [[]])[0]
     _documents = results.get("documents", [[]])[0]  # intentionally unused

@@ -42,6 +42,7 @@ _report_mod = _loader.load_module()
 
 cluster_articles_for_report = _report_mod.cluster_articles_for_report
 render_report = _report_mod.render_report
+LAYER_KEYS = _report_mod.LAYER_KEYS
 
 __all__ = [
     "SignalFilter",
@@ -59,4 +60,5 @@ __all__ = [
     "ReportData",
     "cluster_articles_for_report",
     "render_report",
+    "LAYER_KEYS",
 ]
