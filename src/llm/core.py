@@ -14,6 +14,7 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+import litellm
 from litellm import Router
 
 from src.application.config import _get_settings
@@ -292,6 +293,9 @@ _llm_settings = _get_settings()
 _llm_config = _llm_settings.llm or {}
 _model_list: list[dict] = _llm_config.get("model_list", [])
 _routing_strategy = _llm_config.get("routing_strategy", "usage-based-routing")
+
+# Drop unsupported params per-model (e.g. thinking not supported by MiniMax-M2.7)
+litellm.drop_params = True
 
 llm_router: Router = Router(
     model_list=_model_list,
