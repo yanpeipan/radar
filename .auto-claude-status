@@ -3,13 +3,13 @@
   "spec": "004-known-cve-prone-dependencies-without-version-pinni",
   "state": "building",
   "subtasks": {
-    "completed": 2,
+    "completed": 6,
     "total": 9,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Tighten version bounds for CVE-prone packages",
+    "current": "Verify all changes",
     "id": null,
     "total": 3
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 4,
+    "number": 8,
     "started_at": "2026-04-10T10:22:16.406007"
   },
-  "last_update": "2026-04-10T10:36:27.616367"
+  "last_update": "2026-04-10T10:54:24.095824"
 }
