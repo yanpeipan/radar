@@ -257,7 +257,7 @@ EVALUATE_PROMPT = ChatPromptTemplate.from_messages(
 Report:
 {report}
 
-Return ONLY valid JSON with four scores: coherence (0.0-1.0), relevance (0.0-1.0), depth (0.0-1.0), structure (0.0-1.0). Example: {"coherence": 0.8, "relevance": 0.7, "depth": 0.6, "structure": 0.9}""",
+Return ONLY valid JSON with four scores: coherence (0.0-1.0), relevance (0.0-1.0), depth (0.0-1.0), structure (0.0-1.0). Example: {{"coherence": 0.8, "relevance": 0.7, "depth": 0.6, "structure": 0.9}}""",
         ),
     ]
 )
@@ -310,7 +310,7 @@ NER_PROMPT = ChatPromptTemplate.from_messages(
         (
             "human",
             "Articles:\n{articles_block}\n\n"
-            'Return JSON array of {"id": "article_id", "entities": [{"name": "...", "type": "ORG|PRODUCT|MODEL|PERSON|EVENT", "normalized": "..."}]} for each article.',
+            'Return JSON array of {{"id": "article_id", "entities": [{{"name": "...", "type": "ORG|PRODUCT|MODEL|PERSON|EVENT", "normalized": "..."}}]}} for each article.',
         ),
     ]
 )
@@ -357,7 +357,7 @@ TLDR_PROMPT = ChatPromptTemplate.from_messages(
         (
             "human",
             "Entity Topics:\n{topics_block}\n\n"
-            'Return JSON array of {"entity_id": "...", "tldr": "..."} for each topic.',
+            'Return JSON array of {{"entity_id": "...", "tldr": "..."}} for each topic.',
         ),
     ]
 )

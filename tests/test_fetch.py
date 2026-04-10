@@ -122,17 +122,19 @@ async def test_fetch_one_async_returns_dict(sample_feed):
 @pytest.mark.asyncio
 async def test_fetch_one_async_no_provider():
     """Verify fetch_one_async returns error when no provider matches."""
-    empty_feed = Feed(
-        id="empty",
-        name="Empty URL Feed",
-        url="",
+    test_feed = Feed(
+        id="no-provider-feed",
+        name="No Provider Feed",
+        url="https://example.invalid/no-provider-path",
         etag=None,
         modified_at=None,
         fetched_at=None,
         created_at="2024-01-01T00:00:00+00:00",
     )
-    result = await fetch_one_async(empty_feed)
-    assert result == {"new_articles": 0, "error": "No provider for "}
+    # Mock match_first to return None so no provider matches
+    with patch("src.application.fetch.match_first", return_value=None):
+        result = await fetch_one_async(test_feed)
+    assert result == {"new_articles": 0, "error": "No provider for https://example.invalid/no-provider-path"}
 
 
 @pytest.mark.asyncio
