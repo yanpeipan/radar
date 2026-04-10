@@ -1,26 +1,25 @@
 {
   "active": true,
-  "spec": "007-reduce-chromadb-chroma-lock-contention-with-per-co",
+  "spec": "008-improve-semantic-search-error-messaging-when-ml-de",
   "state": "building",
   "subtasks": {
-    "completed": 1,
-    "total": 2,
+    "completed": 2,
+    "total": 7,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Run Existing Tests",
+    "current": "Add ML dependency detection and user-friendly error messages",
     "id": null,
-    "total": 2
+    "total": 7
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-
-    "number": 10,
-    "started_at": "2026-04-10T15:06:52.016159"
+    "number": 4,
+    "started_at": "2026-04-10T17:05:23.869951"
   },
-  "last_update": "2026-04-10T16:30:19.546885"
+  "last_update": "2026-04-10T17:20:01.155612"
 }

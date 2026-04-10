@@ -357,15 +357,24 @@ def article_search(
         groups_list = groups.split(",") if groups else None
 
         if semantic:
-            articles = search_articles_semantic(
-                query_text=query,
-                limit=limit,
-                since=since,
-                until=until,
-                on=on_list,
-                groups=groups_list,
-                cross_encoder=cross_encoder,
-            )
+            try:
+                articles = search_articles_semantic(
+                    query_text=query,
+                    limit=limit,
+                    since=since,
+                    until=until,
+                    on=on_list,
+                    groups=groups_list,
+                    cross_encoder=cross_encoder,
+                )
+            except RuntimeError as e:
+                if json_output:
+                    print_json_error(
+                        f"Semantic search unavailable: {e}", "ml_dependency_error"
+                    )
+                    return
+                click.secho(f"Semantic search unavailable: {e}", err=True, fg="yellow")
+                sys.exit(1)
         else:
             articles = search_articles_fts(
                 query=query,
