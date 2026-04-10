@@ -310,7 +310,7 @@ NER_PROMPT = ChatPromptTemplate.from_messages(
         (
             "human",
             "Articles:\n{articles_block}\n\n"
-            'Return JSON array of {{"id": "article_id", "entities": [{{"name": "...", "type": "ORG|PRODUCT|MODEL|PERSON|EVENT", "normalized": "..."}}]}} for each article.',
+            'Return JSON array of {"id": "article_id", "entities": [{"name": "...", "type": "ORG|PRODUCT|MODEL|PERSON|EVENT", "normalized": "..."}]} for each article.',
         ),
     ]
 )
@@ -357,7 +357,7 @@ TLDR_PROMPT = ChatPromptTemplate.from_messages(
         (
             "human",
             "Entity Topics:\n{topics_block}\n\n"
-            'Return JSON array of {{"entity_id": "...", "tldr": "..."}} for each topic.',
+            'Return JSON array of {"entity_id": "...", "tldr": "..."} for each topic.',
         ),
     ]
 )
