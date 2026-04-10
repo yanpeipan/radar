@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install Grype scanner
+        run: pip install grype
+      - name: Run Grype vulnerability scanner
+        run: grype --fail-on medium .
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

@@ -1,16 +1,16 @@
 {
   "active": true,
-  "spec": "002-master",
-  "state": "complete",
+  "spec": "004-known-cve-prone-dependencies-without-version-pinni",
+  "state": "planning",
   "subtasks": {
-    "completed": 1,
-    "total": 1,
-    "in_progress": 0,
+    "completed": 0,
+    "total": 0,
+    "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Merge and Push",
-    "id": 1,
+    "current": "Add grype CVE scanning to CI",
+    "id": null,
     "total": 1
   },
   "workers": {
@@ -19,7 +19,7 @@
   },
   "session": {
     "number": 2,
-    "started_at": "2026-04-09T15:30:18.562570"
+    "started_at": "2026-04-10T10:22:16.406007"
   },
-  "last_update": "2026-04-09T15:34:52.897731"
+  "last_update": "2026-04-10T10:29:25.640209"
 }
