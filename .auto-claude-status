@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "010-split-1392-line-storage-sqlite-impl-py-into-domain",
-  "state": "building",
+  "spec": "013-batch-article-embeddings-across-all-feeds-instead-",
+  "state": "planning",
   "subtasks": {
-    "completed": 16,
-    "total": 17,
+    "completed": 0,
+    "total": 0,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Run full test suite",
+    "current": "Extract core fetch helper",
     "id": null,
-    "total": 4
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 18,
-    "started_at": "2026-04-10T23:10:31.007797"
+    "number": 2,
+    "started_at": "2026-04-11T01:57:42.028039"
   },
-  "last_update": "2026-04-11T00:11:00.871311"
+  "last_update": "2026-04-11T02:00:32.635961"
 }

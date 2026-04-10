@@ -4,6 +4,7 @@ repos:
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
+        exclude: '^\.(claude_settings|auto-claude-status|auto-claude-security)\.json$|^\.auto-claude/'
       - id: check-yaml
       - id: check-added-large-files
       - id: detect-private-key
