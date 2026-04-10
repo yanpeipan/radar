@@ -159,7 +159,7 @@ def store_article(
     Returns:
         article_id: The ID of the stored article.
     """
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     from src.application.config import get_timezone
 
@@ -280,7 +280,7 @@ def _batch_upsert_articles(articles: list) -> list[tuple[str, str]]:
     Returns:
         List of (article_id, guid) tuples for each article.
     """
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     if not articles:
         return []
@@ -463,7 +463,7 @@ def list_articles(
     import math
     from datetime import datetime, timezone
 
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     from src.application.articles import ArticleListItem
     from src.application.config import get_timezone
@@ -552,7 +552,7 @@ def list_articles(
 
 def get_article(article_id: str) -> list | None:
     """Get a single article by ID."""
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     from src.application.articles import ArticleListItem
 
@@ -592,7 +592,7 @@ def get_article_id_by_url(url: str) -> str | None:
     Returns:
         The SQLite article nanoid (id), or None if not found.
     """
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -610,7 +610,7 @@ def get_articles_by_ids(ids: list[str]) -> list:
     Returns:
         List of article dicts with all fields. Missing entries are omitted.
     """
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     if not ids:
         return []
@@ -630,7 +630,7 @@ def get_articles_by_ids(ids: list[str]) -> list:
 
 def get_article_detail(article_id: str) -> dict | None:
     """Get full article details including content."""
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -686,7 +686,7 @@ def update_article_content(article_id: str, content: str) -> dict:
     Returns:
         Dict with 'success' (bool) and optional 'error' (str).
     """
-    from src.storage.sqlite.impl import get_db
+    from src.storage.sqlite.conn import get_db
 
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     with get_db() as conn:

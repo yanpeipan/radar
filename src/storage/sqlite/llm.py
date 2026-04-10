@@ -11,8 +11,7 @@ import math
 import time
 from datetime import datetime, timezone
 
-from src.storage.sqlite.impl import get_db
-from src.storage.vector import _published_at_to_timestamp
+from src.storage.sqlite.conn import get_db
 
 
 def update_article_llm(
@@ -133,7 +132,8 @@ def list_articles_for_llm(
         List of article dicts (without LLM fields filled).
     """
     from src.application.config import get_timezone
-    from src.storage.sqlite.impl import _date_to_str, _date_to_str_end
+    from src.storage.sqlite.articles import _date_to_str, _date_to_str_end
+    from src.storage.vector import _published_at_to_timestamp
 
     tz = get_timezone()
 
