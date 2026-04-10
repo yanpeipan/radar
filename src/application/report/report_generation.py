@@ -187,7 +187,7 @@ async def _entity_report_async(
         filtered = signal_filter.filter(deduped)
 
         # Layer 1: NER + Enrich
-        ner = NERExtractor(batch_size=20)
+        ner = NERExtractor(batch_size=5)
         enriched = await ner.extract_batch(filtered)
 
         # Layer 2: Entity Clustering

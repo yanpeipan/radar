@@ -31,7 +31,7 @@ def normalize_entity(name: str, _type: str | None = None) -> str:
 class NERExtractor:
     """Extract named entities from articles using LLM batch processing."""
 
-    def __init__(self, batch_size: int = 10):
+    def __init__(self, batch_size: int = 5):
         self.batch_size = batch_size
 
     async def extract_batch(
