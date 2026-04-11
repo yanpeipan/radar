@@ -22,15 +22,6 @@ logger = logging.getLogger(__name__)
 # Five-layer cake taxonomy (internal keys are always zh)
 LAYER_KEYS = ["AI应用", "AI模型", "AI基础设施", "芯片", "能源"]
 
-# Localized layer names
-LAYER_NAMES = {
-    "zh": ["AI应用", "AI模型", "AI基础设施", "芯片", "能源"],
-    "en": ["AI Application", "AI Model", "AI Infrastructure", "Chip", "Energy"],
-}
-
-LANG_NAMES = {"zh": "Chinese", "en": "English", "ja": "Japanese", "ko": "Korean"}
-
-
 # ---------------------------------------------------------------------------
 # v2 report helpers — topic clustering
 # ---------------------------------------------------------------------------
