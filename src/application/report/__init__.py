@@ -19,7 +19,6 @@ from src.application.report.models import (
     ReportData,
 )
 from src.application.report.render import (
-    dim_zh,
     group_by_dimension,
     group_by_layer,
     render_entity_inline,
@@ -41,7 +40,6 @@ __all__ = [
     "render_entity_inline",
     "group_by_layer",
     "group_by_dimension",
-    "dim_zh",
     "ArticleEnriched",
     "EntityTag",
     "EntityTopic",

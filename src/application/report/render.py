@@ -4,21 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-# Dimension translation
-DIM_ZH: dict[str, str] = {
-    "release": "发布",
-    "funding": "融资",
-    "research": "研究",
-    "ecosystem": "生态",
-    "policy": "监管",
-}
-
-
-def dim_zh(dim: str) -> str:
-    """Translate dimension key to Chinese."""
-    return DIM_ZH.get(dim, dim)
-
-
 def group_by_layer(topics: list) -> dict[str, list]:
     result: dict[str, list] = {}
     for t in topics:
@@ -66,7 +51,6 @@ async def render_report(
         loader=FileSystemLoader([str(d) for d in template_dirs]),
         autoescape=select_autoescape(),
     )
-    env.filters["dim_zh"] = dim_zh
     env.globals["sum_articles"] = _sum_articles
 
     try:
@@ -91,7 +75,6 @@ async def render_report(
         deep_dive=deep_dive,
         date_range={"since": since, "until": until},
         target_lang=target_lang,
-        dim_zh=dim_zh,
     )
 
 

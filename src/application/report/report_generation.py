@@ -366,7 +366,7 @@ async def render_report(
         logger.error("Jinja2 not installed: pip install jinja2")
         raise
 
-    from src.application.report.render import dim_zh
+    from src.application.report.render import group_by_dimension
 
     template_path = DEFAULT_TEMPLATE_DIR / f"{template_name}.md"
     if template_path.exists():
@@ -375,7 +375,6 @@ async def render_report(
             autoescape=False,
         )
         env.filters["format_title"] = _format_title
-        env.filters["dim_zh"] = dim_zh
         template = env.get_template(template_path.name)
     else:
         logger.error("v2 template not found at %s", template_path)
