@@ -56,7 +56,7 @@ async def render_report(
     try:
         template = env.get_template(f"{template_name}.md")
     except Exception:
-        return render_entity_inline(entity_topics, since, until, target_lang)
+        raise
 
     by_layer = group_by_layer(entity_topics)
     by_dimension = group_by_dimension(entity_topics)
@@ -76,37 +76,3 @@ async def render_report(
         date_range={"since": since, "until": until},
         target_lang=target_lang,
     )
-
-
-def render_entity_inline(
-    entity_topics: list,
-    since: str,
-    until: str,
-    target_lang: str,
-) -> str:
-    """Inline markdown rendering fallback when template not available."""
-    by_layer = group_by_layer(entity_topics)
-    lines = [
-        f"# AI Daily Report — {since} to {until}",
-        "",
-        "## Today's Top 10 AI News",
-    ]
-    for i, topic in enumerate(entity_topics[:10]):
-        lines.append(f"{i + 1}. **{topic.headline}** [{topic.articles_count} articles]")
-        if topic.tldr:
-            lines.append(f"   {topic.tldr}")
-        lines.append("")
-
-    lines.append("## By Layer")
-    for layer, topics in by_layer.items():
-        article_count = sum(t.articles_count for t in topics)
-        lines.append(f"### {layer} ({article_count} articles, {len(topics)} topics)")
-        for topic in topics[:5]:
-            lines.append(f"#### {topic.entity_name} ({topic.articles_count} articles)")
-            lines.append(f"{topic.headline}")
-            if topic.tldr:
-                lines.append(f"_{topic.tldr}_")
-            lines.append(f"Signals: {', '.join(topic.signals)}")
-            lines.append("")
-
-    return "\n".join(lines)

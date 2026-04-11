@@ -21,7 +21,6 @@ from src.application.report.models import (
 from src.application.report.render import (
     group_by_dimension,
     group_by_layer,
-    render_entity_inline,
     render_report,
 )
 
@@ -37,7 +36,6 @@ __all__ = [
     "SignalFilter",
     "TLDRGenerator",
     "render_report",
-    "render_entity_inline",
     "group_by_layer",
     "group_by_dimension",
     "ArticleEnriched",
