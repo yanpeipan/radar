@@ -35,111 +35,6 @@ LANG_NAMES = {"zh": "Chinese", "en": "English", "ja": "Japanese", "ko": "Korean"
 # v2 report helpers — topic clustering
 # ---------------------------------------------------------------------------
 
-# Keywords for Section B (signals) rule-based classification
-_LEVERAGE_KEYWORDS = [
-    "tool",
-    "platform",
-    "api",
-    "framework",
-    "open source",
-    "library",
-    "sdk",
-    "model",
-    "release",
-    "launch",
-    "github",
-    "npm",
-    "pypi",
-    "runtime",
-    "compiler",
-    "assistant",
-    "agent",
-    "claude",
-    "gpt",
-    "gemini",
-    "openai",
-    "anthropic",
-]
-_BUSINESS_KEYWORDS = [
-    "startup",
-    "funding",
-    "raise",
-    "series",
-    "ipo",
-    "business model",
-    "revenue",
-    "unicorn",
-    "vc",
-    "venture",
-    "investor",
-    "seed round",
-    " Series A",
-    " Series B",
-    "acqui-hire",
-    "acquisition",
-    "merger",
-    "profit",
-]
-
-# Keywords for Section C (creation) rule-based classification
-_CREATION_KEYWORDS = [
-    "how to",
-    "tutorial",
-    "review",
-    "top",
-    "best",
-    "vs",
-    "comparison",
-    "guide",
-    "introduction",
-    "beginner",
-    "getting started",
-    "101",
-    "cheat sheet",
-    "tips",
-    "master",
-    "learn",
-    "course",
-    "workshop",
-]
-
-
-def _classify_signal_leverage(article: ArticleListItem | ArticleEnriched) -> bool:
-    """Rule-based check if article is about developer tools / AI platforms."""
-    text = (
-        (getattr(article, "title", "") or "")
-        + " "
-        + (getattr(article, "summary", "") or "")
-        + " "
-        + (getattr(article, "description", "") or "")
-    ).lower()
-    return any(kw in text for kw in _LEVERAGE_KEYWORDS)
-
-
-def _classify_signal_business(article: ArticleListItem | ArticleEnriched) -> bool:
-    """Rule-based check if article is about startups / funding / business."""
-    text = (
-        (getattr(article, "title", "") or "")
-        + " "
-        + (getattr(article, "summary", "") or "")
-        + " "
-        + (getattr(article, "description", "") or "")
-    ).lower()
-    return any(kw in text for kw in _BUSINESS_KEYWORDS)
-
-
-def _classify_creation(article: ArticleListItem | ArticleEnriched) -> bool:
-    """Rule-based check if article is a tutorial / how-to / review / best-of."""
-    text = (
-        (getattr(article, "title", "") or "")
-        + " "
-        + (getattr(article, "summary", "") or "")
-        + " "
-        + (getattr(article, "description", "") or "")
-    ).lower()
-    return any(kw in text for kw in _CREATION_KEYWORDS)
-
-
 # Template directory
 DEFAULT_TEMPLATE_DIR = Path("~/.config/feedship/templates").expanduser()
 DEFAULT_TEMPLATE_NAME = "default"
@@ -403,28 +298,10 @@ async def _entity_report_async(
                 }
             )
 
-        # Rule-based signal classification on all entity sources
-        # Build from ArticleEnriched directly (entity_topics contains them)
-        all_sources: list[ArticleEnriched] = []
-        for topic in entity_topics:
-            for dim_arts in topic.dimensions.values():
-                all_sources.extend(dim_arts)
-
-        leverage_articles = [a for a in all_sources if _classify_signal_leverage(a)]
-        business_articles = [a for a in all_sources if _classify_signal_business(a)]
-        creation_articles = [a for a in all_sources if _classify_creation(a)]
-
-        signals_data = {"leverage": leverage_articles, "business": business_articles}
-        creation_data = (
-            [{"name": "创作选题", "topics": []}] if creation_articles else []
-        )
-
         return {
             "rendered": rendered,
             "tldr_top10": tldr_top10,
             "layers": layers_data,
-            "signals": signals_data,
-            "creation": creation_data,
             "by_layer": group_by_layer(entity_topics),
             "by_dimension": group_by_dimension(entity_topics),
             "entity_topics": entity_topics,
