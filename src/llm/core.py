@@ -130,10 +130,14 @@ class LLMClient:
                     "temperature": temperature,
                 }
                 if extra_body:
-                    # Extract thinking config to pass at top level (not in extra_body)
+                    # Extract top-level params from extra_body
                     thinking = extra_body.pop("thinking", None)
                     if thinking:
                         kwargs["thinking"] = thinking
+                    # response_format must be at top level (not in extra_body) for litellm
+                    response_format = extra_body.pop("response_format", None)
+                    if response_format:
+                        kwargs["response_format"] = response_format
                     # Pass remaining fields in extra_body
                     if extra_body:
                         kwargs["extra_body"] = extra_body

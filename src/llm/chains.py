@@ -6,6 +6,7 @@ from typing import Any
 
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
+from langchain_core.prompt_values import ChatPromptValue
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 
@@ -60,10 +61,16 @@ class AsyncLLMWrapper(Runnable):
 
     async def _ainvoke_raw(self, input: Any, config: Any = None) -> str:
         """Invoke with raw string input (for use with StrOutputParser)."""
-        if isinstance(input, dict):
+        if isinstance(input, ChatPromptValue):
+            # LCEL prompt output — combine all messages into a single text prompt
+            # Our LLMClient.complete() wraps a string prompt in {"role": "user", "content": prompt}
+            parts = []
+            for msg in input.messages:
+                if hasattr(msg, "content") and msg.content:
+                    parts.append(f"{msg.type.upper()}: {msg.content}")
+            text = "\n".join(parts)
+        elif isinstance(input, dict):
             # Try to extract text from dict input (LCEL passes prompt values as dicts)
-            # When used as: prompt | model | parser, the prompt outputs a string
-            # But some chains pass dicts, so handle both cases
             text = input.get("text", input.get("prompt", str(input)))
         elif isinstance(input, BaseMessage):
             text = input.content
@@ -175,6 +182,18 @@ Return ONLY valid JSON with four scores: coherence (0.0-1.0), relevance (0.0-1.0
 )
 
 
+def _make_json_schema_response_format(schema: dict, name: str) -> dict:
+    """Build response_format with json_schema + strict=True for MiniMax compatibility.
+
+    LiteLLM expects: {"type": "json_schema", "json_schema": {"schema": {...}, "name": "...", "strict": true}}
+    MiniMax only enforces JSON mode when strict=True is set.
+    """
+    return {
+        "type": "json_schema",
+        "json_schema": {"schema": schema, "name": name, "strict": True},
+    }
+
+
 def get_evaluate_chain() -> Runnable:
     """Returns LCEL chain for report quality evaluation."""
     parser = JsonOutputParser(pydantic_object=EvaluateScore)
@@ -182,7 +201,9 @@ def get_evaluate_chain() -> Runnable:
         EVALUATE_PROMPT
         | _get_llm_wrapper(
             MAX_TOKENS_PER_CHAIN["evaluate"],
-            {"type": "json_schema", "json_schema": EvaluateScore.model_json_schema()},
+            _make_json_schema_response_format(
+                EvaluateScore.model_json_schema(), "EvaluateScore"
+            ),
         )
         | parser
     )
@@ -236,7 +257,9 @@ def get_ner_chain() -> Runnable:
         NER_PROMPT
         | _get_llm_wrapper(
             200,
-            {"type": "json_schema", "json_schema": NERArticle.model_json_schema()},
+            _make_json_schema_response_format(
+                NERArticle.model_json_schema(), "NERArticle"
+            ),
             {"type": "disabled"},
         )
         | parser
@@ -269,10 +292,9 @@ def get_entity_topic_chain() -> Runnable:
         ENTITY_TOPIC_PROMPT
         | _get_llm_wrapper(
             150,
-            {
-                "type": "json_schema",
-                "json_schema": EntityTopicOutput.model_json_schema(),
-            },
+            _make_json_schema_response_format(
+                EntityTopicOutput.model_json_schema(), "EntityTopicOutput"
+            ),
         )
         | parser
     )
@@ -301,7 +323,8 @@ def get_tldr_chain() -> Runnable:
     return (
         TLDR_PROMPT
         | _get_llm_wrapper(
-            300, {"type": "json_schema", "json_schema": TLDRItem.model_json_schema()}
+            300,
+            _make_json_schema_response_format(TLDRItem.model_json_schema(), "TLDRItem"),
         )
         | parser
     )
