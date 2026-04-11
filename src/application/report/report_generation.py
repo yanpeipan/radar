@@ -9,9 +9,9 @@ from typing import Any
 
 from src.application.articles import ArticleListItem
 from src.application.report import (
-    ReportArticle,
     EntityTag,
     EntityTopic,
+    ReportArticle,
     ReportData,
     SignalFilter,
 )
@@ -180,8 +180,8 @@ async def _entity_report_async(
         # Build EntityTopic for each tag group
         entity_topics: list = []
         from src.application.report.models import (
-            ReportArticle,
             EntityTopic,
+            ReportArticle,
         )
 
         for tag, items in tag_groups.items():
@@ -203,9 +203,6 @@ async def _entity_report_async(
                 for art in arts
             ]
 
-            # Group by dimension
-            by_dim: dict[str, list[ReportArticle]] = {tag: article_enriched_list}
-
             # Find best article by quality for headline
             best_art = max(arts, key=lambda a: a.quality_score or 0.0)
             best_idx = next(i for i, a in enumerate(arts) if a.id == best_art.id)
@@ -214,16 +211,11 @@ async def _entity_report_async(
 
             entity_topics.append(
                 EntityTopic(
-                    entity_id=tag,
-                    entity_name=tag,
-                    layer="AI应用",
-                    headline=headline,
-                    dimensions=by_dim,
-                    articles_count=len(arts),
-                    signals=[],
-                    tldr="",
-                    quality_weight=sum(a.quality_score or 0.0 for a in arts)
-                    * len(arts),
+                    name=headline,
+                    summary="",
+                    tags=[],
+                    children=article_enriched_list,
+                    articles=article_enriched_list,
                 )
             )
 
@@ -240,36 +232,29 @@ async def _entity_report_async(
         # Each EntityTopic -> topic dict with "sources" (flattened from dimensions)
         entity_topic_dicts: list[dict] = []
         for topic in entity_topics:
-            # Flatten all articles from all dimensions into sources (as dicts)
-            sources = []
-            for dim_arts in topic.dimensions.values():
-                for art in dim_arts:
-                    sources.append(
-                        {
-                            "id": art.id,
-                            "title": art.title,
-                            "link": art.link,
-                            "summary": art.summary,
-                            "quality_score": art.quality_score,
-                            "feed_weight": art.feed_weight,
-                            "published_at": art.published_at,
-                            "feed_id": art.feed_id,
-                            "tags": [
-                                {
-                                    "name": e.name,
-                                    "type": e.type,
-                                    "normalized": e.normalized,
-                                }
-                                for e in art.tags
-                            ],
-                        }
-                    )
             topic_dict = {
-                "title": topic.entity_name,
-                "headline": topic.headline,
-                "layer": topic.layer,
-                "signals": topic.signals,
-                "sources": sources,
+                "title": topic.name,
+                "sources": [
+                    {
+                        "id": art.id,
+                        "title": art.title,
+                        "link": art.link,
+                        "summary": getattr(art, "summary", ""),
+                        "quality_score": art.quality_score,
+                        "feed_weight": art.feed_weight,
+                        "published_at": art.published_at,
+                        "feed_id": art.feed_id,
+                        "tags": [
+                            {
+                                "name": e.name,
+                                "type": e.type,
+                                "normalized": e.normalized,
+                            }
+                            for e in art.tags
+                        ],
+                    }
+                    for art in topic.children
+                ],
             }
             entity_topic_dicts.append(topic_dict)
 
@@ -356,8 +341,6 @@ async def render_report(
     except ImportError:
         logger.error("Jinja2 not installed: pip install jinja2")
         raise
-
-    from src.application.report.render import group_by_dimension
 
     template_path = DEFAULT_TEMPLATE_DIR / f"{template_name}.md"
     if template_path.exists():

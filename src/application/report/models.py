@@ -74,26 +74,18 @@ class EntityTopic:
     """An entity topic grouping multiple articles.
 
     Attributes:
-        entity_id: Normalized entity identifier (e.g., "google_gemma_4")
-        entity_name: Display name (e.g., "Google Gemma 4")
-        layer: AI layer classification (AI应用, AI模型, AI基础设施, 芯片, 能源)
-        headline: LLM-generated headline summarizing the entity news
-        dimensions: Articles grouped by dimension
-        articles_count: Total number of articles
-        signals: List of signal keywords
-        tldr: One-sentence TLDR generated in Layer 3
-        quality_weight: Ranking score (quality_score × articles_count)
+        name: Topic name/headline
+        summary: One-sentence TLDR summary
+        tags: List of entity tags extracted by NER
+        children: List of child EntityTopic (sub-topics in same layer)
+        articles: Flat list of all articles in this topic
     """
 
-    entity_id: str
-    entity_name: str
-    layer: str
-    headline: str
-    dimensions: dict[str, list[ReportArticle]] = field(default_factory=dict)
-    articles_count: int = 0
-    signals: list[str] = field(default_factory=list)
-    tldr: str = ""
-    quality_weight: float = 0.0
+    name: str
+    summary: str = field(default_factory=str)
+    tags: list[EntityTag] = field(default_factory=list)
+    children: list[ReportArticle] = field(default_factory=list)
+    articles: list[ReportArticle] = field(default_factory=list)
 
 
 @dataclass

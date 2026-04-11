@@ -15,8 +15,9 @@ def group_by_layer(topics: list) -> dict[str, list]:
 def group_by_dimension(topics: list) -> dict[str, list]:
     result: dict[str, list] = {}
     for t in topics:
-        for dim in getattr(t, "dimensions", {}):
-            result.setdefault(dim, []).append(t)
+        tags = getattr(t, "tags", [])
+        for tag in tags:
+            result.setdefault(tag.name, []).append(t)
     return result
 
 
@@ -54,7 +55,7 @@ async def render_report(
 
     by_layer = group_by_layer(entity_topics)
     by_dimension = group_by_dimension(entity_topics)
-    deep_dive = [t for t in entity_topics if getattr(t, "articles_count", 0) > 50]
+    deep_dive = [t for t in entity_topics if len(getattr(t, "children", [])) > 50]
 
     for layer_list in by_layer.values():
         layer_list.sort(key=_topic_sort_key, reverse=True)
