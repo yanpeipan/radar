@@ -183,7 +183,7 @@ class TestJSONModeSupport:
                 "required": ["name", "age"],
             },
         }
-        prompt = "Return a JSON object with name and age only."
+        prompt = "Return JSON with name (string) and age (number). Use example values."
         response = await client.complete(
             prompt,
             max_tokens=200,
