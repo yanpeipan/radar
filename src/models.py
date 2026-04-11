@@ -19,31 +19,6 @@ from pydantic import (
 )
 
 
-class Node(BaseModel):
-    """Abstract base class for node entities (e.g., Feed, Group).
-
-    Node entities serve as containers that hold other entities.
-    Subclasses must implement the `id` field.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    id: str
-
-
-class Item(BaseModel):
-    """Abstract base class for item entities (e.g., Article).
-
-    Item entities represent leaf nodes in the hierarchy.
-    Subclasses must implement the `id` and `created_at` fields.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    id: str
-    created_at: str
-
-
 class FeedType(Enum):
     """Enum for feed types, used to route to the correct provider."""
 

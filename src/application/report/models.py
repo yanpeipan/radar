@@ -2,7 +2,40 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+
+
+class Node(ABC):
+    """Abstract base class for node entities (e.g., Feed, Group).
+
+    Node entities serve as containers that hold other entities.
+    """
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        """Return the unique identifier of this node."""
+        ...
+
+
+class Item(ABC):
+    """Abstract base class for item entities (e.g., Article).
+
+    Item entities represent leaf nodes in the hierarchy.
+    """
+
+    @property
+    @abstractmethod
+    def id(self) -> str:
+        """Return the unique identifier of this item."""
+        ...
+
+    @property
+    @abstractmethod
+    def created_at(self) -> str:
+        """Return the creation timestamp of this item."""
+        ...
 
 
 @dataclass
