@@ -60,7 +60,7 @@ async def render_entity_report(
 
     template_dirs = [
         Path.home() / ".local" / "share" / "feedship" / "templates",
-        Path(__file__).parent.parent.parent / "templates",
+        Path(__file__).parent.parent.parent.parent / "templates",
     ]
     env = Environment(
         loader=FileSystemLoader([str(d) for d in template_dirs]),
