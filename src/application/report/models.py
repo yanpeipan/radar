@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from src.application.articles import ArticleListItem
 
 
 class Node(ABC):
@@ -54,32 +55,18 @@ class EntityTag:
 
 
 @dataclass
-class ArticleEnriched:
-    """Article enriched with entity tags and dimension labels.
+class ReportArticle(ArticleListItem):
+    """Article model for report pipeline, inheriting from ArticleListItem.
 
-    Attributes:
-        id: Unique article identifier.
-        title: Article title.
-        link: URL link to the article.
-        summary: Short summary or description.
-        quality_score: Quality score (0.0-1.0) from signal filter.
-        feed_weight: Feed weight (0.0-1.0) for ranking.
-        published_at: Publication timestamp.
-        feed_id: ID of the feed this article came from.
+    Additional attributes:
         entities: List of entity tags extracted by NER.
         dimensions: List of dimension labels (e.g., release, funding, research).
+        similar_articles: Related articles in the same entity cluster.
     """
 
-    id: str
-    title: str
-    link: str
-    summary: str
-    quality_score: float
-    feed_weight: float
-    published_at: str
-    feed_id: str
     entities: list[EntityTag] = field(default_factory=list)
     dimensions: list[str] = field(default_factory=list)
+    similar_articles: list[ReportArticle] = field(default_factory=list)
 
 
 @dataclass
@@ -102,7 +89,7 @@ class EntityTopic:
     entity_name: str
     layer: str
     headline: str
-    dimensions: dict[str, list[ArticleEnriched]] = field(default_factory=dict)
+    dimensions: dict[str, list[ReportArticle]] = field(default_factory=dict)
     articles_count: int = 0
     signals: list[str] = field(default_factory=list)
     tldr: str = ""

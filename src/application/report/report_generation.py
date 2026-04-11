@@ -9,7 +9,7 @@ from typing import Any
 
 from src.application.articles import ArticleListItem
 from src.application.report import (
-    ArticleEnriched,
+    ReportArticle,
     EntityTag,
     EntityTopic,
     ReportData,
@@ -180,23 +180,23 @@ async def _entity_report_async(
         # Build EntityTopic for each tag group
         entity_topics: list = []
         from src.application.report.models import (
-            ArticleEnriched,
+            ReportArticle,
             EntityTopic,
         )
 
         for tag, items in tag_groups.items():
             arts = [item[1] for item in items]
-            # Build ArticleEnriched for each article
+            # Build ReportArticle for each article
             article_enriched_list = [
-                ArticleEnriched(
+                ReportArticle(
                     id=art.id or "",
+                    feed_id=art.feed_id or "",
+                    feed_name=getattr(art, "feed_name", "") or "",
                     title=art.title or "",
                     link=art.link or "",
-                    summary=art.summary or "",
-                    quality_score=art.quality_score or 0.0,
-                    feed_weight=art.feed_weight or 0.0,
+                    guid=getattr(art, "guid", "") or "",
                     published_at=art.published_at or "",
-                    feed_id=art.feed_id or "",
+                    description=art.description or "",
                     entities=[],
                     dimensions=[tag],  # primary tag is the dimension
                 )
@@ -204,7 +204,7 @@ async def _entity_report_async(
             ]
 
             # Group by dimension
-            by_dim: dict[str, list[ArticleEnriched]] = {tag: article_enriched_list}
+            by_dim: dict[str, list[ReportArticle]] = {tag: article_enriched_list}
 
             # Find best article by quality for headline
             best_art = max(arts, key=lambda a: a.quality_score or 0.0)
@@ -383,7 +383,7 @@ async def render_report(
 
 
 __all__ = [
-    "ArticleEnriched",
+    "ReportArticle",
     "EntityTag",
     "EntityTopic",
     "ReportData",

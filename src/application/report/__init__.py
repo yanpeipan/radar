@@ -13,7 +13,7 @@ For CLI entry point functions, import from src.application.report directly
 # Re-export CLI entry points from report_generation module.
 from src.application.report.filter import SignalFilter
 from src.application.report.models import (
-    ArticleEnriched,
+    ReportArticle,
     EntityTag,
     EntityTopic,
     ReportData,
@@ -38,7 +38,7 @@ __all__ = [
     "render_report",
     "group_by_layer",
     "group_by_dimension",
-    "ArticleEnriched",
+    "ReportArticle",
     "EntityTag",
     "EntityTopic",
     "ReportData",
