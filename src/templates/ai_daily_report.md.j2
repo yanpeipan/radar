@@ -1,0 +1,58 @@
+AI 日报 — {{ date_range.until }}
+
+{% if director_note %}💡 主编导读：{{ director_note }}
+
+{% endif %}A. AI应用
+{%- for topic in by_layer.get("AI应用", []) %}
+  {%- for dim, articles in topic.dimensions.items() %}
+    {%- for article in articles %}
+[{{ article.title }}]({{ article.link }})
+    {%- endfor %}
+  {%- endfor %}
+{%- else %}
+（本期暂无相关来源）
+{%- endfor %}
+
+B. AI模型
+{%- for topic in by_layer.get("AI模型", []) %}
+  {%- for dim, articles in topic.dimensions.items() %}
+    {%- for article in articles %}
+[{{ article.title }}]({{ article.link }})
+    {%- endfor %}
+  {%- endfor %}
+{%- else %}
+（本期暂无相关来源）
+{%- endfor %}
+
+C. AI基础设施
+{%- for topic in by_layer.get("AI基础设施", []) %}
+  {%- for dim, articles in topic.dimensions.items() %}
+    {%- for article in articles %}
+[{{ article.title }}]({{ article.link }})
+    {%- endfor %}
+  {%- endfor %}
+{%- else %}
+（本期暂无相关来源）
+{%- endfor %}
+
+D. AI芯片
+{%- for topic in by_layer.get("AI芯片", []) %}
+  {%- for dim, articles in topic.dimensions.items() %}
+    {%- for article in articles %}
+[{{ article.title }}]({{ article.link }})
+    {%- endfor %}
+  {%- endfor %}
+{%- else %}
+（本期暂无相关来源）
+{%- endfor %}
+
+E. AI能源
+{%- for topic in by_layer.get("AI能源", []) %}
+  {%- for dim, articles in topic.dimensions.items() %}
+    {%- for article in articles %}
+[{{ article.title }}]({{ article.link }})
+    {%- endfor %}
+  {%- endfor %}
+{%- else %}
+（本期暂无相关来源）
+{%- endfor %}
