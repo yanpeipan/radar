@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from click.testing import CliRunner
 
+from src.application.articles import ArticleListItem
 from src.application.dedup import deduplicate_articles
 from src.application.report.report_generation import LAYER_KEYS
 from src.cli import cli
@@ -27,33 +28,51 @@ class TestDedupArticles:
     def test_dedup_articles_level1_exact_dedup(self):
         """Level 1 removes articles with identical content_hash."""
         articles = [
-            {
-                "id": "art-1",
-                "title": "Original Article",
-                "content": "Article content here",
-                "content_hash": "abc123",
-                "minhash_signature": None,
-            },
-            {
-                "id": "art-2",
-                "title": "Exact Duplicate Title",
-                "content": "Different title but same content hash",
-                "content_hash": "abc123",  # Same hash → Level 1 duplicate
-                "minhash_signature": None,
-            },
-            {
-                "id": "art-3",
-                "title": "Different Article",
-                "content": "Different content",
-                "content_hash": "def456",
-                "minhash_signature": None,
-            },
+            ArticleListItem(
+                id="art-1",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Original Article",
+                content="Article content here",
+                link="http://example.com/1",
+                guid="art-1",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="abc123",
+                minhash_signature=None,
+            ),
+            ArticleListItem(
+                id="art-2",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Exact Duplicate Title",
+                content="Different title but same content hash",
+                link="http://example.com/2",
+                guid="art-2",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="abc123",  # Same hash → Level 1 duplicate
+                minhash_signature=None,
+            ),
+            ArticleListItem(
+                id="art-3",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Different Article",
+                content="Different content",
+                link="http://example.com/3",
+                guid="art-3",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="def456",
+                minhash_signature=None,
+            ),
         ]
         # Level 2 MinHash is skipped (no minhash_signature)
         # Level 3 Embedding is skipped (no embeddings)
         result = deduplicate_articles(articles)
         assert len(result) == 2
-        ids = [a["id"] for a in result]
+        ids = [a.id for a in result]
         assert "art-1" in ids  # First occurrence preserved
         assert "art-2" not in ids  # Duplicate removed
         assert "art-3" in ids
@@ -61,31 +80,49 @@ class TestDedupArticles:
     def test_dedup_articles_preserves_first_occurrence(self):
         """Level 1 always keeps the first occurrence, removes later ones."""
         articles = [
-            {
-                "id": "first",
-                "title": "Title A",
-                "content": "Content A",
-                "content_hash": "same-hash",
-                "minhash_signature": None,
-            },
-            {
-                "id": "second",
-                "title": "Title B",
-                "content": "Content B",
-                "content_hash": "same-hash",
-                "minhash_signature": None,
-            },
-            {
-                "id": "third",
-                "title": "Title C",
-                "content": "Content C",
-                "content_hash": "same-hash",
-                "minhash_signature": None,
-            },
+            ArticleListItem(
+                id="first",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Title A",
+                content="Content A",
+                link="http://example.com/1",
+                guid="first",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="same-hash",
+                minhash_signature=None,
+            ),
+            ArticleListItem(
+                id="second",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Title B",
+                content="Content B",
+                link="http://example.com/2",
+                guid="second",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="same-hash",
+                minhash_signature=None,
+            ),
+            ArticleListItem(
+                id="third",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Title C",
+                content="Content C",
+                link="http://example.com/3",
+                guid="third",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="same-hash",
+                minhash_signature=None,
+            ),
         ]
         result = deduplicate_articles(articles)
         assert len(result) == 1
-        assert result[0]["id"] == "first"
+        assert result[0].id == "first"
 
     def test_dedup_articles_empty_list(self):
         """Empty input returns empty list (no crash)."""
@@ -95,44 +132,68 @@ class TestDedupArticles:
     def test_dedup_articles_no_duplicates(self):
         """Articles with unique content_hash are all preserved."""
         articles = [
-            {
-                "id": "unique-1",
-                "title": "Unique Article 1",
-                "content": "Content 1",
-                "content_hash": "hash-001",
-                "minhash_signature": None,
-            },
-            {
-                "id": "unique-2",
-                "title": "Unique Article 2",
-                "content": "Content 2",
-                "content_hash": "hash-002",
-                "minhash_signature": None,
-            },
+            ArticleListItem(
+                id="unique-1",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Unique Article 1",
+                content="Content 1",
+                link="http://example.com/1",
+                guid="unique-1",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="hash-001",
+                minhash_signature=None,
+            ),
+            ArticleListItem(
+                id="unique-2",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Unique Article 2",
+                content="Content 2",
+                link="http://example.com/2",
+                guid="unique-2",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash="hash-002",
+                minhash_signature=None,
+            ),
         ]
         result = deduplicate_articles(articles)
         assert len(result) == 2
-        ids = [a["id"] for a in result]
+        ids = [a.id for a in result]
         assert "unique-1" in ids
         assert "unique-2" in ids
 
     def test_dedup_articles_no_hash_preserved(self):
         """Articles without content_hash are kept (legacy data)."""
         articles = [
-            {
-                "id": "legacy-1",
-                "title": "Legacy Article",
-                "content": "No hash stored",
-                "content_hash": None,  # No hash
-                "minhash_signature": None,
-            },
-            {
-                "id": "legacy-2",
-                "title": "Another Legacy",
-                "content": "Also no hash",
-                "content_hash": None,  # No hash
-                "minhash_signature": None,
-            },
+            ArticleListItem(
+                id="legacy-1",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Legacy Article",
+                content="No hash stored",
+                link="http://example.com/1",
+                guid="legacy-1",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash=None,  # No hash
+                minhash_signature=None,
+            ),
+            ArticleListItem(
+                id="legacy-2",
+                feed_id="f1",
+                feed_name="Feed 1",
+                title="Another Legacy",
+                content="Also no hash",
+                link="http://example.com/2",
+                guid="legacy-2",
+                published_at="2024-01-01",
+                description="desc",
+                content_hash=None,  # No hash
+                minhash_signature=None,
+            ),
         ]
         result = deduplicate_articles(articles)
         # Both should be preserved (no hash → not a duplicate source)

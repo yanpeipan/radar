@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from src.application.articles import ArticleListItem
 from src.application.report import (
     ArticleEnriched,
     EntityTag,
@@ -103,38 +104,38 @@ _CREATION_KEYWORDS = [
 ]
 
 
-def _classify_signal_leverage(article: dict) -> bool:
+def _classify_signal_leverage(article: ArticleListItem | ArticleEnriched) -> bool:
     """Rule-based check if article is about developer tools / AI platforms."""
     text = (
-        article.get("title", "")
+        (getattr(article, "title", "") or "")
         + " "
-        + article.get("summary", "")
+        + (getattr(article, "summary", "") or "")
         + " "
-        + article.get("description", "")
+        + (getattr(article, "description", "") or "")
     ).lower()
     return any(kw in text for kw in _LEVERAGE_KEYWORDS)
 
 
-def _classify_signal_business(article: dict) -> bool:
+def _classify_signal_business(article: ArticleListItem | ArticleEnriched) -> bool:
     """Rule-based check if article is about startups / funding / business."""
     text = (
-        article.get("title", "")
+        (getattr(article, "title", "") or "")
         + " "
-        + article.get("summary", "")
+        + (getattr(article, "summary", "") or "")
         + " "
-        + article.get("description", "")
+        + (getattr(article, "description", "") or "")
     ).lower()
     return any(kw in text for kw in _BUSINESS_KEYWORDS)
 
 
-def _classify_creation(article: dict) -> bool:
+def _classify_creation(article: ArticleListItem | ArticleEnriched) -> bool:
     """Rule-based check if article is a tutorial / how-to / review / best-of."""
     text = (
-        article.get("title", "")
+        (getattr(article, "title", "") or "")
         + " "
-        + article.get("summary", "")
+        + (getattr(article, "summary", "") or "")
         + " "
-        + article.get("description", "")
+        + (getattr(article, "description", "") or "")
     ).lower()
     return any(kw in text for kw in _CREATION_KEYWORDS)
 
@@ -145,7 +146,7 @@ DEFAULT_TEMPLATE_NAME = "default"
 
 
 async def _entity_report_async(
-    pre_fetched_articles: list,
+    pre_fetched_articles: list[ArticleListItem],
     since: str,
     until: str,
     auto_summarize: bool,
@@ -210,12 +211,14 @@ async def _entity_report_async(
         )
 
         async def process_batch(
-            batch_articles: list[dict], batch_offset: int, semaphore: asyncio.Semaphore
+            batch_articles: list[ArticleListItem],
+            batch_offset: int,
+            semaphore: asyncio.Semaphore,
         ) -> list[ClassifyTranslateItem]:
             """Process a single batch: build news_list and call LLM."""
             async with semaphore:
                 news_list = "\n".join(
-                    f"{i + 1}. {art.get('title', '')}"
+                    f"{i + 1}. {art.title or ''}"
                     for i, art in enumerate(batch_articles)
                 )
                 chain = get_classify_translate_chain(
@@ -291,11 +294,11 @@ async def _entity_report_async(
             "policy": ["regulation", "policy", "government", "ban", "监管", "政策"],
         }
 
-        def _classify_dim(article: dict) -> list[str]:
+        def _classify_dim(article: ArticleListItem | ArticleEnriched) -> list[str]:
             text = (
-                (article.get("title", "") or "")
+                (getattr(article, "title", "") or "")
                 + " "
-                + (article.get("summary", "") or "")
+                + (getattr(article, "summary", "") or "")
             ).lower()
             dims = []
             for dim, kws in _DIMENSION_KEYWORDS.items():
@@ -306,15 +309,13 @@ async def _entity_report_async(
         # Group by primary tag (or feed_id as fallback)
         from collections import defaultdict
 
-        tag_groups: dict[str, list[tuple[int, dict]]] = defaultdict(
+        tag_groups: dict[str, list[tuple[int, ArticleListItem]]] = defaultdict(
             list
-        )  # tag -> [(item_id, article_dict)]
+        )  # tag -> [(item_id, ArticleListItem)]
         for item in classify_output.items:
             if item.id <= len(filtered):
                 art = filtered[item.id - 1]
-                primary_tag = (
-                    item.tags[0] if item.tags else art.get("feed_id", "unknown")
-                )
+                primary_tag = item.tags[0] if item.tags else art.feed_id or "unknown"
                 tag_groups[primary_tag].append((item.id, art))
 
         # Also store translated title per item_id
@@ -333,14 +334,14 @@ async def _entity_report_async(
             article_enriched_list = []
             for art in arts:
                 ae = ArticleEnriched(
-                    id=art.get("id", ""),
-                    title=art.get("title", ""),
-                    link=art.get("link", ""),
-                    summary=art.get("summary", ""),
-                    quality_score=art.get("quality_score", 0.0),
-                    feed_weight=art.get("feed_weight", 0.0),
-                    published_at=art.get("published_at", ""),
-                    feed_id=art.get("feed_id", ""),
+                    id=art.id or "",
+                    title=art.title or "",
+                    link=art.link or "",
+                    summary=art.summary or "",
+                    quality_score=art.quality_score or 0.0,
+                    feed_weight=art.feed_weight or 0.0,
+                    published_at=art.published_at or "",
+                    feed_id=art.feed_id or "",
                     entities=[],  # No entities available from classify_translate
                     dimensions=_classify_dim(art),
                 )
@@ -353,10 +354,8 @@ async def _entity_report_async(
                     by_dim.setdefault(dim, []).append(ae)
 
             # Find best article by quality for headline
-            best_art = max(arts, key=lambda a: a.get("quality_score", 0.0))
-            best_idx = next(
-                i for i, a in enumerate(arts) if a.get("id") == best_art.get("id")
-            )
+            best_art = max(arts, key=lambda a: a.quality_score or 0.0)
+            best_idx = next(i for i, a in enumerate(arts) if a.id == best_art.id)
             item_id = items[best_idx][0]
             headline = trans_by_id.get(item_id, tag)[:30]
 
@@ -370,7 +369,7 @@ async def _entity_report_async(
                     articles_count=len(arts),
                     signals=[],
                     tldr="",
-                    quality_weight=sum(a.get("quality_score", 0.0) for a in arts)
+                    quality_weight=sum(a.quality_score or 0.0 for a in arts)
                     * len(arts),
                 )
             )
@@ -438,9 +437,11 @@ async def _entity_report_async(
             )
 
         # Rule-based signal classification on all entity sources
-        all_sources = []
-        for topic_dict in entity_topic_dicts:
-            all_sources.extend(topic_dict.get("sources", []))
+        # Build from ArticleEnriched directly (entity_topics contains them)
+        all_sources: list[ArticleEnriched] = []
+        for topic in entity_topics:
+            for dim_arts in topic.dimensions.values():
+                all_sources.extend(dim_arts)
 
         leverage_articles = [a for a in all_sources if _classify_signal_leverage(a)]
         business_articles = [a for a in all_sources if _classify_signal_business(a)]
@@ -485,28 +486,8 @@ def cluster_articles_for_report(
         since=since,
         until=until,
     )
-    # Convert ArticleListItem to dict for downstream pipeline
-    article_dicts = [
-        {
-            "id": a.id,
-            "feed_id": a.feed_id,
-            "feed_name": a.feed_name,
-            "feed_weight": a.feed_weight,
-            "title": a.title,
-            "link": a.link,
-            "published_at": a.published_at,
-            "description": a.description,
-            "content": a.content,
-            "summary": a.summary,
-            "quality_score": a.quality_score,
-            "feed_url": a.feed_url,
-            "content_hash": a.content_hash,
-            "minhash_signature": a.minhash_signature,
-        }
-        for a in articles
-    ]
     return asyncio.run(
-        _entity_report_async(article_dicts, since, until, auto_summarize, target_lang)
+        _entity_report_async(articles, since, until, auto_summarize, target_lang)
     )
 
 

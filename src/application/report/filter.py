@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any
+
+from src.application.articles import ArticleListItem
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class SignalFilter:
         self.feed_weight_threshold = feed_weight_threshold
         self.event_signal_boost = event_signal_boost
 
-    def filter(self, articles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def filter(self, articles: list[ArticleListItem]) -> list[ArticleListItem]:
         """Apply all filter rules. Returns filtered articles."""
         logger.debug("SignalFilter input: %d articles", len(articles))
         seen_hashes: set[str] = set()
@@ -74,21 +75,23 @@ class SignalFilter:
             )
         return result
 
-    def _passes_all_rules(self, article: dict, seen_hashes: set[str]) -> bool:
+    def _passes_all_rules(
+        self, article: ArticleListItem, seen_hashes: set[str]
+    ) -> bool:
         # Rule 1: SHA256 exact dedup (title + content[:500])
-        content = article.get("content", "") or article.get("description", "") or ""
+        content = article.content or article.description or ""
         content_preview = content[:500]
         h = hashlib.sha256(
-            f"{article.get('title', '')}{content_preview}".encode()
+            f"{article.title or ''}{content_preview}".encode()
         ).hexdigest()
         if h in seen_hashes:
             return False
         seen_hashes.add(h)
 
         # Rule 2: Quality gate (with optional event boost)
-        # Use "or 0.0" to handle None values (key exists but value is None)
-        quality = article.get("quality_score") or 0.0
-        title = article.get("title", "")
+        # Use "or 0.0" to handle None values
+        quality = article.quality_score or 0.0
+        title = article.title or ""
         effective_quality = quality
         if self.event_signal_boost and self._has_event_signal(title):
             effective_quality += 0.1
@@ -97,7 +100,7 @@ class SignalFilter:
             return False
 
         # Rule 3: Feed weight gate
-        feed_weight = article.get("feed_weight", 0.0)
+        feed_weight = article.feed_weight or 0.0
         return feed_weight >= self.feed_weight_threshold
 
     def _has_event_signal(self, title: str) -> bool:

@@ -15,6 +15,7 @@ import pickle
 
 from datasketch import MinHash, MinHashLSH
 
+from src.application.articles import ArticleListItem
 from src.storage.vector import get_chroma_collection
 
 logger = logging.getLogger(__name__)
@@ -55,15 +56,15 @@ def compute_minhash_signature(text: str) -> bytes:
     return pickle.dumps(m)
 
 
-def _level1_exact_dedup(articles: list[dict]) -> list[dict]:
+def _level1_exact_dedup(articles: list[ArticleListItem]) -> list[ArticleListItem]:
     """Level 1: Remove exact duplicates by content_hash.
 
     Articles missing content_hash are kept (may be legacy data).
     Returns deduplicated list preserving first occurrence order.
     """
-    seen: dict[str, dict] = {}
+    seen: dict[str, ArticleListItem] = {}
     for a in articles:
-        ch = a.get("content_hash")
+        ch = a.content_hash
         if ch is None:
             # No hash yet — keep it, but don't use as dedup source
             key = id(a)
@@ -74,7 +75,7 @@ def _level1_exact_dedup(articles: list[dict]) -> list[dict]:
     return list(seen.values())
 
 
-def _level2_minhash_dedup(articles: list[dict]) -> list[dict]:
+def _level2_minhash_dedup(articles: list[ArticleListItem]) -> list[ArticleListItem]:
     """Level 2: Remove near-duplicates using MinHash LSH (Jaccard >= 0.85).
 
     Articles missing minhash_signature are kept but not used as LSH sources.
@@ -82,31 +83,31 @@ def _level2_minhash_dedup(articles: list[dict]) -> list[dict]:
     """
     # Build LSH index from articles that have signatures
     lsh = MinHashLSH(threshold=_MINHASH_THRESHOLD, num_perm=_NUM_PERM)
-    signature_map: dict[str, dict] = {}  # key -> article
+    signature_map: dict[str, ArticleListItem] = {}  # key -> article
 
     for a in articles:
-        sig_blob = a.get("minhash_signature")
+        sig_blob = a.minhash_signature
         if sig_blob is None:
             continue
         try:
             m = pickle.loads(sig_blob)
-            key = a.get("content_hash") or id(a)
+            key = a.content_hash or id(a)
             lsh.insert(key, m)
 
             signature_map[key] = a
         except Exception as e:
-            logger.warning("Failed to load MinHash for article %s: %s", a.get("id"), e)
+            logger.warning("Failed to load MinHash for article %s: %s", a.id, e)
 
     # Collect articles that are not near-duplicates
-    result: list[dict] = []
+    result: list[ArticleListItem] = []
     for a in articles:
-        sig_blob = a.get("minhash_signature")
+        sig_blob = a.minhash_signature
         if sig_blob is None:
             result.append(a)
             continue
         try:
             m = pickle.loads(sig_blob)
-            key = a.get("content_hash") or id(a)
+            key = a.content_hash or id(a)
             # Query LSH for near-duplicates
             neighbors = lsh.query(m)
             if not neighbors or neighbors == [key]:
@@ -117,25 +118,23 @@ def _level2_minhash_dedup(articles: list[dict]) -> list[dict]:
 
                 signature_map[key] = a
         except Exception as e:
-            logger.warning(
-                "MinHash LSH query failed for article %s: %s", a.get("id"), e
-            )
+            logger.warning("MinHash LSH query failed for article %s: %s", a.id, e)
             result.append(a)
 
     return result
 
 
 def _level3_embedding_dedup(
-    articles: list[dict],
+    articles: list[ArticleListItem],
     threshold: float = _EMBEDDING_THRESHOLD,
-) -> list[dict]:
+) -> list[ArticleListItem]:
     """Level 3: Remove near-duplicates using embedding cosine similarity >= 0.92.
 
     Fetches ChromaDB embeddings for articles in the input list and computes
     pairwise cosine similarity. Articles without embeddings fall through (kept).
 
     Args:
-        articles: List of article dicts with 'id' keys.
+        articles: List of ArticleListItem with 'id' attribute.
         threshold: Cosine similarity threshold (default 0.92).
 
     Returns:
@@ -145,7 +144,7 @@ def _level3_embedding_dedup(
         return articles
 
     # Collect article IDs
-    ids = [a["id"] for a in articles]
+    ids = [a.id for a in articles]
 
     try:
         collection = get_chroma_collection()
@@ -165,10 +164,10 @@ def _level3_embedding_dedup(
             id_to_embedding[cid] = emb
 
     # Build embedding matrix for articles that have embeddings
-    articles_with_emb: list[dict] = []
+    articles_with_emb: list[ArticleListItem] = []
     emb_matrix: list[list[float]] = []
     for a in articles:
-        e = id_to_embedding.get(a["id"])
+        e = id_to_embedding.get(a.id)
         if e is not None:
             articles_with_emb.append(a)
             emb_matrix.append(e)
@@ -192,10 +191,10 @@ def _level3_embedding_dedup(
                 duplicate_flags[j] = True
 
     # Build result: articles without embeddings always pass through
-    result: list[dict] = []
+    result: list[ArticleListItem] = []
     emb_idx = 0
     for a in articles:
-        e = id_to_embedding.get(a["id"])
+        e = id_to_embedding.get(a.id)
         if e is None:
             result.append(a)
         else:
@@ -207,9 +206,9 @@ def _level3_embedding_dedup(
 
 
 def deduplicate_articles(
-    articles: list[dict],
+    articles: list[ArticleListItem],
     threshold: float = 0.85,
-) -> list[dict]:
+) -> list[ArticleListItem]:
     """Remove duplicate articles at three levels.
 
     Level 1 — Exact dedup (SHA256 content_hash): removes bit-for-bit identical content.
@@ -217,7 +216,7 @@ def deduplicate_articles(
     Level 3 — Embedding cosine (>= 0.92): removes semantically identical articles.
 
     Args:
-        articles: List of article dicts with id, content_hash, minhash_signature, etc.
+        articles: List of ArticleListItem with id, content_hash, minhash_signature, etc.
         threshold: MinHash LSH Jaccard threshold (default 0.85). Embedding threshold is fixed at 0.92.
 
     Returns:

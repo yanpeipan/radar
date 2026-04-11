@@ -87,6 +87,32 @@ class ArticleListItem:
     content_hash: str | None = None
     minhash_signature: bytes | None = None
 
+    def to_dict(self) -> dict:
+        """Convert to dict for boundaries that require dict (e.g., template rendering)."""
+        return {
+            "id": self.id,
+            "feed_id": self.feed_id,
+            "feed_name": self.feed_name,
+            "title": self.title,
+            "link": self.link,
+            "guid": self.guid,
+            "published_at": self.published_at,
+            "description": self.description,
+            "vec_sim": self.vec_sim,
+            "bm25_score": self.bm25_score,
+            "freshness": self.freshness,
+            "source_weight": self.source_weight,
+            "ce_score": self.ce_score,
+            "score": self.score,
+            "quality_score": self.quality_score,
+            "content": self.content,
+            "summary": self.summary,
+            "feed_weight": self.feed_weight,
+            "feed_url": self.feed_url,
+            "content_hash": self.content_hash,
+            "minhash_signature": self.minhash_signature,
+        }
+
 
 def list_articles(
     limit: int = 20,
