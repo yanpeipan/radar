@@ -171,6 +171,7 @@ async def _entity_report_async(
     )
     from src.application.report.tldr import TLDRGenerator
     from src.llm.chains import get_classify_translate_chain
+    from src.llm.output_models import ClassifyTranslateItem, ClassifyTranslateOutput
 
     try:
         # Level 0: Three-level dedup (before SignalFilter)
@@ -183,10 +184,10 @@ async def _entity_report_async(
         filtered = signal_filter.filter(deduped)
 
         # --- Layer 2: Classify + Translate (LLM) ---
-        # Build news_list string from article titles (preserve order for id mapping)
-        news_list = "\n".join(
-            f"{i + 1}. {art.get('title', '')}" for i, art in enumerate(filtered)
-        )
+        # Split filtered into batches of 50, process up to 5 concurrently
+        BATCH_SIZE = 50
+        MAX_CONCURRENT = 5
+
         # Candidate tags for AI tech news classification
         tag_list = "\n".join(
             [
@@ -207,11 +208,43 @@ async def _entity_report_async(
                 "创业公司",
             ]
         )
-        chain = get_classify_translate_chain(
-            tag_list=tag_list, news_list=news_list, target_lang=target_lang
-        )
-        classify_output = await chain.ainvoke({})
-        # classify_output is ClassifyTranslateOutput with items: [{id, tags, translation}]
+
+        async def process_batch(
+            batch_articles: list[dict], batch_offset: int, semaphore: asyncio.Semaphore
+        ) -> list[ClassifyTranslateItem]:
+            """Process a single batch: build news_list and call LLM."""
+            async with semaphore:
+                news_list = "\n".join(
+                    f"{i + 1}. {art.get('title', '')}"
+                    for i, art in enumerate(batch_articles)
+                )
+                chain = get_classify_translate_chain(
+                    tag_list=tag_list, news_list=news_list, target_lang=target_lang
+                )
+                result: ClassifyTranslateOutput = await chain.ainvoke({})
+                # Adjust item IDs to account for batch offset
+                for item in result.items:
+                    item.id += batch_offset
+                return result.items
+
+        # Create all batches with their offset values
+        batches = []
+        for i in range(0, len(filtered), BATCH_SIZE):
+            batch = filtered[i : i + BATCH_SIZE]
+            batches.append((batch, i))  # (batch_articles, offset)
+
+        # Process batches concurrently with semaphore limit
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+        tasks = [process_batch(batch, offset, semaphore) for batch, offset in batches]
+        batch_results = await asyncio.gather(*tasks)
+
+        # Flatten all items into single list, preserving global ID order
+        all_items: list[ClassifyTranslateItem] = []
+        for batch_items in batch_results:
+            all_items.extend(batch_items)
+
+        # Convert to ClassifyTranslateOutput for downstream compatibility
+        classify_output = ClassifyTranslateOutput(items=all_items)
 
         # Convert ClassifyTranslateOutput to EntityTopic[]
         # id is 1-indexed position in news_list, map back to original article
