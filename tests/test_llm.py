@@ -152,7 +152,7 @@ class TestJSONModeSupport:
         prompt = "Return a JSON object with name (string) and age (number)."
         response = await client.complete(
             prompt,
-            max_tokens=100,
+            max_tokens=200,
             temperature=0.0,
             extra_body={
                 "response_format": {"type": "json_schema", "json_schema": schema}
@@ -186,7 +186,7 @@ class TestJSONModeSupport:
         prompt = "Return a JSON object with name and age only."
         response = await client.complete(
             prompt,
-            max_tokens=100,
+            max_tokens=200,
             temperature=0.0,
             extra_body={
                 "response_format": {"type": "json_schema", "json_schema": schema}
