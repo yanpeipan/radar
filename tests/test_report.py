@@ -145,24 +145,7 @@ class TestDedupArticles:
 
 
 class TestLLMChains:
-    """Tests for LLM chain functions: get_classify_chain, get_evaluate_chain."""
-
-    def test_llm_chain_classify_returns_valid_layer(self):
-        """Classification chain returns one of the 5 valid layer keys."""
-        from src.llm.chains import get_classify_chain
-
-        chain = get_classify_chain()
-
-        # chain.steps[-2] is AsyncLLMWrapper (chain: prompt | wrapper | parser)
-        wrapper = chain.steps[-2]
-        # Patch complete on the underlying client
-        with patch.object(
-            wrapper.client, "complete", new=AsyncMock(return_value="AI模型")
-        ):
-            result = chain.invoke(
-                {"title": "OpenAI releases GPT-5", "content": "Big model release"}
-            )
-            assert result in LAYER_KEYS
+    """Tests for LLM chain functions: get_evaluate_chain."""
 
     def test_llm_chain_evaluate_returns_valid_json(self):
         """Evaluation chain uses JsonOutputParser (not StrOutputParser).

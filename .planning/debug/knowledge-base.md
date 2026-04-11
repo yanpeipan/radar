@@ -27,3 +27,11 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Fix:** Changed has_more condition from `len(items) > limit` to `len(items) >= limit` in src/cli/ui.py
 - **Files changed:** src/cli/ui.py
 ---
+
+## entity-cluster-quality-score — TypeError when summing quality_score in entity_cluster.py
+- **Date:** 2026-04-11
+- **Error patterns:** TypeError, unsupported operand type, int and NoneType, entity_cluster, quality_score sum
+- **Root cause:** sum() in entity_cluster.py cannot add int + None. quality_score is legitimately NULL in the database for some articles, and the code didn't handle this.
+- **Fix:** Replace `a.quality_score` with `a.quality_score or 0` in all three sum() calls (lines 73, 139, 156)
+- **Files changed:** src/application/report/entity_cluster.py
+---

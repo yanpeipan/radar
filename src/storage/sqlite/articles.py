@@ -328,6 +328,8 @@ def _batch_upsert_articles(articles: list) -> list[tuple[str, str]]:
         _logger.debug(f"Batch upsert: preparing {len(articles)} articles for DB insert")
 
         # Batch UPSERT with RETURNING clause - single transaction, no second round-trip
+        # Collect results after each execute (fetchall() only returns last query results)
+        actual_ids_map: dict[tuple[str, str], str] = {}
         for batch_row in batch_values:
             cursor.execute(
                 """INSERT INTO articles (id, feed_id, title, link, guid, published_at, content, description, created_at, modified_at, author, tags, category, meta)
@@ -346,34 +348,9 @@ def _batch_upsert_articles(articles: list) -> list[tuple[str, str]]:
                    RETURNING id, feed_id, guid""",
                 batch_row,
             )
-        _logger.debug(f"Batch upsert: inserted/updated {len(batch_values)} articles")
-
-        # Collect RETURNING results into map
-        actual_ids_map: dict[tuple[str, str], str] = {}
-        for row in cursor.fetchall():
-            actual_ids_map[(row[1], row[2])] = row[0]
-
-        # Verify all input guids were returned; log anomaly if not
-        returned_count = len(actual_ids_map)
-        if returned_count != len(articles):
-            _logger.warning(
-                f"Batch upsert: RETURNING returned {returned_count} rows, "
-                f"expected {len(articles)} - fallback SELECT may be needed"
-            )
-            # Fallback: fetch any missing via SELECT
-            input_pairs = [
-                (_get_article_field(a, "feed_id") or "", _get_article_field(a, "guid"))
-                for a in articles
-            ]
-            missing = [(f, g) for f, g in input_pairs if (f, g) not in actual_ids_map]
-            if missing:
-                placeholders = ",".join("?" * len(missing))
-                query = f"""SELECT id, feed_id, guid FROM articles
-                             WHERE (feed_id, guid) IN (VALUES {",".join("(?,?)" for _ in missing)})"""
-                params = [val for pair in missing for val in pair]
-                cursor.execute(query, params)
-                for row in cursor.fetchall():
-                    actual_ids_map[(row[1], row[2])] = row[0]
+            for row in cursor.fetchall():
+                actual_ids_map[(row[1], row[2])] = row[0]
+        _logger.debug(f"Batch upsert: inserted/updated {len(actual_ids_map)} articles")
 
         # Batch FTS sync - single query for all articles
         if article_ids:
@@ -392,7 +369,7 @@ def _batch_upsert_articles(articles: list) -> list[tuple[str, str]]:
             f"Batch upsert: transaction committed, {len(articles)} articles processed"
         )
 
-        # Build results with ACTUAL IDs from RETURNING (or fallback SELECT)
+        # Build results with ACTUAL IDs from RETURNING
         results.clear()
         for i, article in enumerate(articles):
             feed_id = _get_article_field(article, "feed_id") or ""

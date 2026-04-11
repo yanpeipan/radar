@@ -56,7 +56,9 @@ class NERExtractor:
                 for attempt, delay in enumerate(delays):
                     try:
                         raw = await chain.ainvoke({"articles_block": articles_block})
-                        parsed = json_mod.loads(raw) if isinstance(raw, str) else raw
+                        parsed = raw if isinstance(raw, str) else raw
+                        if isinstance(parsed, str):
+                            parsed = json_mod.loads(parsed)
                         if isinstance(parsed, list) and len(parsed) == len(batch):
                             break  # Valid result
                         raise ValueError(

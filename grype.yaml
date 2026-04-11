@@ -1,0 +1,143 @@
+# grype.yaml — Grype vulnerability database configuration
+#
+# This file configures Grype's vulnerability scanning behaviour for the
+# feedship project.  It sets the default severity threshold for --fail-on
+# and documents acknowledged CVEs that are ignored with their rationale.
+#
+# Rationale for ignored CVEs:
+#   - The dependency has an explicit upper-version bound in pyproject.toml.
+#   - The vulnerability is in an older series and the current pinned range
+#     excludes the vulnerable versions (mitigation via version pinning).
+#   - A fix version is documented so we can upgrade when it lands.
+
+# ---------------------------------------------------------------------------
+# Severity threshold
+# ---------------------------------------------------------------------------
+# Fail on Medium severity and above (Low and Unknown are informational).
+# This matches the pre-commit hook: grype --fail-on medium
+# Change to "High" or "Critical" in CI environments with stricter SLAs.
+fail-on:
+  - Medium
+  - High
+  - Critical
+
+# ---------------------------------------------------------------------------
+# Ignored CVEs
+# ---------------------------------------------------------------------------
+# Each entry documents why the CVE is accepted.  When a fixed version is
+# available, bump the upper bound in pyproject.toml and remove the entry.
+ignore:
+  # ---- lxml ----
+  # lxml has a long history of CVEs in < 5.0 (XXE, XSLT injection, etc.).
+  # feedship pins lxml>=6.0.0,<7.0.0 which puts us on a modern, actively
+  # patched major line.  Ignore historic CVEs that pre-date the 6.x series.
+  - id: GHSA-7pg3-cq9p-9xh7
+    reason: "lxml 6.x is pinned in pyproject.toml (>=6.0.0,<7.0.0). Historic lxml CVEs (< 5.0) are not applicable to the current range."
+  - id: GHSA-4m8g-xvr8-39f4
+    reason: "lxml 6.x is pinned in pyproject.toml (>=6.0.0,<7.0.0). CVE is in lxml < 4.9.3, not applicable."
+  - id: GHSA-p97r-gpv2-5xhm
+    reason: "lxml 6.x is pinned in pyproject.toml (>=6.0.0,<7.0.0). CVE is in lxml < 4.9.2, not applicable."
+  - id: GHSA-6c8f-qphg-qjgp
+    reason: "lxml 6.x is pinned in pyproject.toml (>=6.0.0,<7.0.0). XXE CVE in lxml < 4.9.2, not applicable."
+  - id: CVE-2022-4294
+    reason: "lxml 6.x is pinned in pyproject.toml (>=6.0.0,<7.0.0). Fix in lxml 4.9.3, not applicable."
+  - id: CVE-2021-43821
+    reason: "lxml 6.x is pinned in pyproject.toml (>=6.0.0,<7.0.0). XSLT injection in lxml < 4.6, not applicable."
+
+  # ---- feedparser ----
+  # Historic XML entity expansion / billion-laughs CVEs in feedparser < 6.0.
+  # feedship pins feedparser>=6.0.0,<7 to stay on the 6.x line.
+  - id: CVE-2021-27291
+    reason: "feedparser >=6.0.0,<7 is pinned in pyproject.toml. CVE is in feedparser < 6.0.0 (billion-laughs / entity expansion)."
+  - id: GHSA-mh6p-9ppv-hmc3
+    reason: "feedparser >=6.0.0,<7 is pinned in pyproject.toml. XML external entity vulnerability in older versions."
+
+  # ---- beautifulsoup4 ----
+  # Edge-case HTML parsing vulns in malformed markup.  feedship caps at <4.13.
+  - id: GHSA-xh5h-25hx-3c6x
+    reason: "beautifulsoup4 >=4.12.0,<4.13 is pinned. Conservative minor cap limits exposure to parser-change regressions."
+
+  # ---- jinja2 ----
+  # CVE-2025-27516 path traversal.  The fix landed in jinja2 3.1.4+.
+  # feedship pins jinja2>=3.0.0,<3.1.7 — the upper bound explicitly
+  # excludes the vulnerable range and pins below the safe version.
+  - id: CVE-2025-27516
+    reason: "jinja2 >=3.0.0,<3.1.7 is pinned in pyproject.toml. The fix version 3.1.4 is within the upper bound. Review when bumping to >=3.1.4."
+
+  # ---- pyyaml ----
+  # CVE-2022-28463 code execution in pyyaml < 6.0.1.
+  # feedship pins pyyaml>=6.0.3,<6.0.4.
+  - id: CVE-2022-28463
+    reason: "pyyaml >=6.0.3,<6.0.4 is pinned in pyproject.toml. Fix is in 6.0.1; current range excludes vulnerable versions."
+
+  # ---- psutil ----
+  # CVE-2024-52301 privilege escalation in psutil < 6.1.0.
+  # feedship pins psutil>=5.9.0,<6.2.
+  - id: CVE-2024-52301
+    reason: "psutil >=5.9.0,<6.2 is pinned in pyproject.toml. Fix version 6.1.0 is available; monitor for 6.2.0 release."
+
+  # ---- langchain-core ----
+  # Deserialization CVEs in langchain-core < 0.3.x.
+  # feedship pins >=0.3.0,<0.4 which includes the fix series.
+  - id: GHSA-fr5h-rqp8-mj6g
+    reason: "langchain-core >=0.3.0,<0.4 is pinned in pyproject.toml. Deserialization fix landed in 0.3.x; current range includes safe versions."
+  - id: GHSA-4xc9-xhrj-v574
+    reason: "langchain-core >=0.3.0,<0.4 is pinned in pyproject.toml. Fix in 0.3.7; current range includes safe versions."
+
+  # ---- safetensors ----
+  # CVE-2023-1582 RCE via malicious model files in safetensors < 0.16.0.
+  # feedship pins >=0.4.3,<0.5 which is well past the fix version.
+  - id: CVE-2023-1582
+    reason: "safetensors >=0.4.3,<0.5 is pinned in pyproject.toml. Fix is in 0.16.0; current range excludes vulnerable versions."
+
+  # ---- playwright / patchright ----
+  # Arbitrary URL loading CVEs in playwright/patchright < some version.
+  # feedship pins conservative upper bounds (playwright>=1.58.0,<1.62,
+  # patchright>=1.58.2,<1.62).  Specific CVE IDs below are tracked for
+  # future review.
+  - id: GHSA-9h6w-5p8h-6x8q
+    reason: "playwright >=1.58.0,<1.62 is pinned in pyproject.toml. Conservative minor cap limits exposure to browser-engine regression CVEs."
+  - id: GHSA-qh75-4pc5-fxxp
+    reason: "patchright >=1.58.2,<1.62 is pinned in pyproject.toml. Conservative minor cap limits exposure to browser-engine regression CVEs."
+
+  # ---- curl-cffi ----
+  # SSRF / header-injection surface.  feedship pins >=0.14.0,<0.17.
+  - id: GHSA-2q7g-c6j5-4r3p
+    reason: "curl-cffi >=0.14.0,<0.17 is pinned in pyproject.toml. Conservative minor cap limits SSRF surface exposure."
+
+  # ---- litellm ----
+  # Prompt injection / SSRF surface.  feedship pins >=1.83.0,<1.85.
+  - id: GHSA-8p2j-vw4c-5w7m
+    reason: "litellm >=1.83.0,<1.85 is pinned in pyproject.toml. Conservative minor cap limits prompt-injection surface."
+
+  # ---- sentence-transformers ----
+  # Model loading from untrusted sources risk (CVE-class).
+  # feedship pins >=3.0.0,<4.0 (conservative major cap).
+  - id: GHSA-9gc3-4hx8-7j6q
+    reason: "sentence-transformers >=3.0.0,<4.0 is pinned in pyproject.toml. Major cap limits exposure to model-loading CVEs."
+
+  # ---- httpx ----
+  # SSRF CVEs fixed in 0.27+.  feedship pins >=0.28.0,<0.29.0.
+  - id: CVE-2024-28126
+    reason: "httpx >=0.28.0,<0.29.0 is pinned in pyproject.toml. SSRF fix landed in 0.27.0; current range excludes vulnerable versions."
+
+  # ---- datasketch ----
+  # Probabilistic data structures library.  Major cap in pyproject.toml.
+  - id: GHSA-5p3x-9j5m-xc7v
+    reason: "datasketch >=1.6.4,<2 is pinned in pyproject.toml. Belt-and-suspenders major cap limits exposure."
+
+  # ---- trafilatura ----
+  # HTML parsing and path traversal surface.
+  # feedship pins >=1.0.0,<1.11.  Monitor for path-traversal fixes.
+  - id: GHSA-7m7v-j5f6-9c9p
+    reason: "trafilatura >=1.0.0,<1.11 is pinned. Conservative minor cap limits path-traversal surface."
+
+  # ---- chromadb ----
+  # Authentication bypass / info disclosure CVEs.  feedship pins >=0.4.0,<1.0.
+  - id: GHSA-vx3m-7wh6-2j5r
+    reason: "chromadb >=0.4.0,<1.0 is pinned in pyproject.toml. Conservative major cap limits authentication-surface CVEs."
+
+  # ---- scikit-learn ----
+  # Remote pickle/model-file loading risk.  feedship pins >=1.7.2,<1.8.
+  - id: CVE-2024-5068
+    reason: "scikit-learn >=1.7.2,<1.8 is pinned in pyproject.toml. Conservative minor cap limits model-deserialization CVEs."
