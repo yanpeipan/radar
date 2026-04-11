@@ -43,7 +43,7 @@ def _topic_sort_key(t: Any) -> float:
     return getattr(t, "quality_weight", 0.0)
 
 
-async def render_entity_report(
+async def render_report(
     entity_topics: list,
     since: str,
     until: str,

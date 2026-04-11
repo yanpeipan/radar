@@ -63,7 +63,7 @@ async def _entity_report_async(
     from src.application.report.render import (
         group_by_dimension,
         group_by_layer,
-        render_entity_report,
+        render_report,
     )
     from src.application.report.tldr import TLDRGenerator
     from src.llm.chains import get_classify_translate_chain
@@ -241,7 +241,7 @@ async def _entity_report_async(
         tldr_top10 = await tldr_gen.generate_top10(entity_topics, target_lang)
 
         # Layer 4: Render
-        rendered = await render_entity_report(
+        rendered = await render_report(
             tldr_top10, since, until, target_lang, template_name="entity"
         )
 
