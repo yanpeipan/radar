@@ -338,9 +338,6 @@ def add_article_embeddings(articles: list[dict]) -> None:
     if not embedding_texts:
         return
 
-    # Acquire per-collection write lock (defined before encoding so Phase 2 can use it)
-    col_lock = _col_locks.setdefault("articles", threading.Lock())
-
     import time
 
     embedding_fn = get_embedding_function()
@@ -367,7 +364,9 @@ def add_article_embeddings(articles: list[dict]) -> None:
         raise
     embedding_vectors = emb.tolist()
 
-    # Serialize ChromaDB write per collection
+    # Serialize ChromaDB write per collection (lock acquired after encoding to avoid
+    # holding the lock during slow CPU-bound encoding, reducing lock contention)
+    col_lock = _col_locks.setdefault("articles", threading.Lock())
     with col_lock:
         collection = get_chroma_collection()
         t1 = time.monotonic()
