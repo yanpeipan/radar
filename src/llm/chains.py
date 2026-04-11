@@ -265,7 +265,7 @@ def get_classify_translate_chain(
     return (
         CLASSIFY_TRANSLATE_PROMPT
         | _get_llm_wrapper(
-            500,
+            16384,
             _make_json_schema_response_format(
                 ClassifyTranslateOutput.model_json_schema(), "ClassifyTranslateOutput"
             ),

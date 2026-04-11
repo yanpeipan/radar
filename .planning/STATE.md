@@ -24,7 +24,7 @@ progress:
 Phase: 23 (Report Generation) — Complete
 Plan: 23-PLAN.md
 Status: Implementation complete
-Last activity: 2026-04-10 — Completed quick task 260411-49x: 在 get_evaluate_chain()、get_entity_topic_chain()、get_tldr_chain() 启用 JSON mode
+Last activity: 2026-04-11 - Completed quick task 260412-4hg: 删除废弃代码：get_evaluate_chain、get_ner_chain、get_entity_topic_chain 三个函数及其所有引用
 
 ## Current Milestone: v1.11 — LLM 智能报告生成
 
@@ -91,3 +91,4 @@ Last activity: 2026-04-10 — Completed quick task 260411-49x: 在 get_evaluate_
 | 260412-3e6 | get_classify_translate_chain替换get_ner_chain、get_entity_topic_chain | 2026-04-12 | 55c1a0f | Verified | [260412-3e6-get-classify-translate-chain-get-ner-cha](./quick/260412-3e6-get-classify-translate-chain-get-ner-cha/) |
 | 260412-3uh | 删除NERExtractor和src/application/report/ner.py | 2026-04-12 | d2e57d1 | Verified | [260412-3uh-nerextractor-src-application-report-ner-](./quick/260412-3uh-nerextractor-src-application-report-ner-/) |
 | 260412-43j | 删除EntityClusterer，deduplicate后调用get_classify_translate_chain | 2026-04-12 | 28bbd85 | Verified | [260412-43j-entityclusterer-deduplicate-articles-get](./quick/260412-43j-entityclusterer-deduplicate-articles-get/) |
+| 260412-4hg | 删除废弃代码：get_evaluate_chain、get_ner_chain、get_entity_topic_chain 三个函数及其所有引用 | 2026-04-11 | 4b6134e | Verified | [260412-4hg-get-evaluate-chain-get-ner-chain-get-ent](./quick/260412-4hg-get-evaluate-chain-get-ner-chain-get-ent/) |
