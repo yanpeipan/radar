@@ -276,7 +276,7 @@ ENTITY_TOPIC_PROMPT = ChatPromptTemplate.from_messages(
         (
             "human",
             "Entity: {entity_name}\nArticles ({article_count}):\n{article_list}\n\n"
-            'Return JSON: {{"headline": "...", "layer": "...", "signals": [...], "insight": "..."}}. Use example values.',
+            'Return JSON: {{\"headline\": \"...\", \"layer\": \"...\", \"signals\": [...], \"insight\": \"...\"}}. Use example values.',
         ),
     ]
 )
@@ -288,7 +288,7 @@ def get_entity_topic_chain() -> Runnable:
     return (
         ENTITY_TOPIC_PROMPT
         | _get_llm_wrapper(
-            150,
+            500,
             _make_json_schema_response_format(
                 EntityTopicOutput.model_json_schema(), "EntityTopicOutput"
             ),
