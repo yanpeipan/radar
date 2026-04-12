@@ -13,9 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Grype vulnerability scanner
-        uses: anchore/grype@v0.103.0
+        uses: anchore/scan-action@v3
         with:
-          fail-on: medium
+          grype-version: 0.103.0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
