@@ -68,26 +68,17 @@ async def _entity_report_async(
         )
         await chain.ainvoke(filtered)
 
-        # Layer 3: Build clusters incrementally via add_article
+        # Layer 3: Build clusters incrementally via add_articles
         report_data = ReportData(
             clusters={},
             date_range={"since": since, "until": until},
             target_lang=target_lang,
             heading_tree=heading_tree,
         )
-        for art in filtered:
-            primary_tag = art.tags[0] if art.tags else "unknown"
-            report_data.add_article(primary_tag, art)
+        report_data.add_articles(filtered, lambda a: a.tags[0] if a.tags else "unknown")
 
         # Layer 4: Match clusters to heading_tree nodes by title
-        clusters: dict[str, list[ReportCluster]] = {}
-        for node in heading_tree.children if heading_tree else []:
-            matched = report_data.get_cluster(node.title)
-            if matched is None:
-                matched = ReportCluster(name=node.title, children=[], articles=[])
-            clusters.setdefault(node.title, []).append(matched)
-
-        report_data.clusters = clusters
+        report_data.build(heading_tree)
 
         return report_data
     except Exception as e:
