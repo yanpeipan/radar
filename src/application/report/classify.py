@@ -13,6 +13,8 @@ from src.llm.output_models import ClassifyTranslateItem
 if TYPE_CHECKING:
     from src.application.articles import ArticleListItem
 
+from src.application.articles import ArticleListItem
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,8 +72,11 @@ class BatchClassifyChain(Runnable):
         self,
         input: list[ArticleListItem],
         config=None,
-    ) -> list[ClassifyTranslateItem]:
-        """Main entry: split input into batches, process concurrently with semaphore."""
+    ) -> list[ArticleListItem]:
+        """Main entry: split input into batches, process concurrently with semaphore.
+
+        Returns list[ArticleListItem] with .tags and .translation populated from LLM output.
+        """
         # Split input into batches
         batches = []
         for i in range(0, len(input), self.batch_size):
@@ -105,13 +110,22 @@ class BatchClassifyChain(Runnable):
         for batch_items in batch_results:
             all_items.extend(batch_items)
 
-        return all_items
+        # Build lookup dicts from LLM output
+        trans_by_id = {item.id: item.translation for item in all_items}
+        tags_by_id = {item.id: item.tags for item in all_items}
+
+        # Enrich original ArticleListItem objects in-place
+        for idx, art in enumerate(input, 1):
+            art.tags = tags_by_id.get(idx, [])
+            art.translation = trans_by_id.get(idx)
+
+        return input
 
     def invoke(
         self,
         input: list[ArticleListItem],
         config=None,
-    ) -> list[ClassifyTranslateItem]:
+    ) -> list[ArticleListItem]:
         """Sync wrapper using new_event_loop pattern."""
         loop = asyncio.new_event_loop()
         try:
@@ -123,7 +137,7 @@ class BatchClassifyChain(Runnable):
         self,
         inputs: list[list[ArticleListItem]],
         config=None,
-    ) -> list[list[ClassifyTranslateItem]]:
+    ) -> list[list[ArticleListItem]]:
         """Process multiple article lists as separate batches (LCEL convention)."""
         return [await self.ainvoke(inp, config) for inp in inputs]
 
@@ -131,7 +145,7 @@ class BatchClassifyChain(Runnable):
         self,
         inputs: list[list[ArticleListItem]],
         config=None,
-    ) -> list[list[ClassifyTranslateItem]]:
+    ) -> list[list[ArticleListItem]]:
         """Sync wrapper for abatch."""
         loop = asyncio.new_event_loop()
         try:
