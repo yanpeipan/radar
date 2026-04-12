@@ -397,13 +397,16 @@ def list_articles(
         )
         rows = cursor.fetchall()
 
+        compute_freshness = sort_by == "quality"
+
         def _compute_article_item(row):
-            pub_ts = _published_at_to_timestamp(row["published_at"])
             freshness = 0.0
-            if pub_ts:
-                pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
-                days_ago = (datetime.now(timezone.utc) - pub_dt).days
-                freshness = math.exp(-days_ago / 7)  # half_life_days = 7
+            if compute_freshness:
+                pub_ts = _published_at_to_timestamp(row["published_at"])
+                if pub_ts:
+                    pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+                    days_ago = (datetime.now(timezone.utc) - pub_dt).days
+                    freshness = math.exp(-days_ago / 7)  # half_life_days = 7
             return ArticleListItem(
                 id=row["id"],
                 feed_id=row["feed_id"],
