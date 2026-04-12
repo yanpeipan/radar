@@ -76,8 +76,6 @@ async def _entity_report_async(
             heading_tree=heading_tree,
         )
         report_data.add_articles(filtered, lambda a: a.tags[0] if a.tags else "unknown")
-
-        # Layer 4: Match clusters to heading_tree nodes by title
         report_data.build(heading_tree)
 
         return report_data

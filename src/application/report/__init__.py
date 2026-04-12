@@ -17,7 +17,6 @@ from src.application.report.generator import (
     cluster_articles_for_report,
 )
 from src.application.report.models import (
-    EntityTag,
     ReportArticle,
     ReportCluster,
     ReportData,
@@ -29,7 +28,6 @@ __all__ = [
     "SignalFilter",
     "TLDRGenerator",
     "ReportArticle",
-    "EntityTag",
     "ReportCluster",
     "ReportData",
     "ReportTemplate",

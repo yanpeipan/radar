@@ -5,9 +5,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING
 
 from src.application.articles import ArticleListItem
-from src.application.report.template import HeadingNode
+
+if TYPE_CHECKING:
+    from src.application.report.template import HeadingNode
 
 
 class Node(ABC):
@@ -43,21 +46,6 @@ class Item(ABC):
 
 
 @dataclass
-class EntityTag:
-    """Tag for a named entity extracted from an article.
-
-    Attributes:
-        name: Raw entity name (e.g., "Google Gemma 4")
-        type: Entity type (ORG, PRODUCT, MODEL, PERSON)
-        normalized: Canonical form (e.g., "google_gemma_4")
-    """
-
-    name: str
-    type: str
-    normalized: str
-
-
-@dataclass
 class ReportArticle(ArticleListItem):
     """Article model for report pipeline, inheriting from ArticleListItem."""
 
@@ -68,11 +56,11 @@ class ReportArticle(ArticleListItem):
     def from_article(
         cls,
         item: ArticleListItem,
-        similar_articles: list[ReportArticle] = field(default_factory=list),
+        similar_articles: list[ReportArticle] | None = None,
     ) -> ReportArticle:
         """Convert an ArticleListItem to ReportArticle."""
         kwargs = asdict(item)
-        kwargs["similar_articles"] = similar_articles
+        kwargs["similar_articles"] = similar_articles if similar_articles is not None else []
         return cls(**kwargs)
 
 
@@ -90,7 +78,7 @@ class ReportCluster:
 
     name: str
     summary: str = field(default_factory=str)
-    tags: list[EntityTag] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     children: list[ReportCluster] = field(default_factory=list)
     articles: list[ReportArticle] = field(default_factory=list)
 
