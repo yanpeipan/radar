@@ -4,20 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .template import HeadingNode
 
 from src.application.articles import ArticleListItem
-from src.application.report import (
-    EntityTag,
-    ReportArticle,
-    ReportCluster,
-    ReportData,
-    SignalFilter,
-)
+from src.application.report.models import ReportArticle, ReportCluster, ReportData
 from src.storage import list_articles
 
 logger = logging.getLogger(__name__)
@@ -25,10 +18,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # v2 report helpers — topic clustering
 # ---------------------------------------------------------------------------
-
-# Template directory
-DEFAULT_TEMPLATE_DIR = Path("~/.config/feedship/templates").expanduser()
-DEFAULT_TEMPLATE_NAME = "default"
 
 
 async def _entity_report_async(
@@ -183,8 +172,6 @@ def cluster_articles_for_report(
 
 __all__ = [
     "ReportArticle",
-    "EntityTag",
     "ReportCluster",
     "ReportData",
-    "SignalFilter",
 ]
