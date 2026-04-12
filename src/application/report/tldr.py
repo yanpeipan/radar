@@ -37,7 +37,6 @@ class TLDRChain(Runnable):
         self, clusters: dict[str, list[ReportCluster]]
     ) -> list[ReportCluster]:
         """Recursively flatten all clusters including children."""
-        from src.application.report.models import ReportCluster
 
         all_clusters: list[ReportCluster] = []
         for cluster_list in clusters.values():
@@ -46,7 +45,6 @@ class TLDRChain(Runnable):
 
     def _flatten_clusters(self, clusters: list[ReportCluster]) -> list[ReportCluster]:
         """Flatten a list of clusters recursively."""
-        from src.application.report.models import ReportCluster
 
         result: list[ReportCluster] = []
         for cluster in clusters:
@@ -79,7 +77,6 @@ class TLDRChain(Runnable):
         4. Batch clusters, call get_tldr_chain for each batch
         5. Map TLDRItem.entity_id -> cluster.name, write TLDRItem.tldr -> cluster.summary
         """
-        from src.application.report.models import ReportCluster
         from src.llm.chains import get_tldr_chain
 
         # Step 1: collect all clusters

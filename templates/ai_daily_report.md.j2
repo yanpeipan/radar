@@ -5,8 +5,9 @@ AI 日报 — {{ report_data.date_range.until }}
 {% endif %}
 ## AI应用
 {%- for cluster in report_data.clusters.get("AI应用", []) %}
+> {{ cluster.summary or '' }}
   {%- for article in cluster.articles %}
-[{{ article.translation }}]({{ article.link }})
+- [{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
@@ -14,8 +15,9 @@ AI 日报 — {{ report_data.date_range.until }}
 
 ## AI模型
 {%- for cluster in report_data.clusters.get("AI模型", []) %}
+> {{ cluster.summary or '' }}
   {%- for article in cluster.articles %}
-[{{ article.translation }}]({{ article.link }})
+- [{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
@@ -23,8 +25,9 @@ AI 日报 — {{ report_data.date_range.until }}
 
 ## AI基础设施
 {%- for cluster in report_data.clusters.get("AI基础设施", []) %}
+> {{ cluster.summary or '' }}
   {%- for article in cluster.articles %}
-[{{ article.translation }}]({{ article.link }})
+- [{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
@@ -32,8 +35,9 @@ AI 日报 — {{ report_data.date_range.until }}
 
 ## AI芯片
 {%- for cluster in report_data.clusters.get("AI芯片", []) %}
+> {{ cluster.summary or '' }}
   {%- for article in cluster.articles %}
-[{{ article.translation }}]({{ article.link }})
+- [{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
@@ -41,8 +45,9 @@ AI 日报 — {{ report_data.date_range.until }}
 
 ## AI能源
 {%- for cluster in report_data.clusters.get("AI能源", []) %}
+> {{ cluster.summary or '' }}
   {%- for article in cluster.articles %}
-[{{ article.translation }}]({{ article.link }})
+- [{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）

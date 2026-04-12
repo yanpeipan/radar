@@ -7,7 +7,7 @@ import re
 from typing import Any
 
 from langchain_core.messages import BaseMessage
-from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompt_values import ChatPromptValue
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
@@ -44,6 +44,25 @@ class JsonRegexOutputParser(Runnable):
         return ClassifyTranslateOutput(**parsed_dict)
 
     async def ainvoke(self, input: Any, config: Any = None) -> ClassifyTranslateOutput:
+        return self.invoke(input, config)
+
+
+class TldrJsonOutputParser(Runnable):
+    """Extract and parse TLDR JSON array from potentially mixed LLM output.
+
+    Uses regex to extract JSON array from mixed text output, similar to
+    JsonRegexOutputParser but returns list[TLDRItem].
+    """
+
+    def invoke(self, input: Any, config: Any = None) -> list[TLDRItem]:
+        raw = input if isinstance(input, str) else str(input)
+        json_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if json_match:
+            items_data = json.loads(json_match.group())
+            return [TLDRItem(**item) for item in items_data]
+        return []
+
+    async def ainvoke(self, input: Any, config: Any = None) -> list[TLDRItem]:
         return self.invoke(input, config)
 
 
@@ -236,14 +255,13 @@ TLDR_PROMPT = ChatPromptTemplate.from_messages(
 
 def get_tldr_chain() -> Runnable:
     """Returns LCEL chain for batch TLDR generation."""
-    parser = JsonOutputParser(pydantic_object=TLDRItem)
     return (
         TLDR_PROMPT
         | _get_llm_wrapper(
             300,
             _make_json_schema_response_format(TLDRItem.model_json_schema(), "TLDRItem"),
         )
-        | parser
+        | TldrJsonOutputParser()
     )
 
 
