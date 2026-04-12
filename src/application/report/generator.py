@@ -52,35 +52,24 @@ async def _entity_report_async(
         signal_filter = SignalFilter()
         filtered = signal_filter.filter(deduped)
 
-        # --- Layer 2: Classify + Translate (LLM) ---
+        # --- Layer 2-4: LCEL chain composition ---
         # Candidate tags derived from template heading structure
         tag_list = "\n".join(heading_tree.titles)
 
-        # Use BatchClassifyChain for batching + concurrency
-        # Note: chain.ainvoke mutates filtered in-place, adding .tags and .translation
-        from src.application.report.classify import BatchClassifyChain
-
-        chain = BatchClassifyChain(
-            tag_list=tag_list,
-            target_lang=target_lang,
-            batch_size=50,
-            max_concurrency=5,
-        )
-        await chain.ainvoke(filtered)
-
-        # Layer 3: BuildReportDataChain
+        from src.application.report.classify import BatchClassifyChain, ReportDataAdapter
         from src.application.report.models import BuildReportDataChain
+        from src.application.report.tldr import TLDRChain
 
-        build_chain = BuildReportDataChain(target_lang=target_lang)
-        report_data = await build_chain.ainvoke((filtered, heading_tree))
+        adapter = ReportDataAdapter(heading_tree)
+        chain = (
+            BatchClassifyChain(tag_list=tag_list, target_lang=target_lang, batch_size=50, max_concurrency=5)
+            | adapter
+            | BuildReportDataChain(target_lang=target_lang)
+            | TLDRChain(top_n=100, target_lang=target_lang)
+        )
+
+        report_data = await chain.ainvoke(filtered)
         report_data.date_range = {"since": since, "until": until}
-
-        # Layer 4: TLDRChain
-        from src.application.report.models import TLDRChain
-
-        tldr_chain = TLDRChain(top_n=100, target_lang=target_lang)
-        await tldr_chain.ainvoke(report_data)
-
         return report_data
     except Exception as e:
         logger.error(f"Entity clustering failed: {e}")
