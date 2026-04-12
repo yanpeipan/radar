@@ -145,7 +145,7 @@ def _create_default_config(config_path: Path) -> None:
             "ollama_base_url": "http://localhost:11434",
             "fallback_chain": ["openai", "azure", "anthropic"],
             "max_concurrency": 2,
-            "timeout_seconds": 60,
+            "timeout_seconds": 120,  # Increased from 60 for batch classification under concurrent load
             "max_tokens_per_call": 8000,
             "daily_cap": 1000,
             "weight_gate_min": 0.7,

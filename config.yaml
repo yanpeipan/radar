@@ -1,5 +1,6 @@
 # LLM configuration
 llm:
+  timeout_seconds: 120  # Increased from 60 to handle 50-article batches under concurrent load
   model_list:
     - model_name: minimax/MiniMax-M2.7
       litellm_params:

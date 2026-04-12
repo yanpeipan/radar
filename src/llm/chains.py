@@ -25,8 +25,8 @@ MAX_TOKENS_PER_CHAIN: dict[str, int] = {
 }
 
 
-import re
 import json
+import re
 
 
 class JsonRegexOutputParser(Runnable):

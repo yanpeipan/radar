@@ -156,12 +156,17 @@ class LLMClient:
                 for attempt in [2, 3]:  # 2nd and 3rd attempt with longer timeout
                     try:
                         response = await llm_router.acompletion(
-                            **{**kwargs, "timeout": self.config.timeout_seconds * attempt}
+                            **{
+                                **kwargs,
+                                "timeout": self.config.timeout_seconds * attempt,
+                            }
                         )
                         choices = response.get("choices")
                         if choices:
                             message = choices[0]["message"]
-                            content = message.get("content") or message.get("reasoning_content")
+                            content = message.get("content") or message.get(
+                                "reasoning_content"
+                            )
                             if content:
                                 return content
                     except litellm.Timeout:

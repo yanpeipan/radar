@@ -5,10 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader, Template, select_autoescape
 
-from .models import ReportData
+if TYPE_CHECKING:
+    from .models import ReportData
 
 
 @dataclass
@@ -25,7 +27,7 @@ class HeadingNode:
     level: int
     title: str
     body: str = ""
-    children: list["HeadingNode"] = field(default_factory=list)
+    children: list[HeadingNode] = field(default_factory=list)
 
     @property
     def titles(self) -> list[str]:
@@ -48,7 +50,7 @@ def parse_markdown_headings(markdown: str) -> HeadingNode:
     Example::
 
         root = parse_markdown_headings(text)
-        for section in root.children:          # H2 sections
+        for section in root.children:  # H2 sections
             print(section.title, section.body)
     """
     root = HeadingNode(level=0, title="")
