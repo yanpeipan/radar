@@ -33,17 +33,12 @@ from src.storage.sqlite.articles import (  # noqa: F401, E402
 )
 
 # ---------------------------------------------------------------------------
-# conn.py  - DB connection, write lock, date utilities
+# conn.py  - DB connection, write lock
 # ---------------------------------------------------------------------------
 from src.storage.sqlite.conn import (  # noqa: F401, E402
     _DB_PATH,
-    _date_to_str,
-    _date_to_str_end,
-    _date_to_timestamp,
-    _date_to_timestamp_end,
     _get_connection,
     _get_db_write_lock,
-    _normalize_published_at,
     get_db,
     get_db_path,
     init_db,
@@ -77,4 +72,15 @@ from src.storage.sqlite.llm import (  # noqa: F401, E402
 # ---------------------------------------------------------------------------
 from src.storage.sqlite.search import (  # noqa: F401, E402
     search_articles_fts,
+)
+
+# ---------------------------------------------------------------------------
+# utils.py - Date utilities
+# ---------------------------------------------------------------------------
+from src.storage.sqlite.utils import (  # noqa: F401, E402
+    _date_to_str,
+    _date_to_str_end,
+    _date_to_timestamp,
+    _date_to_timestamp_end,
+    _normalize_published_at,
 )

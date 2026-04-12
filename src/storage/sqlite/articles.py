@@ -13,6 +13,7 @@ import time
 
 from nanoid import generate
 
+from src.storage.sqlite.conn import _get_db_write_lock
 from src.storage.sqlite.utils import (
     _date_to_str,
     _date_to_str_end,
@@ -32,21 +33,6 @@ def _get_article_field(article, field: str, default=None):
     if hasattr(article, field):
         return getattr(article, field)
     return article.get(field, default) if isinstance(article, dict) else default
-
-
-# ---------------------------------------------------------------------------
-# Asyncio lock (singleton)
-# ---------------------------------------------------------------------------
-
-_db_write_lock: asyncio.Lock | None = None
-
-
-def _get_db_write_lock() -> asyncio.Lock:
-    """Get or create the singleton asyncio.Lock for serializing DB writes."""
-    global _db_write_lock
-    if _db_write_lock is None:
-        _db_write_lock = asyncio.Lock()
-    return _db_write_lock
 
 
 # ---------------------------------------------------------------------------
