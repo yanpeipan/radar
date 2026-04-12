@@ -36,6 +36,7 @@ dependencies = [
     "browserforge>=1.2.4,<2",  # Browser toolkit; major cap is belt-and-suspenders
     "patchright>=1.58.2,<1.62",  # Playwright fork; CVE history (arbitrary URL loading); conservative minor cap
     "langchain-core>=1.2.22,<2",  # LangChain deserialization CVEs fixed in 1.2.22
+    "langchain-litellm>=0.6.4,<1",  # LiteLLM LangChain integration
     "datasketch>=1.6.4,<2",  # Probabilistic data structures; major cap is belt-and-suspenders
     "transformers>=5.0.0,<5.1",  # GHSA-69w3-r845-3855 fixed in 5.0.0
 ]
