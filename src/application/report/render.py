@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from .models import ReportData
 
 
@@ -15,15 +13,8 @@ def group_clusters(topics: list) -> dict[str, list]:
     return result
 
 
-def _topic_sort_key(t: Any) -> float:
-    return getattr(t, "quality_weight", 0.0)
-
-
 async def render_report(
-    entity_topics: list,
-    since: str,
-    until: str,
-    target_lang: str,
+    report_data: ReportData,
     template_name: str = "entity",
 ) -> str:
     """Render entity report using Jinja2."""
@@ -43,15 +34,5 @@ async def render_report(
         template = env.get_template(f"{template_name}.md")
     except Exception:
         raise
-
-    clusters = group_clusters(entity_topics)
-    for layer_list in clusters.values():
-        layer_list.sort(key=_topic_sort_key, reverse=True)
-
-    report_data = ReportData(
-        clusters=clusters,
-        date_range={"since": since, "until": until},
-        target_lang=target_lang,
-    )
 
     return template.render(report_data=report_data)

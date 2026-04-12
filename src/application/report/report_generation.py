@@ -223,9 +223,13 @@ async def _entity_report_async(
         tldr_top10 = await tldr_gen.generate_top10(entity_topics, target_lang)
 
         # Layer 4: Render
-        rendered = await render_report(
-            tldr_top10, since, until, target_lang, template_name="entity"
+        clusters = group_clusters(entity_topics)
+        report_data = ReportData(
+            clusters=clusters,
+            date_range={"since": since, "until": until},
+            target_lang=target_lang,
         )
+        rendered = await render_report(report_data, template_name="entity")
 
         # Build CLI-compatible layers structure from entity topics
         # Each ReportCluster -> topic dict with "sources" (flattened from dimensions)
