@@ -25,6 +25,30 @@ MAX_TOKENS_PER_CHAIN: dict[str, int] = {
 }
 
 
+import re
+import json
+
+
+class JsonRegexOutputParser(Runnable):
+    """Extract and parse JSON array from potentially mixed LLM output.
+
+    Wraps the raw string and extracts JSON using regex, so the chain
+    can handle cases where the LLM outputs text before/after the JSON.
+    """
+
+    def invoke(self, input: Any, config: Any = None) -> ClassifyTranslateOutput:
+        raw = input if isinstance(input, str) else str(input)
+        json_match = re.search(r"\[.*\]", raw, re.DOTALL)
+        if json_match:
+            parsed_dict = {"items": json.loads(json_match.group())}
+        else:
+            parsed_dict = {"items": []}
+        return ClassifyTranslateOutput(**parsed_dict)
+
+    async def ainvoke(self, input: Any, config: Any = None) -> ClassifyTranslateOutput:
+        return self.invoke(input, config)
+
+
 class AsyncLLMWrapper(Runnable):
     """LCEL Runnable that delegates to LLMClient.complete().
 
@@ -261,8 +285,8 @@ def get_classify_translate_chain(
         news_list: Newline-separated news titles (one per line)
         target_lang: Target language code (default: zh)
     """
-    # Use StrOutputParser — JSON parsing is done manually in process_batch
-    # so we can handle cases where the LLM outputs mixed text + JSON.
+    # JsonRegexOutputParser extracts JSON from mixed LLM output via regex,
+    # so process_batch can use the parsed ClassifyTranslateOutput directly.
     return (
         CLASSIFY_TRANSLATE_PROMPT
         | _get_llm_wrapper(
@@ -271,5 +295,5 @@ def get_classify_translate_chain(
                 ClassifyTranslateOutput.model_json_schema(), "ClassifyTranslateOutput"
             ),
         )
-        | StrOutputParser()
+        | JsonRegexOutputParser()
     )

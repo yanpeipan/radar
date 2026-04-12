@@ -80,9 +80,6 @@ async def _entity_report_async(
             semaphore: asyncio.Semaphore,
         ) -> list[ClassifyTranslateItem]:
             """Process a single batch: build news_list and call LLM."""
-            import json
-            import re
-
             async with semaphore:
                 try:
                     news_list = "\n".join(
@@ -92,22 +89,14 @@ async def _entity_report_async(
                     chain = get_classify_translate_chain(
                         tag_list=tag_list, news_list=news_list, target_lang=target_lang
                     )
-                    # Chain returns a string (StrOutputParser). Extract JSON array from
-                    # potentially mixed output (the LLM sometimes outputs text before/after JSON).
-                    raw_output = await chain.ainvoke(
+                    # Chain returns ClassifyTranslateOutput directly (JsonRegexOutputParser)
+                    output = await chain.ainvoke(
                         {
                             "news_list": news_list,
                             "tag_list": tag_list,
                             "target_lang": target_lang,
                         }
                     )
-                    # Try to find JSON array in the output
-                    json_match = re.search(r"\[.*\]", raw_output, re.DOTALL)
-                    if json_match:
-                        parsed_dict = {"items": json.loads(json_match.group())}
-                    else:
-                        parsed_dict = {"items": []}
-                    output = ClassifyTranslateOutput(**parsed_dict)
                     # Adjust item IDs to account for batch offset
                     for item in output.items:
                         item.id += batch_offset
