@@ -9,9 +9,8 @@ from typing import Any
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
-from langchain_litellm import ChatLiteLLM
 
-from src.llm.core import get_llm_client
+from src.llm.core import _get_llm_wrapper
 from src.llm.output_models import (
     ClassifyTranslateOutput,
     TLDRItem,
@@ -66,28 +65,6 @@ class TldrJsonOutputParser(Runnable):
 
     async def ainvoke(self, input: Any, config: Any = None) -> list[TLDRItem]:
         return self.invoke(input, config)
-
-
-def _get_llm_wrapper(
-    max_tokens: int | None = None,
-    response_format: dict | None = None,
-    thinking: dict | None = None,
-) -> Runnable:
-    """Get a ChatLiteLLM wrapper with optional configuration.
-
-    ChatLiteLLM is stateless, so no caching is needed. It delegates to litellm
-    internally which handles provider routing, retries, and fallback.
-    """
-    model = get_llm_client().config.model
-    wrapper = ChatLiteLLM(
-        model=model,
-        max_tokens=max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS,
-    )
-    if response_format:
-        wrapper = wrapper.bind(response_format=response_format)
-    if thinking:
-        wrapper = wrapper.bind(thinking=thinking)
-    return wrapper
 
 
 def _make_json_schema_response_format(schema: dict, name: str) -> dict:

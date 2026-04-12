@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import litellm
+from langchain_core.runnables import Runnable
 from litellm import Router
 
 from src.application.config import _get_settings
@@ -369,3 +370,34 @@ async def batch_summarize_articles(
 ) -> list[dict]:
     """Batch summarize articles. Delegates to LLMClient.batch_summarize()."""
     return await get_llm_client().batch_summarize(articles, target_lang, batch_size)
+
+
+def _get_llm_wrapper(
+    max_tokens: int | None = None,
+    response_format: dict | None = None,
+    thinking: dict | None = None,
+) -> Runnable:
+    """Get a ChatLiteLLMRouter wrapper with optional configuration.
+
+    Uses the module-level llm_router which handles all provider routing,
+    retries, and fallback via litellm.
+    """
+    from langchain_litellm import ChatLiteLLMRouter
+
+    # Get model_name from router's first model (could be extended to support multiple)
+    model_name = _model_list[0]["model_name"] if _model_list else "gpt-4o-mini"
+
+    wrapper = ChatLiteLLMRouter(
+        router=llm_router,
+        model_name=model_name,
+        max_tokens=max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS,
+    )
+    if response_format:
+        wrapper = wrapper.bind(response_format=response_format)
+    if thinking:
+        wrapper = wrapper.bind(thinking=thinking)
+    return wrapper
+
+
+# Default max tokens for LLM calls
+DEFAULT_MAX_TOKENS = 300
