@@ -86,6 +86,8 @@ class ArticleListItem:
     feed_url: str | None = None
     content_hash: str | None = None
     minhash_signature: bytes | None = None
+    tags: list[str] = []
+    translation: str | None = None
 
     def to_dict(self) -> dict:
         """Convert to dict for boundaries that require dict (e.g., template rendering)."""
@@ -111,6 +113,8 @@ class ArticleListItem:
             "feed_url": self.feed_url,
             "content_hash": self.content_hash,
             "minhash_signature": self.minhash_signature,
+            "tags": self.tags,
+            "translation": self.translation,
         }
 
 
