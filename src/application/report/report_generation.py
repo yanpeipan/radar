@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from langchain_core.runnables import Runnable
+
 if TYPE_CHECKING:
     from .template import HeadingNode
 
@@ -29,6 +31,51 @@ logger = logging.getLogger(__name__)
 # Template directory
 DEFAULT_TEMPLATE_DIR = Path("~/.config/feedship/templates").expanduser()
 DEFAULT_TEMPLATE_NAME = "default"
+
+
+class BatchClassifyProcessor(Runnable):
+    """LCEL Runnable for processing a batch of articles through classification.
+
+    Input: dict with "batch_articles" (list[ArticleListItem]) and "batch_offset" (int)
+    Output: list[ClassifyTranslateItem] with IDs adjusted by batch_offset
+    """
+
+    def __init__(self, tag_list: str, target_lang: str):
+        from src.llm.chains import get_classify_translate_chain
+
+        self.tag_list = tag_list
+        self.target_lang = target_lang
+        self._chain = get_classify_translate_chain(
+            tag_list=tag_list, news_list="", target_lang=target_lang
+        )
+
+    def _build_news_list(self, batch_articles: list[ArticleListItem]) -> str:
+        return "\n".join(
+            f"{i + 1}. {art.title or ''}"
+            for i, art in enumerate(batch_articles)
+        )
+
+    def invoke(
+        self, input: dict, config: Any = None
+    ) -> list[ClassifyTranslateItem]:
+        return asyncio.run(self.ainvoke(input, config))
+
+    async def ainvoke(
+        self, input: dict, config: Any = None
+    ) -> list[ClassifyTranslateItem]:
+        batch_articles: list[ArticleListItem] = input["batch_articles"]
+        batch_offset: int = input["batch_offset"]
+        news_list = self._build_news_list(batch_articles)
+        output = await self._chain.ainvoke(
+            {
+                "news_list": news_list,
+                "tag_list": self.tag_list,
+                "target_lang": self.target_lang,
+            }
+        )
+        for item in output.items:
+            item.id += batch_offset
+        return output.items
 
 
 async def _entity_report_async(
@@ -74,49 +121,33 @@ async def _entity_report_async(
         # Candidate tags derived from template heading structure
         tag_list = "\n".join(heading_tree.titles)
 
-        async def process_batch(
-            batch_articles: list[ArticleListItem],
-            batch_offset: int,
-            semaphore: asyncio.Semaphore,
-        ) -> list[ClassifyTranslateItem]:
-            """Process a single batch: build news_list and call LLM."""
-            async with semaphore:
-                try:
-                    news_list = "\n".join(
-                        f"{i + 1}. {art.title or ''}"
-                        for i, art in enumerate(batch_articles)
-                    )
-                    chain = get_classify_translate_chain(
-                        tag_list=tag_list, news_list=news_list, target_lang=target_lang
-                    )
-                    # Chain returns ClassifyTranslateOutput directly (JsonRegexOutputParser)
-                    output = await chain.ainvoke(
-                        {
-                            "news_list": news_list,
-                            "tag_list": tag_list,
-                            "target_lang": target_lang,
-                        }
-                    )
-                    # Adjust item IDs to account for batch offset
-                    for item in output.items:
-                        item.id += batch_offset
-                    return output.items
-                except Exception as e:
-                    logger.warning(
-                        "Batch %d failed: %s — returning empty list", batch_offset, e
-                    )
-                    return []
+        # Build processor (holds chain, tag_list, target_lang)
+        processor = BatchClassifyProcessor(tag_list=tag_list, target_lang=target_lang)
 
         # Create all batches with their offset values
         batches = []
         for i in range(0, len(filtered), BATCH_SIZE):
             batch = filtered[i : i + BATCH_SIZE]
-            batches.append((batch, i))  # (batch_articles, offset)
+            batches.append({"batch_articles": batch, "batch_offset": i})
 
         # Process batches concurrently with semaphore limit
         semaphore = asyncio.Semaphore(MAX_CONCURRENT)
-        tasks = [process_batch(batch, offset, semaphore) for batch, offset in batches]
-        batch_results = await asyncio.gather(*tasks)
+
+        async def run_with_semaphore(
+            batch: dict,
+        ) -> list[ClassifyTranslateItem]:
+            async with semaphore:
+                try:
+                    return await processor.ainvoke(batch)
+                except Exception as e:
+                    logger.warning(
+                        "Batch %d failed: %s — returning empty list",
+                        batch["batch_offset"],
+                        e,
+                    )
+                    return []
+
+        batch_results = await asyncio.gather(*[run_with_semaphore(b) for b in batches])
 
         # Flatten all items into single list, preserving global ID order
         all_items: list[ClassifyTranslateItem] = []
