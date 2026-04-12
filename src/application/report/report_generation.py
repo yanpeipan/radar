@@ -5,9 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-from langchain_core.runnables import Runnable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .template import HeadingNode
@@ -20,6 +18,7 @@ from src.application.report import (
     ReportData,
     SignalFilter,
 )
+from src.llm.output_models import ClassifyTranslateItem
 from src.storage import list_articles
 
 logger = logging.getLogger(__name__)
@@ -33,49 +32,39 @@ DEFAULT_TEMPLATE_DIR = Path("~/.config/feedship/templates").expanduser()
 DEFAULT_TEMPLATE_NAME = "default"
 
 
-class BatchClassifyProcessor(Runnable):
-    """LCEL Runnable for processing a batch of articles through classification.
+def _build_news_list(batch_articles: list[ArticleListItem]) -> str:
+    """Build news_list string from a batch of articles (1-indexed)."""
+    return "\n".join(
+        f"{i + 1}. {art.title or ''}" for i, art in enumerate(batch_articles)
+    )
 
-    Input: dict with "batch_articles" (list[ArticleListItem]) and "batch_offset" (int)
-    Output: list[ClassifyTranslateItem] with IDs adjusted by batch_offset
-    """
 
-    def __init__(self, tag_list: str, target_lang: str):
-        from src.llm.chains import get_classify_translate_chain
+async def _run_classify_batch(
+    batch: dict,
+    tag_list: str,
+    target_lang: str,
+) -> list[ClassifyTranslateItem]:
+    """Run a single batch through the classify+translate chain."""
+    from src.llm.chains import get_classify_translate_chain
 
-        self.tag_list = tag_list
-        self.target_lang = target_lang
-        self._chain = get_classify_translate_chain(
-            tag_list=tag_list, news_list="", target_lang=target_lang
-        )
-
-    def _build_news_list(self, batch_articles: list[ArticleListItem]) -> str:
-        return "\n".join(
-            f"{i + 1}. {art.title or ''}"
-            for i, art in enumerate(batch_articles)
-        )
-
-    def invoke(
-        self, input: dict, config: Any = None
-    ) -> list[ClassifyTranslateItem]:
-        return asyncio.run(self.ainvoke(input, config))
-
-    async def ainvoke(
-        self, input: dict, config: Any = None
-    ) -> list[ClassifyTranslateItem]:
-        batch_articles: list[ArticleListItem] = input["batch_articles"]
-        batch_offset: int = input["batch_offset"]
-        news_list = self._build_news_list(batch_articles)
-        output = await self._chain.ainvoke(
-            {
-                "news_list": news_list,
-                "tag_list": self.tag_list,
-                "target_lang": self.target_lang,
-            }
-        )
-        for item in output.items:
-            item.id += batch_offset
-        return output.items
+    batch_articles: list[ArticleListItem] = batch["batch_articles"]
+    batch_offset: int = batch["batch_offset"]
+    news_list = _build_news_list(batch_articles)
+    chain = get_classify_translate_chain(
+        tag_list=tag_list,
+        news_list=news_list,
+        target_lang=target_lang,
+    )
+    output = await chain.ainvoke(
+        {
+            "tag_list": tag_list,
+            "news_list": news_list,
+            "target_lang": target_lang,
+        }
+    )
+    for item in output.items:
+        item.id += batch_offset
+    return output.items
 
 
 async def _entity_report_async(
@@ -84,7 +73,7 @@ async def _entity_report_async(
     until: str,
     auto_summarize: bool,
     target_lang: str,
-    heading_tree: "HeadingNode | None" = None,
+    heading_tree: HeadingNode | None = None,
 ) -> ReportData:
     """New entity-based report pipeline (5 layers).
 
@@ -99,9 +88,7 @@ async def _entity_report_async(
     logger = logging.getLogger(__name__)
 
     from src.application.report.filter import SignalFilter
-    from src.application.report.tldr import TLDRGenerator
-    from src.llm.chains import get_classify_translate_chain
-    from src.llm.output_models import ClassifyTranslateItem, ClassifyTranslateOutput
+    from src.llm.output_models import ClassifyTranslateOutput
 
     try:
         # Level 0: Three-level dedup (before SignalFilter)
@@ -121,24 +108,19 @@ async def _entity_report_async(
         # Candidate tags derived from template heading structure
         tag_list = "\n".join(heading_tree.titles)
 
-        # Build processor (holds chain, tag_list, target_lang)
-        processor = BatchClassifyProcessor(tag_list=tag_list, target_lang=target_lang)
-
         # Create all batches with their offset values
         batches = []
         for i in range(0, len(filtered), BATCH_SIZE):
-            batch = filtered[i : i + BATCH_SIZE]
-            batches.append({"batch_articles": batch, "batch_offset": i})
+            batch_articles = filtered[i : i + BATCH_SIZE]
+            batches.append({"batch_articles": batch_articles, "batch_offset": i})
 
         # Process batches concurrently with semaphore limit
         semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
-        async def run_with_semaphore(
-            batch: dict,
-        ) -> list[ClassifyTranslateItem]:
+        async def run_with_semaphore(batch: dict) -> list[ClassifyTranslateItem]:
             async with semaphore:
                 try:
-                    return await processor.ainvoke(batch)
+                    return await _run_classify_batch(batch, tag_list, target_lang)
                 except Exception as e:
                     logger.warning(
                         "Batch %d failed: %s — returning empty list",
@@ -222,13 +204,12 @@ async def _entity_report_async(
         # heading_tree.children are the top-level sections (H2 headings)
         # Each heading's title maps to the matching ReportCluster from entity_topics
         # If no match, create an empty ReportCluster to preserve template structure
-        from .template import parse_markdown_headings
 
         def _tag_of(cluster: ReportCluster) -> str:
             return cluster.children[0].dimensions[0] if cluster.children else ""
 
         clusters: dict[str, list[ReportCluster]] = {}
-        for node in (heading_tree.children if heading_tree else []):
+        for node in heading_tree.children if heading_tree else []:
             matched = next(
                 (c for c in entity_topics if _tag_of(c) == node.title),
                 ReportCluster(name=node.title, children=[], articles=[]),
@@ -254,7 +235,7 @@ def cluster_articles_for_report(
     limit: int = 200,
     auto_summarize: bool = True,
     target_lang: str = "zh",
-    heading_tree: "HeadingNode | None" = None,
+    heading_tree: HeadingNode | None = None,
 ) -> ReportData:
     """Fetch and cluster articles for an entity-based report.
 
