@@ -119,7 +119,10 @@ class TLDRChain(Runnable):
             if isinstance(result, Exception):
                 logger.warning("TLDR cluster failed: %s", result)
             elif result:
-                cluster.summary = result[0].tldr
+                # Handle structured output: result is TLDRItems with .items list
+                items = result.items if hasattr(result, "items") else result
+                if items:
+                    cluster.summary = items[0].tldr
 
         return input
 

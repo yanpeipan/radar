@@ -49,6 +49,7 @@ llm_router: Router = Router(
 # LLM wrapper for LCEL chains
 # ---------------------------------------------------------------------------
 
+
 def _get_llm_wrapper(
     max_tokens: int | None = None,
     response_format: dict | None = None,
@@ -73,6 +74,7 @@ def _get_llm_wrapper(
     if thinking:
         wrapper = wrapper.bind(thinking=thinking)
     return wrapper
+
 
 # Default max tokens for LLM calls
 DEFAULT_MAX_TOKENS = 300
