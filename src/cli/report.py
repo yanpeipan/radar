@@ -46,8 +46,8 @@ console = Console()
 @click.option(
     "--template",
     "template_name",
-    default="ai-daily",
-    help="Template name to use (default: ai-daily)",
+    default="ai_daily_report",
+    help="Template name to use (default: ai_daily_report)",
 )
 def report(
     since: str,
