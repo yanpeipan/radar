@@ -103,9 +103,49 @@ class ReportData:
     clusters: dict[str, list[ReportCluster]] = field(default_factory=dict)
     date_range: dict[str, str] = field(default_factory=dict)
     target_lang: str = "zh"
-    heading_tree: "HeadingNode | None" = field(default=None)
+    heading_tree: HeadingNode | None = field(default=None)
 
     @property
     def total_articles(self) -> int:
         """Total number of articles across all clusters."""
-        return sum(len(cluster.children) for cluster_list in self.clusters.values() for cluster in cluster_list)
+        return sum(
+            len(cluster.children)
+            for cluster_list in self.clusters.values()
+            for cluster in cluster_list
+        )
+
+    def add_article(self, cluster_name: str, item: ArticleListItem) -> None:
+        """Add an article to a cluster, creating the cluster if needed.
+
+        Args:
+            cluster_name: Key in self.clusters (e.g., "AI应用")
+            item: ArticleListItem (should have .tags and .translation from enrichment)
+        """
+        # Get or create cluster list
+        if cluster_name not in self.clusters:
+            self.clusters[cluster_name] = []
+
+        clusters = self.clusters[cluster_name]
+
+        # Use existing cluster or create new one with this article as first child
+        if not clusters:
+            cluster = ReportCluster(name=cluster_name)
+            clusters.append(cluster)
+        else:
+            cluster = clusters[0]
+
+        # Convert ArticleListItem to ReportArticle
+        art = ReportArticle(
+            id=item.id or "",
+            feed_id=item.feed_id or "",
+            feed_name=item.feed_name or "",
+            title=item.title or "",
+            link=item.link or "",
+            guid=item.guid or "",
+            published_at=item.published_at or "",
+            description=item.description or "",
+            tags=item.tags,
+            dimensions=[cluster_name],
+            translation=item.translation or "",
+        )
+        cluster.children.append(art)
