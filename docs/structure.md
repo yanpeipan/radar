@@ -5,7 +5,12 @@
 ```
 src/
 ├── cli/               # CLI commands (click)
+│   └── report.py      # Report generation command
 ├── application/       # Business logic (fetch, feed, articles, search)
+│   ├── feed.py        # Feed CRUD
+│   ├── fetch.py       # Fetch orchestration
+│   ├── articles.py    # Article CRUD
+│   ├── report/        # Report generation (models, generator, template, classify, filter, tldr)
 ├── providers/          # Plugin providers (RSS, GitHub, Default)
 ├── storage/            # Data access (SQLite, ChromaDB)
 ├── discovery/          # Feed discovery (BFS crawler, parser)
@@ -30,6 +35,13 @@ src/
 | `application/combine.py` | combine_scores() unified ranking |
 | `application/config.py` | Configuration (bm25_factor, etc.) |
 | `application/discover.py` | Discovery orchestration |
+| `cli/report.py` | report command (--since, --until, --language, --template, --output) |
+| `application/report/models.py` | ReportArticle, ReportCluster, ReportData dataclasses |
+| `application/report/generator.py` | cluster_articles_for_report(), _entity_report_async() |
+| `application/report/template.py` | ReportTemplate, HeadingNode, parse_markdown_headings() |
+| `application/report/classify.py` | BatchClassifyChain (LCEL chain for LLM classification) |
+| `application/report/filter.py` | SignalFilter (rules-based article filtering) |
+| `application/report/tldr.py` | TLDRChain (LCEL chain for TLDR generation) |
 | `providers/__init__.py` | Provider registry |
 | `providers/base.py` | ContentProvider protocol |
 | `providers/rss_provider.py` | RSS/Atom (priority 50) |

@@ -15,6 +15,7 @@ Complete reference for all Feedship CLI commands.
 - [article related](#article-related)
 - [search](#search)
 - [discover](#discover)
+- [report](#report)
 
 ---
 
@@ -494,4 +495,84 @@ feedship discover example.com --discover-depth 3
 2  Atom    Example Site News         https://example.com/atom.xml
 
 Discovered 2 feed(s) in 1.2s
+```
+
+## report
+
+Generate a structured daily report from clustered articles using LLM-based classification and Jinja2 templates.
+
+```bash
+feedship report --since <YYYY-MM-DD> --until <YYYY-MM-DD> [options]
+```
+
+### Required Options
+
+| Option | Description |
+|--------|-------------|
+| `--since` | Start date (YYYY-MM-DD) |
+| `--until` | End date (YYYY-MM-DD) |
+
+### Optional Options
+
+| Option | Description |
+|--------|-------------|
+| `--language` | Report output language: `zh` or `en` (default: zh) |
+| `--template` | Template name to use (default: ai_daily_report) |
+| `--output` | Save report to specific file path |
+| `--json` | Machine-readable JSON output |
+| `--limit` | Max articles to include (default: 3333) |
+| `--auto-summarize/--no-auto-summarize` | Auto-summarize unsummarized articles (default: True) |
+
+### Behavior
+
+1. Parses the template heading structure to determine report sections
+2. Fetches articles within the date range (up to --limit)
+3. Deduplicates articles using three-level dedup
+4. Filters low-signal articles using SignalFilter
+5. Classifies articles into template sections using LLM (BatchClassifyChain)
+6. Generates TLDR summaries for each cluster (TLDRChain)
+7. Renders report using Jinja2 template
+8. Saves to --output path or `~/.local/share/feedship/reports/{since}_{until}.md`
+
+### Data Models
+
+| Model | Description |
+|-------|-------------|
+| `ReportArticle` | Article model for report pipeline, inherits from ArticleListItem |
+| `ReportCluster` | Topic cluster with name, summary, tags, articles |
+| `ReportData` | Complete report data for rendering |
+
+### Processing Pipeline
+
+```
+Layer 0: Signal Filter (rules-based filtering)
+Layer 1: Enrich (pass-through)
+Layer 2: Entity Clustering (LLM classification)
+Layer 3: TLDR Generation (LLM call per cluster)
+Layer 4: Render (Jinja2 template)
+```
+
+### Examples
+
+```bash
+# Generate a daily report in Chinese
+feedship report --since 2026-04-01 --until 2026-04-07
+
+# Generate an English report
+feedship report --since 2026-04-01 --until 2026-04-07 --language en
+
+# Save to specific path
+feedship report --since 2026-04-01 --until 2026-04-07 --output ~/reports/weekly.md
+
+# JSON output for programmatic use
+feedship report --since 2026-04-01 --until 2026-04-07 --json
+
+# Limit articles
+feedship report --since 2026-04-01 --until 2026-04-07 --limit 1000
+```
+
+### Output
+
+```
+Report saved to /home/user/.local/share/feedship/reports/2026-04-01_2026-04-07.md
 ```
