@@ -249,3 +249,68 @@ def deduplicate_articles(
         )
 
     return step3
+
+
+def dedup_streaming(
+    articles: list[ArticleListItem],
+) -> list[ArticleListItem]:
+    """Streaming-friendly Level 1 (exact) dedup for memory-efficient pipeline.
+
+    Yields articles in order, skipping exact duplicates by content_hash.
+    Articles missing content_hash are kept but not used as dedup sources.
+
+    Args:
+        articles: Iterable of ArticleListItem
+
+    Returns:
+        Deduplicated article list preserving first occurrence order.
+    """
+    seen: dict[str, ArticleListItem] = {}
+    for a in articles:
+        ch = a.content_hash
+        if ch is None:
+            # No hash yet — keep it, but don't use as dedup source
+            key = id(a)
+            seen[f"__keep_{key}__"] = a
+        elif ch not in seen:
+            seen[ch] = a
+        # else: exact duplicate, skip
+    return list(seen.values())
+
+
+def minhash_dedup_streaming(
+    articles: list[ArticleListItem],
+) -> list[ArticleListItem]:
+    """Streaming-friendly Level 2 (MinHash) dedup for memory-efficient pipeline.
+
+    Uses a single in-memory LSH index. Articles without minhash_signature
+    pass through without being added to the LSH index.
+
+    Args:
+        articles: Iterable of ArticleListItem with minhash_signature
+
+    Returns:
+        Deduplicated article list preserving first occurrence order.
+    """
+    lsh = MinHashLSH(threshold=_MINHASH_THRESHOLD, num_perm=_NUM_PERM)
+    signature_map: dict[str, ArticleListItem] = {}
+    result: list[ArticleListItem] = []
+
+    for a in articles:
+        sig_blob = a.minhash_signature
+        if sig_blob is None:
+            result.append(a)
+            continue
+        try:
+            m = pickle.loads(sig_blob)
+            key = a.content_hash or id(a)
+            neighbors = lsh.query(m)
+            if not neighbors or neighbors == [key]:
+                result.append(a)
+                lsh.insert(key, m)
+                signature_map[key] = a
+        except Exception as e:
+            logger.warning("MinHash LSH query failed for article %s: %s", a.id, e)
+            result.append(a)
+
+    return result
