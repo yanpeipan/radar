@@ -56,7 +56,7 @@ def get_translate_chain() -> Runnable:
         TRANSLATE_PROMPT
         | _get_llm_wrapper(MAX_TOKENS_PER_CHAIN["translate"])
         | StrOutputParser()
-    )
+    ).with_retry(stop_after_attempt=2, retry_on=["RateLimitError", "APITimeoutError"])
 
 
 # TLDR chain — generate detailed TLDR for multiple entities at once
@@ -90,7 +90,9 @@ def get_tldr_chain() -> Runnable:
     """
     llm = _get_llm_wrapper(800)
     structured_llm = llm.with_structured_output(TLDRItems)
-    return TLDR_PROMPT | structured_llm
+    return (
+        TLDR_PROMPT | structured_llm
+    ).with_retry(stop_after_attempt=2, retry_on=["RateLimitError", "APITimeoutError"])
 
 
 # Classification + translation chain
@@ -133,7 +135,9 @@ def get_classify_translate_chain(
     """
     llm = _get_llm_wrapper(16384)
     structured_llm = llm.with_structured_output(ClassifyTranslateOutput)
-    return CLASSIFY_TRANSLATE_PROMPT | structured_llm
+    return (
+        CLASSIFY_TRANSLATE_PROMPT | structured_llm
+    ).with_retry(stop_after_attempt=2, retry_on=["RateLimitError", "APITimeoutError"])
 
 
 # ---------------------------------------------------------------------------
