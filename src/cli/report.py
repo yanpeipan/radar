@@ -11,8 +11,8 @@ import click
 from rich.console import Console
 
 from src.application.config import get_reports_dir
-from src.application.report import ReportData, ReportTemplate
-from src.application.report.report_generation import cluster_articles_for_report
+from src.application.report import ReportTemplate
+from src.application.report.generator import cluster_articles_for_report
 from src.cli import cli
 from src.cli.ui import print_json, print_json_error
 

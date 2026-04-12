@@ -433,7 +433,7 @@ class TestV2Clustering:
 
     def test_report_v2_clustering_empty_returns_empty_layers(self, initialized_db):
         """cluster_articles_for_report returns empty ReportData when no articles."""
-        from src.application.report.report_generation import cluster_articles_for_report
+        from src.application.report.generator import cluster_articles_for_report
 
         with (
             patch(
