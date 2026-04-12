@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from src.application.articles import ArticleListItem
+from src.application.report.template import HeadingNode
 
 
 class Node(ABC):
@@ -86,7 +87,7 @@ class ReportCluster:
     name: str
     summary: str = field(default_factory=str)
     tags: list[EntityTag] = field(default_factory=list)
-    children: list[ReportArticle] = field(default_factory=list)
+    children: list[ReportCluster] = field(default_factory=list)
     articles: list[ReportArticle] = field(default_factory=list)
 
 
@@ -149,3 +150,32 @@ class ReportData:
             translation=item.translation or "",
         )
         cluster.children.append(art)
+
+    def get_cluster(self, cluster_name: str) -> ReportCluster | None:
+        """Get the first cluster with the given name, searching recursively.
+
+        Args:
+            cluster_name: Name of the cluster to find
+
+        Returns:
+            The first matching ReportCluster, or None if not found
+        """
+        for cluster_list in self.clusters.values():
+            result = self._find_cluster_in_list(cluster_list, cluster_name)
+            if result is not None:
+                return result
+        return None
+
+    def _find_cluster_in_list(
+        self, clusters: list[ReportCluster], name: str
+    ) -> ReportCluster | None:
+        """Recursively find a cluster by name in a list of clusters."""
+        for cluster in clusters:
+            if cluster.name == name:
+                return cluster
+            # Search in children
+            if cluster.children:
+                result = self._find_cluster_in_list(cluster.children, name)
+                if result is not None:
+                    return result
+        return None
