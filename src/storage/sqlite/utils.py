@@ -65,8 +65,7 @@ def _date_to_timestamp_end(date_str: str, tz) -> int:
 def _date_to_str(date_str: str, tz) -> str:
     """Convert YYYY-MM-DD to YYYY-MM-DD HH:MM:SS string at start of day in timezone.
 
-    Note: tz is ignored but kept for API compatibility with _date_to_timestamp.
-    The conversion uses the timezone to determine the actual start moment.
+    The timezone is used to correctly determine the start moment of the day.
     """
     from datetime import datetime
 
