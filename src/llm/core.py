@@ -62,9 +62,6 @@ def _get_llm_wrapper(
     """
     from langchain_litellm import ChatLiteLLMRouter
 
-    # Get model_name from router's first model (could be extended to support multiple)
-    model_name = _model_list[0]["model_name"] if _model_list else "gpt-4o-mini"
-
     wrapper = ChatLiteLLMRouter(
         router=llm_router,
         max_tokens=max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS,
