@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Grype vulnerability scanner
-        uses: anchore/grype@v0.107.0
+        uses: anchore/grype@v0.103.0
         with:
           fail-on: medium
       - name: Set up Python
