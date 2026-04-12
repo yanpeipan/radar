@@ -15,7 +15,7 @@ jobs:
       - name: Run Grype vulnerability scanner
         uses: anchore/scan-action@v3
         with:
-          grype-version: 0.103.0
+          grype-version: v0.102.0
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
