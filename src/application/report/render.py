@@ -15,15 +15,6 @@ def group_clusters(topics: list) -> dict[str, list]:
     return result
 
 
-def group_by_cluster(topics: list) -> dict[str, list]:
-    result: dict[str, list] = {}
-    for t in topics:
-        tags = getattr(t, "tags", [])
-        for tag in tags:
-            result.setdefault(tag.name, []).append(t)
-    return result
-
-
 def _topic_sort_key(t: Any) -> float:
     return getattr(t, "quality_weight", 0.0)
 
@@ -35,10 +26,7 @@ async def render_report(
     target_lang: str,
     template_name: str = "entity",
 ) -> str:
-    """Render entity report using Jinja2.
-
-    Falls back to inline rendering if template not found.
-    """
+    """Render entity report using Jinja2."""
     from pathlib import Path
 
     from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -57,20 +45,11 @@ async def render_report(
         raise
 
     clusters = group_clusters(entity_topics)
-    by_cluster = group_by_cluster(entity_topics)
-    deep_dive = [t for t in entity_topics if len(getattr(t, "children", [])) > 50]
-
     for layer_list in clusters.values():
         layer_list.sort(key=_topic_sort_key, reverse=True)
-    for dim_list in by_cluster.values():
-        dim_list.sort(key=_topic_sort_key, reverse=True)
-    deep_dive.sort(key=_topic_sort_key, reverse=True)
 
     report_data = ReportData(
-        tldr_top10=entity_topics[:10],
         clusters=clusters,
-        by_cluster=by_cluster,
-        deep_dive=deep_dive,
         date_range={"since": since, "until": until},
         target_lang=target_lang,
     )

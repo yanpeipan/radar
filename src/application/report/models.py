@@ -94,17 +94,11 @@ class ReportData:
     """Complete report data for rendering.
 
     Attributes:
-        tldr_top10: Top 10 entity topics sorted by quality_weight
         clusters: Entity topics grouped by layer
-        by_cluster: Entity topics grouped by dimension
-        deep_dive: Large entity topics (articles_count > 50) split by dimension
         date_range: Date range for the report
         target_lang: Target language for the report
     """
 
-    tldr_top10: list[ReportCluster] = field(default_factory=list)
     clusters: dict[str, list[ReportCluster]] = field(default_factory=dict)
-    by_cluster: dict[str, list[ReportCluster]] = field(default_factory=dict)
-    deep_dive: list[ReportCluster] = field(default_factory=list)
     date_range: dict[str, str] = field(default_factory=dict)
     target_lang: str = "zh"

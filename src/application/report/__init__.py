@@ -18,7 +18,6 @@ from src.application.report.models import (
     ReportData,
 )
 from src.application.report.render import (
-    group_by_cluster,
     group_clusters,
     render_report,
 )
@@ -35,7 +34,6 @@ __all__ = [
     "TLDRGenerator",
     "render_report",
     "group_clusters",
-    "group_by_cluster",
     "ReportArticle",
     "EntityTag",
     "ReportCluster",

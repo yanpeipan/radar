@@ -2,8 +2,8 @@ import pytest
 
 from src.application.report.models import (
     EntityTag,
-    ReportCluster,
     ReportArticle,
+    ReportCluster,
     ReportData,
 )
 
@@ -43,10 +43,7 @@ def test_entity_topic_fields():
 
 def test_report_data_fields():
     data = ReportData(
-        tldr_top10=[],
         clusters={},
-        by_cluster={},
-        deep_dive=[],
         date_range={"since": "2026-04-07", "until": "2026-04-10"},
         target_lang="zh",
     )

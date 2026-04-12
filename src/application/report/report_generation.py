@@ -10,8 +10,8 @@ from typing import Any
 from src.application.articles import ArticleListItem
 from src.application.report import (
     EntityTag,
-    ReportCluster,
     ReportArticle,
+    ReportCluster,
     ReportData,
     SignalFilter,
 )
@@ -52,7 +52,6 @@ async def _entity_report_async(
 
     from src.application.report.filter import SignalFilter
     from src.application.report.render import (
-        group_by_cluster,
         group_clusters,
         render_report,
     )
@@ -180,8 +179,8 @@ async def _entity_report_async(
         # Build ReportCluster for each tag group
         entity_topics: list = []
         from src.application.report.models import (
-            ReportCluster,
             ReportArticle,
+            ReportCluster,
         )
 
         for tag, items in tag_groups.items():
@@ -276,10 +275,7 @@ async def _entity_report_async(
 
         return {
             "rendered": rendered,
-            "tldr_top10": tldr_top10,
-            "layers": layers_data,
             "clusters": group_clusters(entity_topics),
-            "by_cluster": group_by_cluster(entity_topics),
             "entity_topics": entity_topics,
             "date_range": {"since": since, "until": until},
         }
@@ -298,8 +294,8 @@ def cluster_articles_for_report(
     """Fetch and cluster articles for an entity-based report.
 
     Returns:
-        dict with keys: rendered (markdown str), tldr_top10, clusters,
-        by_cluster, entity_topics, date_range ({since, until}).
+        dict with keys: rendered (markdown str), clusters,
+        entity_topics, date_range ({since, until}).
     """
     articles = list_articles(
         limit=limit,
@@ -308,60 +304,6 @@ def cluster_articles_for_report(
     )
     return asyncio.run(
         _entity_report_async(articles, since, until, auto_summarize, target_lang)
-    )
-
-
-def _format_title(text: str, max_len: int = 30) -> str:
-    """Truncate title to max_len characters, adding ellipsis if truncated."""
-    if not text:
-        return ""
-    if len(text) <= max_len:
-        return text
-    return text[: max_len - 1] + "…"
-
-
-async def render_report(
-    data: dict[str, Any],
-    template_name: str = "v2",
-    target_lang: str = "zh",
-) -> str:
-    """Render a v2 report using Jinja2 template.
-
-    Args:
-        data: Report data from cluster_articles_for_report()
-        template_name: Template name (without extension)
-        target_lang: Target language code (zh, en, ja, ko).
-
-    Returns:
-        Rendered markdown string.
-    """
-
-    try:
-        from jinja2 import Environment, FileSystemLoader
-    except ImportError:
-        logger.error("Jinja2 not installed: pip install jinja2")
-        raise
-
-    template_path = DEFAULT_TEMPLATE_DIR / f"{template_name}.md"
-    if template_path.exists():
-        env = Environment(
-            loader=FileSystemLoader(template_path.parent),
-            autoescape=False,
-        )
-        env.filters["format_title"] = _format_title
-        template = env.get_template(template_path.name)
-    else:
-        logger.error("v2 template not found at %s", template_path)
-        raise FileNotFoundError(
-            f"Template '{template_name}' not found at {template_path}"
-        )
-
-    return template.render(
-        layers=data.get("layers", []),
-        signals=data.get("signals", {}),
-        creation=data.get("creation", []),
-        date_range=data.get("date_range", {}),
-        target_lang=target_lang,
     )
 
 
