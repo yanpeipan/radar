@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-11T18:38:02.524Z"
-last_activity: "2026-04-12 — Completed quick task 260412-iyl: ReportData 增加 total_articles 属性"
+last_activity: "2026-04-12 — Completed quick task 260412-jhx: src/application/report 下新增template类，处理模板相关功能"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -106,3 +106,6 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 260412-iyl | ReportData 增加 total_articles 属性 | 2026-04-12 | e7f558e | | [260412-iyl-reportdata-total-articles](./quick/260412-iyl-reportdata-total-articles/) |
 | 2026-04-12 | fast | by_layer → clusters, EntityTopic → ReportCluster | ✅ |
 | 2026-04-12 | fast | 去掉 tldr_top10/by_cluster/deep_dive | ✅ |
+| 2026-04-12 | fast | total_articles 改用 reportData.total_articles | ✅ |
+| 260412-xxx | 删除 LAYER_KEYS 常量及所有引用 | 2026-04-12 | d7274a0 | | — |
+| 260412-jhx | src/application/report 下新增template类，处理模板相关功能 | 2026-04-12 | a84e6a2 | | [260412-jhx-src-application-report-template](./quick/260412-jhx-src-application-report-template/) |
