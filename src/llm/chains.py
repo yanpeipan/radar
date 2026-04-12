@@ -134,3 +134,62 @@ def get_classify_translate_chain(
     llm = _get_llm_wrapper(16384)
     structured_llm = llm.with_structured_output(ClassifyTranslateOutput)
     return CLASSIFY_TRANSLATE_PROMPT | structured_llm
+
+
+# ---------------------------------------------------------------------------
+# LCEL Runnable factories for report pipeline (Phase 2 migration)
+# ---------------------------------------------------------------------------
+
+
+def make_classify_runnable(
+    tag_list: str,
+    target_lang: str = "zh",
+    batch_size: int = 50,
+    max_concurrency: int = 5,
+) -> Runnable:
+    """Factory for BatchClassifyChain as LCEL Runnable.
+
+    DEPRECATED: Use this factory instead of BatchClassifyChain class directly.
+    """
+    from src.application.report.classify import BatchClassifyChain
+
+    return BatchClassifyChain(
+        tag_list=tag_list,
+        target_lang=target_lang,
+        batch_size=batch_size,
+        max_concurrency=max_concurrency,
+    )
+
+
+def make_tldr_runnable(
+    top_n: int = 100,
+    target_lang: str = "zh",
+    max_concurrency: int = 5,
+) -> Runnable:
+    """Factory for TLDRChain as LCEL Runnable.
+
+    DEPRECATED: Use this factory instead of TLDRChain class directly.
+    """
+    from src.application.report.tldr import TLDRChain
+
+    return TLDRChain(
+        top_n=top_n,
+        target_lang=target_lang,
+        max_concurrency=max_concurrency,
+    )
+
+
+def make_build_report_runnable(
+    heading_tree=None,
+    target_lang: str = "zh",
+) -> Runnable:
+    """Factory for BuildReportDataChain as LCEL Runnable.
+
+    DEPRECATED: Use this factory instead of BuildReportDataChain class directly.
+    """
+    from src.application.report.models import BuildReportDataChain
+
+    return BuildReportDataChain(
+        heading_tree=heading_tree,
+        target_lang=target_lang,
+    )
