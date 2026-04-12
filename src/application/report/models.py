@@ -63,9 +63,13 @@ class ReportArticle(ArticleListItem):
     similar_articles: list[ReportArticle] = field(default_factory=list)
 
     @classmethod
-    def from_article(cls, item: ArticleListItem, cluster_name: str) -> ReportArticle:
+    def from_article(
+        cls, item: ArticleListItem, similar_articles: list[ReportArticle] = field(default_factory=list)
+    ) -> ReportArticle:
         """Convert an ArticleListItem to ReportArticle."""
-        return cls(**asdict(item))
+        kwargs = asdict(item)
+        kwargs["similar_articles"] = similar_articles
+        return cls(**kwargs)
 
 
 @dataclass
@@ -126,7 +130,7 @@ class ReportData:
             cluster = ReportCluster(name=cluster_name)
             self.clusters[cluster_name].append(cluster)
 
-        cluster.children.append(ReportArticle.from_article(item, cluster_name))
+        cluster.children.append(ReportArticle.from_article(item))
 
     def get_cluster(self, cluster_name: str) -> ReportCluster | None:
         """Get the first cluster with the given name, searching recursively.
