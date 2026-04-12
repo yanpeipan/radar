@@ -144,16 +144,13 @@ class ReportData:
             cluster_name: Key in self.clusters (e.g., "AI应用")
             item: ArticleListItem (should have .tags and .translation from enrichment)
         """
-        # Get or create cluster list
-        if cluster_name not in self.clusters:
-            self.clusters[cluster_name] = []
-
-        # Use existing cluster or create new one
-        cluster_list = self.clusters[cluster_name]
-        cluster = cluster_list[0] if cluster_list else None
+        # Find existing cluster via recursive search, or create at top level
+        cluster = self.get_cluster(cluster_name)
         if cluster is None:
+            if cluster_name not in self.clusters:
+                self.clusters[cluster_name] = []
             cluster = ReportCluster(name=cluster_name)
-            cluster_list.append(cluster)
+            self.clusters[cluster_name].append(cluster)
 
         cluster.children.append(ReportArticle.from_article(item, cluster_name))
 
