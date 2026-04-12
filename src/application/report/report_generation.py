@@ -37,7 +37,7 @@ async def _entity_report_async(
     until: str,
     auto_summarize: bool,
     target_lang: str,
-) -> dict[str, Any]:
+) -> ReportData:
     """New entity-based report pipeline (5 layers).
 
     Layer 0: Signal Filter (rules)
@@ -53,7 +53,6 @@ async def _entity_report_async(
     from src.application.report.filter import SignalFilter
     from src.application.report.render import (
         group_clusters,
-        render_report,
     )
     from src.application.report.tldr import TLDRGenerator
     from src.llm.chains import get_classify_translate_chain
@@ -218,10 +217,6 @@ async def _entity_report_async(
                 )
             )
 
-        # Layer 3: TLDR Generation (top 10)
-        tldr_gen = TLDRGenerator(top_n=10)
-        tldr_top10 = await tldr_gen.generate_top10(entity_topics, target_lang)
-
         # Layer 4: Render
         clusters = group_clusters(entity_topics)
         report_data = ReportData(
@@ -229,60 +224,9 @@ async def _entity_report_async(
             date_range={"since": since, "until": until},
             target_lang=target_lang,
         )
-        rendered = await render_report(report_data, template_name="entity")
+        await render_report(report_data, template_name="entity")
 
-        # Build CLI-compatible layers structure from entity topics
-        # Each ReportCluster -> topic dict with "sources" (flattened from dimensions)
-        entity_topic_dicts: list[dict] = []
-        for topic in entity_topics:
-            topic_dict = {
-                "title": topic.name,
-                "sources": [
-                    {
-                        "id": art.id,
-                        "title": art.title,
-                        "link": art.link,
-                        "summary": getattr(art, "summary", ""),
-                        "quality_score": art.quality_score,
-                        "feed_weight": art.feed_weight,
-                        "published_at": art.published_at,
-                        "feed_id": art.feed_id,
-                        "tags": [
-                            {
-                                "name": e.name,
-                                "type": e.type,
-                                "normalized": e.normalized,
-                            }
-                            for e in art.tags
-                        ],
-                    }
-                    for art in topic.children
-                ],
-            }
-            entity_topic_dicts.append(topic_dict)
-
-        # Group entity topic dicts by layer (same structure as thematic pipeline)
-        articles_clusters: dict[str, list[dict]] = {cat: [] for cat in LAYER_KEYS}
-        for topic_dict in entity_topic_dicts:
-            layer = topic_dict.get("layer", "AI应用")
-            if layer in articles_clusters:
-                articles_clusters[layer].append(topic_dict)
-
-        layers_data: list[dict] = []
-        for layer_name in LAYER_KEYS:
-            layers_data.append(
-                {
-                    "name": layer_name,
-                    "topics": articles_clusters.get(layer_name, []),
-                }
-            )
-
-        return {
-            "rendered": rendered,
-            "clusters": group_clusters(entity_topics),
-            "entity_topics": entity_topics,
-            "date_range": {"since": since, "until": until},
-        }
+        return report_data
     except Exception as e:
         logger.error(f"Entity clustering failed: {e}")
         raise
@@ -294,12 +238,11 @@ def cluster_articles_for_report(
     limit: int = 200,
     auto_summarize: bool = True,
     target_lang: str = "zh",
-) -> dict[str, Any]:
+) -> ReportData:
     """Fetch and cluster articles for an entity-based report.
 
     Returns:
-        dict with keys: rendered (markdown str), clusters,
-        entity_topics, date_range ({since, until}).
+        ReportData with clusters, date_range, target_lang.
     """
     articles = list_articles(
         limit=limit,

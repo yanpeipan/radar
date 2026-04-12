@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-11T18:38:02.524Z"
-last_activity: "2026-04-12 — Completed quick task 260412-hy9: template.render() 传递 ReportData 而非分散参数"
+last_activity: "2026-04-12 — Completed quick task 260412-iku: render_report 调用改为传递 ReportData"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -101,5 +101,6 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 260412-hjb | 删除 src/application/entity_report/entity_cluster.py | 2026-04-12 | 6a2f991 | | [260412-hjb-src-application-entity-report-entity-clu](./quick/260412-hjb-src-application-entity-report-entity-clu/) |
 | 260412-htm | 删除 src/application/entity_report 整个目录 | 2026-04-12 | e8d1ae9 | | [260412-htm-src-application-entity-report](./quick/260412-htm-src-application-entity-report/) |
 | 260412-hy9 | template.render() 传递 ReportData 而非分散参数 | 2026-04-12 | 0410354 | | [260412-hy9-template-render-reportdata](./quick/260412-hy9-template-render-reportdata/) |
+| 260412-iku | render_report 调用改为传递 ReportData | 2026-04-12 | c855075 | | [260412-iku-render-report-reportdata](./quick/260412-iku-render-report-reportdata/) |
 | 2026-04-12 | fast | by_layer → clusters, EntityTopic → ReportCluster | ✅ |
 | 2026-04-12 | fast | 去掉 tldr_top10/by_cluster/deep_dive | ✅ |
