@@ -33,7 +33,15 @@ class JsonRegexOutputParser(Runnable):
     """
 
     def invoke(self, input: Any, config: Any = None) -> ClassifyTranslateOutput:
-        raw = input if isinstance(input, str) else str(input)
+        # Handle AIMessage with content as list (when model returns structured output with thinking)
+        if hasattr(input, "content") and isinstance(input.content, list):
+            text_parts = []
+            for item in input.content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text_parts.append(item.get("text", ""))
+            raw = "\n".join(text_parts)
+        else:
+            raw = input if isinstance(input, str) else str(input)
         json_match = re.search(r"\[.*\]", raw, re.DOTALL)
         if json_match:
             parsed_dict = {"items": json.loads(json_match.group())}
@@ -53,7 +61,19 @@ class TldrJsonOutputParser(Runnable):
     """
 
     def invoke(self, input: Any, config: Any = None) -> list[TLDRItem]:
-        raw = input if isinstance(input, str) else str(input)
+        # Handle AIMessage with content as list (when model returns structured output with thinking)
+        if hasattr(input, "content") and isinstance(input.content, list):
+            # Extract text from content list (handles thinking + text structure)
+            text_parts = []
+            for item in input.content:
+                if isinstance(item, dict):
+                    if item.get("type") == "text":
+                        text_parts.append(item.get("text", ""))
+                    elif item.get("type") == "thinking":
+                        pass  # Skip thinking blocks
+            raw = "\n".join(text_parts)
+        else:
+            raw = input if isinstance(input, str) else str(input)
         json_match = re.search(r"\[.*\]", raw, re.DOTALL)
         if json_match:
             try:
