@@ -74,26 +74,8 @@ async def _entity_report_async(
         BATCH_SIZE = 50
         MAX_CONCURRENT = 5
 
-        # Candidate tags for AI tech news classification
-        tag_list = "\n".join(
-            [
-                "AI应用",
-                "AI模型",
-                "AI基础设施",
-                "芯片",
-                "能源",
-                "LLM",
-                "开源",
-                "融资",
-                "收购",
-                "研究",
-                "产品发布",
-                "政策监管",
-                "学术",
-                "开发者工具",
-                "创业公司",
-            ]
-        )
+        # Candidate tags derived from template heading structure
+        tag_list = "\n".join(heading_tree.titles)
 
         async def process_batch(
             batch_articles: list[ArticleListItem],
