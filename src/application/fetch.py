@@ -8,6 +8,7 @@ Provides fetch_all_async() for concurrent feed fetching with:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 
@@ -32,6 +33,26 @@ class FeedSizeLimitError(Exception):
 
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_feed_metadata(metadata: str | None) -> FeedType | None:
+    """Parse feed_type from feed metadata JSON string.
+
+    Args:
+        metadata: JSON string containing feed metadata.
+
+    Returns:
+        FeedType enum value if found in metadata, None otherwise.
+    """
+    if not metadata:
+        return None
+    try:
+        meta = json.loads(metadata)
+        if meta.get("feed_type"):
+            return FeedType(meta["feed_type"])
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return None
 
 
 def _check_ml_dependencies() -> bool:
@@ -155,16 +176,7 @@ async def fetch_one_async(feed: Feed) -> dict:
         Dict with new_articles count and optional error.
     """
     # Parse feed_type from metadata JSON string
-    feed_type = None
-    if feed.metadata:
-        import json
-
-        try:
-            meta = json.loads(feed.metadata)
-            if meta.get("feed_type"):
-                feed_type = FeedType(meta["feed_type"])
-        except (json.JSONDecodeError, ValueError):
-            pass
+    feed_type = _parse_feed_metadata(feed.metadata)
 
     # Use match_first to find provider for this feed URL
     provider = match_first(feed.url, feed_type=feed_type)
@@ -255,16 +267,7 @@ async def fetch_all_async(concurrency: int = 10):
         """
         async with semaphore:
             # Parse feed_type from metadata JSON string
-            feed_type = None
-            if feed.metadata:
-                import json
-
-                try:
-                    meta = json.loads(feed.metadata)
-                    if meta.get("feed_type"):
-                        feed_type = FeedType(meta["feed_type"])
-                except (json.JSONDecodeError, ValueError):
-                    pass
+            feed_type = _parse_feed_metadata(feed.metadata)
 
             # Use match_first to find provider for this feed URL
             provider = match_first(feed.url, feed_type=feed_type)
@@ -398,16 +401,7 @@ async def fetch_ids_async(ids: list[str], concurrency: int = 10):
         """
         async with semaphore:
             # Parse feed_type from metadata JSON string
-            feed_type = None
-            if feed.metadata:
-                import json
-
-                try:
-                    meta = json.loads(feed.metadata)
-                    if meta.get("feed_type"):
-                        feed_type = FeedType(meta["feed_type"])
-                except (json.JSONDecodeError, ValueError):
-                    pass
+            feed_type = _parse_feed_metadata(feed.metadata)
 
             # Use match_first to find provider for this feed URL
             provider = match_first(feed.url, feed_type=feed_type)
