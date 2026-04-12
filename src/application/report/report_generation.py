@@ -19,9 +19,6 @@ from src.storage import list_articles
 
 logger = logging.getLogger(__name__)
 
-# Five-layer cake taxonomy (internal keys are always zh)
-LAYER_KEYS = ["AI应用", "AI模型", "AI基础设施", "芯片", "能源"]
-
 # ---------------------------------------------------------------------------
 # v2 report helpers — topic clustering
 # ---------------------------------------------------------------------------

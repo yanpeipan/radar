@@ -14,7 +14,6 @@ from click.testing import CliRunner
 
 from src.application.articles import ArticleListItem
 from src.application.dedup import deduplicate_articles
-from src.application.report.report_generation import LAYER_KEYS
 from src.cli import cli
 
 # =============================================================================
@@ -390,17 +389,17 @@ class TestReportIntegration:
 
     def test_v2_report_with_limit(self, cli_runner, initialized_db, monkeypatch):
         """V2 report respects --limit parameter and passes it to clustering."""
+        from src.application.report.models import ReportData
+
         limit_captured = None
 
         def capture_limit(**kwargs):
             nonlocal limit_captured
             limit_captured = kwargs.get("limit")
-            return {
-                "layers": [],
-                "signals": {},
-                "date_range": {"since": "2024-01-01", "until": "2024-01-31"},
-                "summarized_on_demand": 0,
-            }
+            return ReportData(
+                clusters={},
+                date_range={"since": "2024-01-01", "until": "2024-01-31"},
+            )
 
         monkeypatch.setattr(
             "src.cli.report.cluster_articles_for_report",
@@ -433,7 +432,7 @@ class TestV2Clustering:
     """Tests for v2 topic clustering logic."""
 
     def test_report_v2_clustering_empty_returns_empty_layers(self, initialized_db):
-        """cluster_articles_for_report returns empty layers when no articles."""
+        """cluster_articles_for_report returns empty ReportData when no articles."""
         from src.application.report.report_generation import cluster_articles_for_report
 
         with (
@@ -452,7 +451,7 @@ class TestV2Clustering:
                 limit=10,
                 auto_summarize=False,
             )
-            assert "layers" in data
-            assert "signals" in data
-            assert "date_range" in data
-            assert isinstance(data["layers"], list)
+            assert hasattr(data, "clusters")
+            assert hasattr(data, "date_range")
+            assert isinstance(data.clusters, dict)
+            assert data.total_articles == 0

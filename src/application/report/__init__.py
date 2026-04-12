@@ -24,7 +24,6 @@ from src.application.report.render import (
 
 # Import entry points from sibling module (no circular import since report.py imports from this package)
 from src.application.report.report_generation import (
-    LAYER_KEYS,
     cluster_articles_for_report,
 )
 from src.application.report.tldr import TLDRGenerator
@@ -39,5 +38,4 @@ __all__ = [
     "ReportCluster",
     "ReportData",
     "cluster_articles_for_report",
-    "LAYER_KEYS",
 ]

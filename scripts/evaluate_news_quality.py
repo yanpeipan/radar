@@ -29,7 +29,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Five-layer cake taxonomy (must match report.py LAYER_KEYS)
+# Five-layer cake taxonomy
 FIVE_LAYER_CATEGORIES = [
     "AI应用",
     "AI模型",
