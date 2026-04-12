@@ -74,3 +74,4 @@ pip-lock.json
 .worktrees/
 .security-key
 logs/security/
+.gitnexus
