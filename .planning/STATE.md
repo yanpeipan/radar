@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-12T13:31:32.168Z"
-last_activity: "2026-04-12 — Completed quick task 260413-65n: src/llm/evaluator.py 删除"
+last_activity: "2026-04-13 — Completed quick task 260413-8et: optimize duplicate code and database connection handling"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -58,6 +58,7 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 260413-3x9 | 重构_get_llm_wrapper并移动到core.py，使用ChatLiteLLMRouter | 2026-04-12 | fedb6b9 | Verified | [260413-3x9-...](./quick/260413-3x9-get-llm-wrapper-core-py-chatlitellmroute/) |
 | 260413-02d | BuildReportDataChain 直接接受 HeadingNode，移除 ReportDataAdapter | 2026-04-12 | | | [260413-02d...](./quick/260413-02d-buildreportdatachain-headingnode/) |
 | 260413-65n | src/llm/evaluator.py 删除 | 2026-04-12 | 3f57914 | | [260413-65n-src-llm-evaluator-py](./quick/260413-65n-src-llm-evaluator-py/) |
+| 260413-8et | Optimize duplicate code and database connection handling | 2026-04-13 | d0d6384 | Verified | [260413-8et-optimize-duplicate-code-and-database-con](./quick/260413-8et-optimize-duplicate-code-and-database-con/) |
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
 | 260407-tbk | 为 feedship fetch --url 添加端到端测试 | 2026-04-07 | c5a80e0 | | [260407-tbk-feedship-fetch-url](./quick/260407-tbk-feedship-fetch-url/) |
