@@ -11,34 +11,13 @@ import click
 from rich.console import Console
 
 from src.application.config import get_reports_dir
-from src.application.report import ReportData
+from src.application.report import ReportData, ReportTemplate
 from src.application.report.report_generation import cluster_articles_for_report
-from src.application.report.render import render_report
 from src.cli import cli
 from src.cli.ui import print_json, print_json_error
 
 logger = logging.getLogger(__name__)
 console = Console()
-
-
-async def _render_and_translate_report(data: ReportData, language: str) -> str:
-    """Render report and translate entire report in one LLM call.
-
-    Titles stay in original language during template rendering.
-    The full report is then translated once via get_translate_chain.
-    """
-    from src.llm.chains import get_translate_chain
-
-    report_text = await render_report(data, template_name="ai-daily")
-
-    # Translate entire report in one LLM call (reduces N title calls to 1)
-    if language != "en":
-        translate_chain = get_translate_chain()
-        report_text = await translate_chain.ainvoke(
-            {"text": report_text, "target_lang": language}
-        )
-
-    return report_text
 
 
 @cli.command("report")
@@ -64,6 +43,12 @@ async def _render_and_translate_report(data: ReportData, language: str) -> str:
     type=click.Choice(["zh", "en"]),
     help="Report output language (default: zh)",
 )
+@click.option(
+    "--template",
+    "template_name",
+    default="ai-daily",
+    help="Template name to use (default: ai-daily)",
+)
 def report(
     since: str,
     until: str,
@@ -72,6 +57,7 @@ def report(
     limit: int,
     auto_summarize: bool,
     language: str,
+    template_name: str,
 ) -> None:
     """Generate a structured daily report from clustered articles.
 
@@ -95,7 +81,6 @@ def report(
                 target_lang=language,
             )
             total_articles = data.total_articles
-        summarized_on_demand = 0
 
         if total_articles == 0:
             if json_output:
@@ -118,7 +103,8 @@ def report(
 
         # Render report
         try:
-            report_text = asyncio.run(_render_and_translate_report(data, language))
+            report_template = ReportTemplate(template_name=template_name)
+            report_text = asyncio.run(report_template.render(data))
         except Exception as e:
             if json_output:
                 print_json_error(f"Failed to render template: {e}", "template_error")
