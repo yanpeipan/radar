@@ -102,3 +102,8 @@ class ReportData:
     clusters: dict[str, list[ReportCluster]] = field(default_factory=dict)
     date_range: dict[str, str] = field(default_factory=dict)
     target_lang: str = "zh"
+
+    @property
+    def total_articles(self) -> int:
+        """Total number of articles across all clusters."""
+        return sum(len(cluster.children) for cluster_list in self.clusters.values() for cluster in cluster_list)
