@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .models import ReportData
+from .template import ReportTemplate
 
 
 def group_clusters(topics: list) -> dict[str, list]:
@@ -17,22 +18,6 @@ async def render_report(
     report_data: ReportData,
     template_name: str = "entity",
 ) -> str:
-    """Render entity report using Jinja2."""
-    from pathlib import Path
-
-    from jinja2 import Environment, FileSystemLoader, select_autoescape
-
-    template_dirs = [
-        Path.home() / ".local" / "share" / "feedship" / "templates",
-        Path(__file__).parent.parent.parent.parent / "templates",
-    ]
-    env = Environment(
-        loader=FileSystemLoader([str(d) for d in template_dirs]),
-        autoescape=select_autoescape(),
-    )
-    try:
-        template = env.get_template(f"{template_name}.md")
-    except Exception:
-        raise
-
-    return template.render(report_data=report_data)
+    """Backward-compatible wrapper using default ReportTemplate."""
+    template = ReportTemplate()
+    return await template.render(report_data, template_name)
