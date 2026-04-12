@@ -87,7 +87,6 @@ class ArticleListItem:
     content_hash: str | None = None
     minhash_signature: bytes | None = None
     tags: list[str] = field(default_factory=list)
-    dimensions: list[str] = field(default_factory=list)
     translation: str | None = None
 
     def to_dict(self) -> dict:

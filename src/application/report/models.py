@@ -65,9 +65,7 @@ class ReportArticle(ArticleListItem):
     @classmethod
     def from_article(cls, item: ArticleListItem, cluster_name: str) -> ReportArticle:
         """Convert an ArticleListItem to ReportArticle."""
-        kwargs = asdict(item)
-        kwargs["dimensions"] = [cluster_name]
-        return cls(**kwargs)
+        return cls(**asdict(item))
 
 
 @dataclass
