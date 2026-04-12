@@ -52,9 +52,6 @@ async def _entity_report_async(
     logger = logging.getLogger(__name__)
 
     from src.application.report.filter import SignalFilter
-    from src.application.report.render import (
-        group_clusters,
-    )
     from src.application.report.tldr import TLDRGenerator
     from src.llm.chains import get_classify_translate_chain
     from src.llm.output_models import ClassifyTranslateItem, ClassifyTranslateOutput
@@ -200,8 +197,23 @@ async def _entity_report_async(
                 )
             )
 
-        # Layer 4: Render
-        clusters = group_clusters(entity_topics)
+        # Layer 4: Build clusters dict by traversing heading tree structure
+        # heading_tree.children are the top-level sections (H2 headings)
+        # Each heading's title maps to the matching ReportCluster from entity_topics
+        # If no match, create an empty ReportCluster to preserve template structure
+        from .template import parse_markdown_headings
+
+        def _tag_of(cluster: ReportCluster) -> str:
+            return cluster.children[0].dimensions[0] if cluster.children else ""
+
+        clusters: dict[str, list[ReportCluster]] = {}
+        for node in (heading_tree.children if heading_tree else []):
+            matched = next(
+                (c for c in entity_topics if _tag_of(c) in node.title),
+                ReportCluster(name=node.title, children=[], articles=[]),
+            )
+            clusters.setdefault(node.title, []).append(matched)
+
         report_data = ReportData(
             clusters=clusters,
             date_range={"since": since, "until": until},
