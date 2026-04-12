@@ -11,10 +11,9 @@ import click
 from rich.console import Console
 
 from src.application.config import get_reports_dir
-from src.application.report.report_generation import (
-    cluster_articles_for_report,
-    render_report,
-)
+from src.application.report import ReportData
+from src.application.report.report_generation import cluster_articles_for_report
+from src.application.report.render import render_report
 from src.cli import cli
 from src.cli.ui import print_json, print_json_error
 
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 console = Console()
 
 
-async def _render_and_translate_report(data: dict, language: str) -> str:
+async def _render_and_translate_report(data: ReportData, language: str) -> str:
     """Render report and translate entire report in one LLM call.
 
     Titles stay in original language during template rendering.
@@ -30,9 +29,7 @@ async def _render_and_translate_report(data: dict, language: str) -> str:
     """
     from src.llm.chains import get_translate_chain
 
-    report_text = await render_report(
-        data, template_name="ai-daily", target_lang=language
-    )
+    report_text = await render_report(data, template_name="ai-daily")
 
     # Translate entire report in one LLM call (reduces N title calls to 1)
     if language != "en":
@@ -97,12 +94,8 @@ def report(
                 auto_summarize=auto_summarize,
                 target_lang=language,
             )
-            total_articles = sum(
-                len(t["sources"])
-                for layer in data.get("layers", [])
-                for t in layer.get("topics", [])
-            )
-        summarized_on_demand = data.get("summarized_on_demand", 0)
+            total_articles = data.total_articles
+        summarized_on_demand = 0
 
         if total_articles == 0:
             if json_output:
@@ -123,11 +116,6 @@ def report(
                 )
             return
 
-        if summarized_on_demand > 0:
-            console.print(
-                f"[cyan]Summarized {summarized_on_demand} articles on-demand[/cyan]"
-            )
-
         # Render report
         try:
             report_text = asyncio.run(_render_and_translate_report(data, language))
@@ -139,11 +127,8 @@ def report(
 
         if json_output:
             output_json = {
-                "date_range": data["date_range"],
+                "date_range": data.date_range,
                 "total_articles": total_articles,
-                "layers": data.get("layers", []),
-                "signals": data.get("signals", {}),
-                "creation": data.get("creation", []),
             }
             print_json(output_json)
             return

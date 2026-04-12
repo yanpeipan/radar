@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-11T18:38:02.524Z"
-last_activity: "2026-04-12 — Completed quick task 260412-in2: _entity_report_async 返回 ReportData"
+last_activity: "2026-04-12 — Completed quick task 260412-iyl: ReportData 增加 total_articles 属性"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -103,5 +103,6 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 260412-hy9 | template.render() 传递 ReportData 而非分散参数 | 2026-04-12 | 0410354 | | [260412-hy9-template-render-reportdata](./quick/260412-hy9-template-render-reportdata/) |
 | 260412-iku | render_report 调用改为传递 ReportData | 2026-04-12 | c855075 | | [260412-iku-render-report-reportdata](./quick/260412-iku-render-report-reportdata/) |
 | 260412-in2 | _entity_report_async 返回 ReportData | 2026-04-12 | 05d2dcd | | [260412-in2-entity-report-async-reportdata](./quick/260412-in2-entity-report-async-reportdata/) |
+| 260412-iyl | ReportData 增加 total_articles 属性 | 2026-04-12 | e7f558e | | [260412-iyl-reportdata-total-articles](./quick/260412-iyl-reportdata-total-articles/) |
 | 2026-04-12 | fast | by_layer → clusters, EntityTopic → ReportCluster | ✅ |
 | 2026-04-12 | fast | 去掉 tldr_top10/by_cluster/deep_dive | ✅ |
