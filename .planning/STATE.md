@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-12T13:31:32.168Z"
-last_activity: "2026-04-12 — Completed quick task 260412-trg: ReportData增加add_articles和build方法"
+last_activity: "2026-04-12 — Completed quick task 260412-w8x: BuildReportDataChain + TLDRChain pipeline refactor"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -132,4 +132,5 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 260412-s9g | ReportData增加add_article(cluster_name, item)方法 | 2026-04-12 | 9b9052c | | |
 | 260412-st2 | ReportData增加get_cluster方法，递归查找内嵌ReportCluster | 2026-04-12 | a79b26e | Verified | [260412-st2-reportdata-get-cluster-reportcluster-rep](./quick/260412-st2-reportdata-get-cluster-reportcluster-rep/) |
 | 260412-trg | ReportData增加add_articles和build方法，generator.py使用这两个方法 | 2026-04-12 | 52d85ac, 1417768 | | [260412-trg-add-articles-build-reportdata](./quick/260412-trg-add-articles-build-reportdata/) |
+| 260412-w8x | BuildReportDataChain + TLDRChain pipeline refactor | 2026-04-12 | b4f71f7 | Verified | [260412-w8x-buildreportdatachain-tldrchain-pipeline-](./quick/260412-w8x-buildreportdatachain-tldrchain-pipeline-/) |
 | 260412-u7q | Fix P0 crash (report_data initialization order) + remove EntityTag | 2026-04-12 | — | Blocked (pre-commit: B008 in models.py:59) | [260412-u7q-p0-bug-entitytag](./quick/260412-u7q-p0-bug-entitytag/) |

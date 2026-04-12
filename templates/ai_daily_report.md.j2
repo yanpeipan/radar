@@ -4,45 +4,45 @@ AI 日报 — {{ report_data.date_range.until }}
 
 {% endif %}
 ## AI应用
-{%- for topic in report_data.clusters.get("AI应用", []) %}
-  {%- for article in topic.children %}
-[{{ article.title }}]({{ article.link }})
+{%- for cluster in report_data.clusters.get("AI应用", []) %}
+  {%- for article in cluster.articles %}
+[{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
 {% endfor %}
 
 ## AI模型
-{%- for topic in report_data.clusters.get("AI模型", []) %}
-  {%- for article in topic.children %}
-[{{ article.title }}]({{ article.link }})
+{%- for cluster in report_data.clusters.get("AI模型", []) %}
+  {%- for article in cluster.articles %}
+[{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
 {% endfor %}
 
 ## AI基础设施
-{%- for topic in report_data.clusters.get("AI基础设施", []) %}
-  {%- for article in topic.children %}
-[{{ article.title }}]({{ article.link }})
+{%- for cluster in report_data.clusters.get("AI基础设施", []) %}
+  {%- for article in cluster.articles %}
+[{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
 {% endfor %}
 
 ## AI芯片
-{%- for topic in report_data.clusters.get("AI芯片", []) %}
-  {%- for article in topic.children %}
-[{{ article.title }}]({{ article.link }})
+{%- for cluster in report_data.clusters.get("AI芯片", []) %}
+  {%- for article in cluster.articles %}
+[{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
 {% endfor %}
 
 ## AI能源
-{%- for topic in report_data.clusters.get("AI能源", []) %}
-  {%- for article in topic.children %}
-[{{ article.title }}]({{ article.link }})
+{%- for cluster in report_data.clusters.get("AI能源", []) %}
+  {%- for article in cluster.articles %}
+[{{ article.translation }}]({{ article.link }})
   {%- endfor %}
 {% else %}
 （本期暂无相关来源）
