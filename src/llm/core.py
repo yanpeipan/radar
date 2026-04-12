@@ -152,6 +152,20 @@ class LLMClient:
                     raise ProviderUnavailable("Router returned empty content")
                 return content
             except asyncio.TimeoutError:
+                # Retry with extended timeout on TimeoutError
+                for attempt in [2, 3]:  # 2nd and 3rd attempt with longer timeout
+                    try:
+                        response = await llm_router.acompletion(
+                            **{**kwargs, "timeout": self.config.timeout_seconds * attempt}
+                        )
+                        choices = response.get("choices")
+                        if choices:
+                            message = choices[0]["message"]
+                            content = message.get("content") or message.get("reasoning_content")
+                            if content:
+                                return content
+                    except asyncio.TimeoutError:
+                        pass
                 raise LLMError(
                     f"LLM call timed out after {self.config.timeout_seconds}s"
                 ) from None
@@ -297,6 +311,7 @@ _llm_settings = _get_settings()
 _llm_config = _llm_settings.llm or {}
 _model_list: list[dict] = _llm_config.get("model_list", [])
 _routing_strategy = _llm_config.get("routing_strategy", "usage-based-routing")
+_timeout_seconds: int = _llm_config.get("timeout_seconds", 60)
 
 # Drop unsupported params per-model (e.g. thinking not supported by MiniMax-M2.7)
 litellm.drop_params = True
@@ -304,8 +319,8 @@ litellm.drop_params = True
 llm_router: Router = Router(
     model_list=_model_list,
     routing_strategy=_routing_strategy,
-    num_retries=2,
-    timeout=45,
+    num_retries=0,  # Disable litellm internal retries; we handle them in complete()
+    timeout=_timeout_seconds,
 )
 
 
