@@ -12,10 +12,31 @@ from src.llm.output_models import ClassifyTranslateItem
 
 if TYPE_CHECKING:
     from src.application.articles import ArticleListItem
+    from src.application.report.template import HeadingNode
 
 from src.application.articles import ArticleListItem
 
 logger = logging.getLogger(__name__)
+
+
+class ReportDataAdapter(Runnable):
+    """Adapter that captures HeadingNode and passes it with articles as tuple.
+
+    Bridges: BatchClassifyChain (list[ArticleListItem]) -> BuildReportDataChain (tuple[list, HeadingNode])
+    """
+
+    def __init__(self, heading_tree: "HeadingNode | None") -> None:
+        self.heading_tree = heading_tree
+
+    async def ainvoke(
+        self, input: list[ArticleListItem], config=None
+    ) -> tuple[list[ArticleListItem], "HeadingNode | None"]:
+        return (input, self.heading_tree)
+
+    def invoke(
+        self, input: list[ArticleListItem], config=None
+    ) -> tuple[list[ArticleListItem], "HeadingNode | None"]:
+        return (input, self.heading_tree)
 
 
 class BatchClassifyChain(Runnable):
