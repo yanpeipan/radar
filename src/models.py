@@ -73,6 +73,8 @@ class Feed(BaseModel):
             When accessed, it returns the stored string (backward compat with storage layer).
             Use metadata_parsed property to get typed FeedMetaData object.
         weight: Feed weight for semantic search ranking (default 0.3, range 0-1).
+        group: Optional group name for organizing feeds (max 100 chars).
+        refresh_interval: Refresh interval in seconds (default None, min 60s). None uses global default.
     """
 
     model_config = ConfigDict(
