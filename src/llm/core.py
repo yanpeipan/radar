@@ -107,7 +107,6 @@ class LLMWrapper(Runnable):
         for k, v in self._bind_kwargs.items():
             router = router.bind(**{k: v})
         if self.structured_output:
-            router = router.bind_tools([self.structured_output])
             router = router.with_structured_output(self.structured_output)
         return router.with_retry(**self._retry_config)
 
