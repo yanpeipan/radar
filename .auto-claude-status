@@ -1,10 +1,10 @@
 {
   "active": true,
   "spec": "009-refactor-search-articles-fts-query-builder-to-elim",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 1,
+    "total": 5,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 3,
     "started_at": "2026-04-14T00:54:45.021557"
   },
-  "last_update": "2026-04-14T00:57:39.236969"
+  "last_update": "2026-04-14T01:01:50.807021"
 }

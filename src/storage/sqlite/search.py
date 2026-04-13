@@ -19,6 +19,58 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+def _build_fts_where_clause(
+    query: str,
+    feed_id: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
+    on: list[str] | None = None,
+    groups: list[str] | None = None,
+    tz=None,
+) -> tuple[str, list]:
+    """Assemble WHERE clause parts and params for FTS5 search.
+
+    Args:
+        query: FTS5 search query string.
+        feed_id: Optional feed ID to filter by.
+        since: Optional start date (inclusive), format YYYY-MM-DD.
+        until: Optional end date (inclusive), format YYYY-MM-DD.
+        on: Optional list of specific dates to match.
+        groups: Optional list of feed groups to filter by (OR semantics).
+        tz: Timezone from get_timezone().
+
+    Returns:
+        Tuple of (where_sql string, [params list]).
+    """
+    where_parts = ["articles_fts MATCH ?"]
+    params = [query]
+
+    if feed_id:
+        where_parts.append("a.feed_id = ?")
+        params.append(feed_id)
+
+    # Date filtering (using timestamp comparison)
+    if since:
+        where_parts.append("a.published_at >= ?")
+        params.append(_date_to_timestamp(since, tz))
+    if until:
+        where_parts.append("a.published_at <= ?")
+        params.append(_date_to_timestamp_end(until, tz))
+    if on:
+        on_timestamps = [_date_to_timestamp(d, tz) for d in on]
+        placeholders = ",".join("?" * len(on_timestamps))
+        where_parts.append(f"a.published_at IN ({placeholders})")
+        params.extend(on_timestamps)
+
+    if groups:
+        placeholders = ",".join("?" * len(groups))
+        where_parts.append(f'f."group" IN ({placeholders})')
+        params.extend(groups)
+
+    where_sql = " AND ".join(where_parts)
+    return where_sql, params
+
+
 def _date_to_timestamp(date_str: str, tz) -> int:
     """Convert YYYY-MM-DD to Unix timestamp at start of day in timezone."""
     from datetime import datetime
