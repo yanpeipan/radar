@@ -56,16 +56,14 @@ async def _entity_report_async(
         # Candidate tags derived from template heading structure
         tag_list = "\n".join(heading_tree.titles)
 
-        from src.llm.chains import (
-            make_build_report_runnable,
-            make_classify_runnable,
-            make_tldr_runnable,
-        )
+        from src.application.report.classify import BatchClassifyChain
+        from src.application.report.models import BuildReportDataChain
+        from src.application.report.tldr import TLDRChain
 
         chain = (
-            make_classify_runnable(tag_list=tag_list, target_lang=target_lang)
-            | make_build_report_runnable(heading_tree=heading_tree, target_lang=target_lang)
-            | make_tldr_runnable(top_n=100, target_lang=target_lang)
+            BatchClassifyChain(tag_list=tag_list, target_lang=target_lang)
+            | BuildReportDataChain(heading_tree=heading_tree, target_lang=target_lang)
+            | TLDRChain(top_n=100, target_lang=target_lang)
         )
 
         report_data = await chain.ainvoke(filtered)
