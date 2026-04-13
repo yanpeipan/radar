@@ -71,7 +71,7 @@ TLDR_PROMPT = ChatPromptTemplate.from_messages(
 
 def get_tldr_chain() -> Runnable:
     """Returns LCEL chain for batch TLDR generation."""
-    return TLDR_PROMPT | LLMWrapper().with_structured_output(TLDRItems)
+    return TLDR_PROMPT | LLMWrapper(structured_output=TLDRItems)
 
 
 # Classification + translation chain
@@ -106,5 +106,5 @@ def get_classify_translate_chain(
     """Returns LCEL chain for batch news classification and translation."""
     return (
         CLASSIFY_TRANSLATE_PROMPT
-        | LLMWrapper().with_structured_output(ClassifyTranslateOutput)
+        | LLMWrapper(structured_output=ClassifyTranslateOutput)
     )
