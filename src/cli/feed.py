@@ -321,6 +321,11 @@ def feed_list(
                 provider_type = _get_provider_type(f.url)
                 articles_count = getattr(f, "articles_count", 0)
                 weight = f.weight if f.weight is not None else 0.3
+                refresh_interval = f.refresh_interval
+                if refresh_interval is not None:
+                    refresh_display = f"{refresh_interval}s"
+                else:
+                    refresh_display = "Default"
 
                 table = Table(title=f.name, show_header=False, box=None, padding=(0, 1))
                 table.add_column(style="cyan", no_wrap=True)
@@ -332,6 +337,7 @@ def feed_list(
                 table.add_row("Weight", f"{weight:.1f}")
                 table.add_row("Group", f.group or "Ungrouped")
                 table.add_row("Last Fetched", last_fetched)
+                table.add_row("Refresh Interval", refresh_display)
                 console.print(table)
                 console.print()
         else:
