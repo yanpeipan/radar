@@ -40,6 +40,7 @@ from src.cli.ui import (  # noqa: E402
 )
 from src.discovery import DiscoveredFeed, discover_feeds  # noqa: E402
 from src.models import FeedMetaData  # noqa: E402
+from src.storage import feed_exists  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -626,33 +627,36 @@ def feed_import(
             return
 
     added_count = 0
-    updated_count = 0
+    skipped_count = 0
     for entry in entries:
+        if feed_exists(entry.url):
+            skipped_count += 1
+            if not json_output:
+                click.secho(f"  Skipped (duplicate): {entry.url}", fg="yellow")
+            continue
         feed_meta = FeedMetaData(feed_type="rss")
-        _, is_new = register_feed(
+        register_feed(
             entry.url,
             entry.title or entry.name,
             None,  # weight: inherit from defaults
             feed_meta,
             entry.group,
         )
-        if is_new:
-            added_count += 1
-        else:
-            updated_count += 1
+        added_count += 1
 
     if json_output:
         print_json(
             {
                 "imported": added_count,
-                "updated": updated_count,
+                "skipped": skipped_count,
                 "total": len(entries),
             }
         )
     else:
-        if updated_count > 0:
+        if skipped_count > 0:
             click.secho(
-                f"Imported {added_count}, updated {updated_count} feed(s).", fg="green"
+                f"Imported {added_count}, skipped {skipped_count} duplicate(s).",
+                fg="green",
             )
         else:
             click.secho(f"Imported {added_count} feed(s).", fg="green")
