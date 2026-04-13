@@ -7,13 +7,6 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 
-class TLDRItem(BaseModel):
-    """Single TLDR item for an entity topic."""
-
-    entity_id: str = Field(description="Normalized entity identifier")
-    tldr: str = Field(description="One-sentence TLDR in target language")
-
-
 class ClassifyTranslateItem(BaseModel):
     """Single news classification and translation result."""
 

@@ -2,29 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
-from pydantic import BaseModel, Field
 
 from src.llm.core import LLMWrapper
 from src.llm.output_models import (
     ClassifyTranslateOutput,
-    TLDRItem,
     TopicInsightOutput,
 )
 
 # ---------------------------------------------------------------------------
 # Wrapper schemas for list outputs (required for .with_structured_output())
 # ---------------------------------------------------------------------------
-
-
-class TLDRItems(BaseModel):
-    """Wrapper for list of TLDR items (required for structured output)."""
-
-    items: Annotated[list[TLDRItem], Field(description="List of TLDR items")]
 
 
 # Translation chain — for section summaries, preserves article titles in links
@@ -45,34 +35,6 @@ TRANSLATE_PROMPT = ChatPromptTemplate.from_messages(
 def get_translate_chain() -> Runnable:
     """Returns LCEL chain for report section translation."""
     return TRANSLATE_PROMPT | LLMWrapper() | StrOutputParser()
-
-
-# TLDR chain — generate detailed TLDR for multiple entities at once
-TLDR_PROMPT = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            "You are a senior news analyst with CEO + AI/Technology analyst dual perspectives.\n"
-            "Each entity topic has multiple related articles discussing the same subject.\n"
-            "Synthesize ALL articles to write a deep, insightful 2-3 sentence summary.\n\n"
-            "Your analysis should:\n"
-            "1. CEO视角: business impact, strategic implications, market significance\n"
-            "2. AI Analyst视角: technical innovations, AI/ML trends, industry breakthroughs\n\n"
-            "Write in {target_lang}.",
-        ),
-        (
-            "human",
-            "Entity Topics (top {top_n} articles each, multiple perspectives per topic):\n"
-            "{article_titles}\n\n"
-            'Return JSON object with "items" array, each element: {{"entity_id": "...", "tldr": "..."}}.',
-        ),
-    ]
-)
-
-
-def get_tldr_chain() -> Runnable:
-    """Returns LCEL chain for batch TLDR generation."""
-    return TLDR_PROMPT | LLMWrapper(structured_output=TLDRItems)
 
 
 # Classification + translation chain
@@ -125,12 +87,14 @@ INSIGHT_PROMPT = ChatPromptTemplate.from_messages(
             "Each topic: topic_id, title, summary (one sentence), multiple insights.\n"
             "Each insight: title, content (2-4 sentences), source_indices (1-based).\n"
             "Write in {target_lang}.\n"
-            "Return JSON with 'topics' array."),
+            "Return JSON with 'topics' array.",
+        ),
         (
             "human",
             "Cluster articles (top {top_n}):\n"
             "{article_titles}\n\n"
-            "Return JSON with 'topics' array.")
+            "Return JSON with 'topics' array.",
+        ),
     ]
 )
 
@@ -147,10 +111,9 @@ SIMPLE_SUMMARY_PROMPT = ChatPromptTemplate.from_messages(
             "system",
             "You are a senior news analyst with CEO + AI/Technology analyst perspectives.\n"
             "Write a ONE-SENTENCE summary for this article cluster.\n"
-            "Write in {target_lang}."),
-        (
-            "human",
-            "Article:\n{article_titles}")
+            "Write in {target_lang}.",
+        ),
+        ("human", "Article:\n{article_titles}"),
     ]
 )
 
