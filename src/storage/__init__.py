@@ -33,4 +33,9 @@ from src.storage.sqlite.impl import (
     upsert_feed,
 )
 from src.storage.sqlite.init import DatabaseInitializer
-from src.storage.sqlite.tags import get_feeds_by_tag
+from src.storage.sqlite.tags import (
+    assign_tag_to_feed,
+    get_feeds_by_tag,
+    get_tags_for_feed,
+    remove_tag_from_feed,
+)
