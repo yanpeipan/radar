@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
 from pydantic import BaseModel, Field
@@ -88,17 +88,20 @@ TLDR_PROMPT = ChatPromptTemplate.from_messages(
 
 
 def get_tldr_chain() -> Runnable:
-    """Returns LCEL chain for batch TLDR generation using structured output.
+    """Returns LCEL chain for batch TLDR generation.
 
-    Uses .with_structured_output() for automatic Pydantic parsing instead of
-    regex-based output parsing.
+    Uses JsonOutputParser (handles markdown stripping) + Pydantic validation
+    instead of .with_structured_output() for better error handling.
     """
+    from langchain_core.runnables import RunnableLambda
     from litellm import APIConnectionError, RateLimitError
 
+    def validate_tldr(data: dict) -> TLDRItems:
+        return TLDRItems.model_validate(data)
+
     llm = _get_llm_wrapper(800)
-    structured_llm = llm.with_structured_output(TLDRItems)
     return (
-        TLDR_PROMPT | structured_llm
+        TLDR_PROMPT | llm | JsonOutputParser() | RunnableLambda(validate_tldr)
     ).with_retry(
         stop_after_attempt=2,
         retry_if_exception_type=(RateLimitError, APIConnectionError),
@@ -136,19 +139,21 @@ def get_classify_translate_chain(
 ) -> Runnable:
     """Returns LCEL chain for batch news classification and translation.
 
-    Uses .with_structured_output() for automatic Pydantic parsing.
-
-    Args:
-        tag_list: Newline-separated candidate tags
-        news_list: Newline-separated news titles (one per line)
-        target_lang: Target language code (default: zh)
+    Uses JsonOutputParser (handles markdown stripping) + Pydantic validation
+    instead of .with_structured_output() for better error handling.
     """
+    from langchain_core.runnables import RunnableLambda
     from litellm import APIConnectionError, RateLimitError
 
+    def validate_classify(data: dict) -> ClassifyTranslateOutput:
+        return ClassifyTranslateOutput.model_validate(data)
+
     llm = _get_llm_wrapper(16384)
-    structured_llm = llm.with_structured_output(ClassifyTranslateOutput)
     return (
-        CLASSIFY_TRANSLATE_PROMPT | structured_llm
+        CLASSIFY_TRANSLATE_PROMPT
+        | llm
+        | JsonOutputParser()
+        | RunnableLambda(validate_classify)
     ).with_retry(
         stop_after_attempt=2,
         retry_if_exception_type=(RateLimitError, APIConnectionError),
