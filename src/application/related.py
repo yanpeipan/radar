@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from src.application.articles import ArticleListItem
@@ -10,20 +11,14 @@ from src.storage.vector import get_related_articles as storage_get_related_artic
 if TYPE_CHECKING:
     pass
 
-# Global cache for dependency availability check
-_ml_checked = False
 
-
+@lru_cache
 def _check_ml_dependencies():
     """Lazy check that ML dependencies (sentence-transformers, chromadb) are available.
 
     Raises:
         RuntimeError: If sentence-transformers or chromadb cannot be imported.
     """
-    global _ml_checked
-    if _ml_checked:
-        return
-
     try:
         import chromadb  # noqa: F401
     except ImportError as e:
@@ -39,8 +34,6 @@ def _check_ml_dependencies():
             "sentence-transformers is required for related articles. "
             "Install with: pip install sentence-transformers"
         ) from e
-
-    _ml_checked = True
 
 
 def get_related_articles(article_id: str, limit: int = 5) -> list[ArticleListItem]:
