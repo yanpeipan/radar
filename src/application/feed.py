@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 
-from src.application.config import get_default_feed_weight
+from src.application.config import get_default_feed_weight, get_default_refresh_interval
 from src.models import Feed, FeedMetaData
 from src.providers import discover
 from src.storage import get_feed as storage_get_feed
@@ -29,6 +29,7 @@ def add_feed(
     weight: float | None = None,
     feed_meta_data: FeedMetaData | None = None,
     group: str | None = None,
+    refresh_interval: int | None = None,
 ) -> tuple[Feed, bool]:
     """Add a new feed by URL.
 
@@ -38,6 +39,7 @@ def add_feed(
         url: The URL of the feed to add.
         weight: Optional feed weight for semantic search ranking. Defaults to config value.
         feed_meta_data: Optional provider-specific metadata (e.g., path selectors for WebpageProvider).
+        refresh_interval: Optional refresh interval in seconds. Defaults to config value.
 
     Returns:
         The created Feed object.
@@ -66,6 +68,9 @@ def add_feed(
             weight=weight if weight is not None else get_default_feed_weight(),
             metadata=feed_meta_data.to_json(),
             group=group,
+            refresh_interval=refresh_interval
+            if refresh_interval is not None
+            else get_default_refresh_interval(),
         )
         upsert_feed(feed)
     else:
@@ -82,6 +87,9 @@ def add_feed(
             weight=weight if weight is not None else get_default_feed_weight(),
             metadata=None,
             group=group,
+            refresh_interval=refresh_interval
+            if refresh_interval is not None
+            else get_default_refresh_interval(),
         )
 
     for provider in providers:
@@ -119,6 +127,9 @@ def add_feed(
         weight=weight if weight is not None else get_default_feed_weight(),
         metadata=feed_meta_data.to_json() if feed_meta_data else None,
         group=group,
+        refresh_interval=refresh_interval
+        if refresh_interval is not None
+        else get_default_refresh_interval(),
     )
     return upsert_feed(feed)
 
@@ -129,6 +140,7 @@ def register_feed(
     weight: float | None = None,
     feed_meta_data: FeedMetaData | None = None,
     group: str | None = None,
+    refresh_interval: int | None = None,
 ) -> tuple[Feed, bool]:
     """Register a pre-discovered feed without crawling.
 
@@ -141,13 +153,17 @@ def register_feed(
         feed_name: Optional name. If not provided, URL is used as name.
         weight: Optional feed weight for semantic search ranking.
         feed_meta_data: Optional provider-specific metadata (e.g., selectors for WebpageProvider).
+        refresh_interval: Optional refresh interval in seconds. Defaults to config value.
 
     Returns:
         Tuple of (saved Feed object, is_new).
     """
     import json as json_module
 
-    from src.application.config import get_default_feed_weight
+    from src.application.config import (
+        get_default_feed_weight,
+        get_default_refresh_interval,
+    )
     from src.models import Feed
 
     # Preserve existing metadata selectors if new metadata doesn't have selectors
@@ -182,6 +198,9 @@ def register_feed(
         weight=weight if weight is not None else get_default_feed_weight(),
         metadata=feed_meta_data.to_json() if feed_meta_data else None,
         group=group,
+        refresh_interval=refresh_interval
+        if refresh_interval is not None
+        else get_default_refresh_interval(),
     )
     return upsert_feed(feed)
 
