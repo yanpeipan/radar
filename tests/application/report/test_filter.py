@@ -4,33 +4,35 @@ from src.application.articles import ArticleListItem
 from src.application.report.filter import SignalFilter
 
 
-def _make_article(id: str, quality_score: float, feed_weight: float, **kwargs) -> ArticleListItem:
+def _make_article(
+    id: str, quality_score: float, feed_weight: float, **kwargs
+) -> ArticleListItem:
     """Helper to create ArticleListItem for testing."""
-    defaults = dict(
-        id=id,
-        feed_id="feed1",
-        feed_name="Test Feed",
-        title="Test Title",
-        link="https://example.com",
-        guid=f"guid-{id}",
-        published_at="2026-04-01 00:00:00",
-        description="Test description",
-        vec_sim=0.0,
-        bm25_score=0.0,
-        freshness=0.0,
-        source_weight=0.3,
-        ce_score=0.0,
-        score=0.0,
-        quality_score=quality_score,
-        content=None,
-        summary=None,
-        feed_weight=feed_weight,
-        feed_url="https://example.com/feed",
-        content_hash=None,
-        minhash_signature=None,
-        tags=[],
-        translation=None,
-    )
+    defaults = {
+        "id": id,
+        "feed_id": "feed1",
+        "feed_name": "Test Feed",
+        "title": "Test Title",
+        "link": "https://example.com",
+        "guid": f"guid-{id}",
+        "published_at": "2026-04-01 00:00:00",
+        "description": "Test description",
+        "vec_sim": 0.0,
+        "bm25_score": 0.0,
+        "freshness": 0.0,
+        "source_weight": 0.3,
+        "ce_score": 0.0,
+        "score": 0.0,
+        "quality_score": quality_score,
+        "content": None,
+        "summary": None,
+        "feed_weight": feed_weight,
+        "feed_url": "https://example.com/feed",
+        "content_hash": None,
+        "minhash_signature": None,
+        "tags": [],
+        "translation": None,
+    }
     defaults.update(kwargs)
     return ArticleListItem(**defaults)
 
@@ -59,9 +61,27 @@ def test_signal_filter_feed_weight_threshold():
 
 def test_signal_filter_combined():
     articles = [
-        _make_article("1", quality_score=0.8, feed_weight=0.7, title="Article 1", content="Content 1"),
-        _make_article("2", quality_score=0.5, feed_weight=0.4, title="Article 2", content="Content 2"),
-        _make_article("3", quality_score=0.7, feed_weight=0.6, title="Article 3", content="Content 3"),
+        _make_article(
+            "1",
+            quality_score=0.8,
+            feed_weight=0.7,
+            title="Article 1",
+            content="Content 1",
+        ),
+        _make_article(
+            "2",
+            quality_score=0.5,
+            feed_weight=0.4,
+            title="Article 2",
+            content="Content 2",
+        ),
+        _make_article(
+            "3",
+            quality_score=0.7,
+            feed_weight=0.6,
+            title="Article 3",
+            content="Content 3",
+        ),
     ]
     sf = SignalFilter(quality_threshold=0.6, feed_weight_threshold=0.5)
     result = sf.filter(articles)
@@ -72,8 +92,12 @@ def test_signal_filter_combined():
 
 def test_signal_filter_event_boost():
     articles = [
-        _make_article("1", quality_score=0.55, feed_weight=0.7, title="Google Gemma 4 Release"),
-        _make_article("2", quality_score=0.55, feed_weight=0.7, title="Nothing special"),
+        _make_article(
+            "1", quality_score=0.55, feed_weight=0.7, title="Google Gemma 4 Release"
+        ),
+        _make_article(
+            "2", quality_score=0.55, feed_weight=0.7, title="Nothing special"
+        ),
     ]
     sf = SignalFilter(quality_threshold=0.6, event_signal_boost=True)
     result = sf.filter(articles)

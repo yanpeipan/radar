@@ -8,6 +8,8 @@ llm:
         api_key: ${OPENAI_API_KEY}
         api_base: https://api.minimaxi.com/anthropic
         rpm: 60
+        max_tokens: 16384
+        max_parallel_requests: 3
 
 # Application configuration
 timezone: Asia/Shanghai
@@ -30,30 +32,3 @@ nitter:
   instances:
     - "https://nitter.privacydev.net"
     - "https://nitter.net"
-
-# WebpageProvider site configurations
-# See: docs/webpage-provider.md
-webpage_sites:
-  jiqizhixin.com:
-    _default:
-      wait_selector: ".home__article-item"
-      item: ".home__article-item"
-      title: ".home__article-item__title"
-      time: ".home__article-item__time"
-      tags: ".home__article-item__tag-item"
-      description: null
-      link: null
-      link_pattern: "https://pro.jiqizhixin.com/reference/{uuid}"
-      link_uuid_regex: "/article/cover_image/([0-9a-f-]{36})/"
-      date_format: CN
-    articles:
-      wait_selector: ".article-card"
-      item: ".article-card"
-      title: ".article-card__title"
-      time: ".article-card__time"
-      tags: ".article-card__tags > div"
-      description: null
-      link: null
-      link_pattern: "https://pro.jiqizhixin.com/reference/{uuid}"
-      link_uuid_regex: "/article/cover_image/([0-9a-f-]{36})/"
-      date_format: CN
