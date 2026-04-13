@@ -239,25 +239,30 @@ def get_feeds_by_tag(tag_name: str) -> list[Feed]:
         tag_name: The name of the tag.
 
     Returns:
-        List of Feed objects assigned to the tag, ordered by creation date descending.
+        List of Feed objects assigned to the tag, ordered by creation date descending,
+        each with an articles_count attribute attached.
     """
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
             SELECT f.id, f.name, f.url, f.etag, f.modified_at, f.fetched_at,
-                   f.created_at, f.weight, f."group"
+                   f.created_at, f.weight, f."group",
+                   COUNT(a.id) as articles_count
             FROM feeds f
             INNER JOIN feed_tags ft ON f.id = ft.feed_id
             INNER JOIN tags t ON ft.tag_id = t.id
+            LEFT JOIN articles a ON f.id = a.feed_id
             WHERE t.name = ?
+            GROUP BY f.id
             ORDER BY f.created_at DESC
             """,
             (tag_name,),
         )
         rows = cursor.fetchall()
-        return [
-            Feed(
+        feeds = []
+        for row in rows:
+            feed = Feed(
                 id=row["id"],
                 name=row["name"],
                 url=row["url"],
@@ -268,5 +273,6 @@ def get_feeds_by_tag(tag_name: str) -> list[Feed]:
                 weight=row["weight"],
                 group=row["group"],
             )
-            for row in rows
-        ]
+            feed.articles_count = row["articles_count"]
+            feeds.append(feed)
+        return feeds

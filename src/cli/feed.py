@@ -287,13 +287,29 @@ def feed_add(
     type=str,
     help="Filter feeds by group (exact match)",
 )
+@click.option(
+    "--tag",
+    default=None,
+    type=str,
+    help="Filter feeds by tag (exact match)",
+)
 @click.pass_context
 def feed_list(
-    ctx: click.Context, verbose: bool, json_output: bool, group: str | None
+    ctx: click.Context,
+    verbose: bool,
+    json_output: bool,
+    group: str | None,
+    tag: str | None,
 ) -> None:
     """List all subscribed feeds with provider type."""
     try:
-        feeds = list_feeds()
+        # Filter by tag if specified
+        if tag is not None:
+            from src.storage import get_feeds_by_tag
+
+            feeds = get_feeds_by_tag(tag)
+        else:
+            feeds = list_feeds()
 
         # Filter by group if specified
         if group is not None:
@@ -518,7 +534,9 @@ def tag_add(ctx: click.Context, feed_id: str, tag_name: str, json_output: bool) 
     try:
         tag_obj = add_tag_to_feed(feed_id, tag_name)
         if json_output:
-            print_json({"item": {"id": tag_obj.id, "name": tag_obj.name, "feed_id": feed_id}})
+            print_json(
+                {"item": {"id": tag_obj.id, "name": tag_obj.name, "feed_id": feed_id}}
+            )
         else:
             click.secho(f"Added tag '{tag_obj.name}' to feed {feed_id}", fg="green")
     except Exception as e:
@@ -548,7 +566,9 @@ def tag_remove(
         removed = remove_tag_from_feed(feed_id, tag_name)
         if removed:
             if json_output:
-                print_json({"item": {"feed_id": feed_id, "tag": tag_name, "removed": True}})
+                print_json(
+                    {"item": {"feed_id": feed_id, "tag": tag_name, "removed": True}}
+                )
             else:
                 click.secho(f"Removed tag '{tag_name}' from feed {feed_id}", fg="green")
         else:
