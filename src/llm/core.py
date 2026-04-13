@@ -62,7 +62,12 @@ def _get_llm_wrapper(
     APIConnectionError at the wrapper level so all chains get retry behavior.
     """
     from langchain_litellm import ChatLiteLLMRouter
-    from litellm import APIConnectionError, JSONSchemaValidationError, RateLimitError
+    from litellm import (
+        APIConnectionError,
+        APITimeoutError,
+        JSONSchemaValidationError,
+        RateLimitError,
+    )
 
     wrapper = ChatLiteLLMRouter(
         router=llm_router,
@@ -74,7 +79,12 @@ def _get_llm_wrapper(
         wrapper = wrapper.bind(thinking=thinking)
     return wrapper.with_retry(
         stop_after_attempt=2,
-        retry_if_exception_type=(RateLimitError, APIConnectionError, JSONSchemaValidationError),
+        retry_if_exception_type=(
+            RateLimitError,
+            APIConnectionError,
+            APITimeoutError,
+            JSONSchemaValidationError,
+        ),
     )
 
 
