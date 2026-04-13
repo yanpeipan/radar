@@ -57,13 +57,13 @@ async def _entity_report_async(
         tag_list = "\n".join(heading_tree.titles)
 
         from src.application.report.classify import BatchClassifyChain
+        from src.application.report.insight import InsightChain
         from src.application.report.models import BuildReportDataChain
-        from src.application.report.tldr import TLDRChain
 
         chain = (
             BatchClassifyChain(tag_list=tag_list, target_lang=target_lang)
             | BuildReportDataChain(heading_tree=heading_tree, target_lang=target_lang)
-            | TLDRChain(top_n=100, target_lang=target_lang)
+            | InsightChain(top_n=100, target_lang=target_lang)
         )
 
         report_data = await chain.ainvoke(filtered)
