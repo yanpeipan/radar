@@ -10,31 +10,9 @@ import logging
 import math
 
 from src.storage.sqlite.conn import get_db
+from src.storage.sqlite.utils import _date_to_timestamp, _date_to_timestamp_end
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _date_to_timestamp(date_str: str, tz) -> int:
-    """Convert YYYY-MM-DD to Unix timestamp at start of day in timezone."""
-    from datetime import datetime
-
-    dt = datetime.strptime(date_str, "%Y-%m-%d")
-    dt = dt.replace(tzinfo=tz)
-    return int(dt.timestamp())
-
-
-def _date_to_timestamp_end(date_str: str, tz) -> int:
-    """Convert YYYY-MM-DD to Unix timestamp at end of day (23:59:59) in timezone."""
-    from datetime import datetime
-
-    dt = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=tz)
-    dt = dt.replace(hour=23, minute=59, second=59)
-    return int(dt.timestamp())
 
 
 # ---------------------------------------------------------------------------
