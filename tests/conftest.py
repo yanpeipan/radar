@@ -33,6 +33,10 @@ def initialized_db(temp_db_path, monkeypatch):
     """
     from src.storage.sqlite import conn
 
+    # Close any existing cached connection BEFORE patching _DB_PATH.
+    # Without this, subsequent tests would reuse the old connection.
+    conn._close_connection()
+
     # Patch _DB_PATH in conn module (where it's actually defined)
     monkeypatch.setattr(conn, "_DB_PATH", Path(temp_db_path))
 
