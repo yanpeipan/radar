@@ -1,15 +1,15 @@
 {
   "active": true,
   "spec": "019-cache-check-ml-dependencies-result-with-functools-",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 2,
+    "total": 4,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Add lru_cache to fetch.py",
+    "current": "Add lru_cache to related.py",
     "id": null,
     "total": 1
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 4,
     "started_at": "2026-04-14T00:55:57.425917"
   },
-  "last_update": "2026-04-14T00:58:08.619557"
+  "last_update": "2026-04-14T01:01:51.813708"
 }
