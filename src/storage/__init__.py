@@ -5,6 +5,7 @@ Import vector functions directly from src.storage.vector when needed:
     from src.storage.vector import search_articles_semantic, add_article_embedding
 """
 
+from src.storage.sqlite.articles import list_articles_by_tag
 from src.storage.sqlite.impl import (
     add_feed,
     feed_exists,
@@ -32,3 +33,4 @@ from src.storage.sqlite.impl import (
     upsert_feed,
 )
 from src.storage.sqlite.init import DatabaseInitializer
+from src.storage.sqlite.tags import get_feeds_by_tag

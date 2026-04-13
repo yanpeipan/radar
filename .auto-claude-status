@@ -3,7 +3,7 @@
   "spec": "021-feed-tag-and-category-management",
   "state": "building",
   "subtasks": {
-    "completed": 2,
+    "completed": 4,
     "total": 13,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 4,
+    "number": 6,
     "started_at": "2026-04-14T01:12:03.135237"
   },
-  "last_update": "2026-04-14T01:21:21.170520"
+  "last_update": "2026-04-14T01:25:13.929664"
 }

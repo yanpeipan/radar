@@ -6,7 +6,7 @@ in the SQLite database.
 
 from __future__ import annotations
 
-from src.models import Tag
+from src.models import Feed, Tag
 from src.storage.sqlite.conn import get_db
 
 
@@ -230,3 +230,43 @@ def _get_tag_by_name(name: str) -> Tag | None:
             created_at=row["created_at"],
             description=row["description"],
         )
+
+
+def get_feeds_by_tag(tag_name: str) -> list[Feed]:
+    """Get all feeds assigned to a tag by name.
+
+    Args:
+        tag_name: The name of the tag.
+
+    Returns:
+        List of Feed objects assigned to the tag, ordered by creation date descending.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT f.id, f.name, f.url, f.etag, f.modified_at, f.fetched_at,
+                   f.created_at, f.weight, f."group"
+            FROM feeds f
+            INNER JOIN feed_tags ft ON f.id = ft.feed_id
+            INNER JOIN tags t ON ft.tag_id = t.id
+            WHERE t.name = ?
+            ORDER BY f.created_at DESC
+            """,
+            (tag_name,),
+        )
+        rows = cursor.fetchall()
+        return [
+            Feed(
+                id=row["id"],
+                name=row["name"],
+                url=row["url"],
+                etag=row["etag"],
+                modified_at=row["modified_at"],
+                fetched_at=row["fetched_at"],
+                created_at=row["created_at"],
+                weight=row["weight"],
+                group=row["group"],
+            )
+            for row in rows
+        ]
