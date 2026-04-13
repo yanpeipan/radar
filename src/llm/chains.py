@@ -13,6 +13,7 @@ from src.llm.core import LLMWrapper
 from src.llm.output_models import (
     ClassifyTranslateOutput,
     TLDRItem,
+    TopicInsightOutput,
 )
 
 # ---------------------------------------------------------------------------
@@ -107,3 +108,53 @@ def get_classify_translate_chain(
     return CLASSIFY_TRANSLATE_PROMPT | LLMWrapper(
         structured_output=ClassifyTranslateOutput
     )
+
+
+# ---------------------------------------------------------------------------
+# InsightChain chains — generate cluster.summary and cluster.children (Topics)
+# ---------------------------------------------------------------------------
+
+# Insight chain — generate topics with insights for rich clusters (>= 2 articles)
+INSIGHT_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a senior news analyst with CEO + AI/Technology analyst dual perspectives.\n"
+            "Each cluster has multiple related articles on the same subject.\n"
+            "Generate TOPICS worth deep-diving (only if 2+ articles can be synthesized).\n"
+            "Each topic: topic_id, title, summary (one sentence), multiple insights.\n"
+            "Each insight: title, content (2-4 sentences), source_indices (1-based).\n"
+            "Write in {target_lang}.\n"
+            "Return JSON with 'topics' array."),
+        (
+            "human",
+            "Cluster articles (top {top_n}):\n"
+            "{article_titles}\n\n"
+            "Return JSON with 'topics' array.")
+    ]
+)
+
+
+def get_insight_chain() -> Runnable:
+    """Returns LCEL chain for batch topic insight generation."""
+    return INSIGHT_PROMPT | LLMWrapper(structured_output=TopicInsightOutput)
+
+
+# Simple summary chain — one-sentence TLDR for clusters with < 2 articles
+SIMPLE_SUMMARY_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a senior news analyst with CEO + AI/Technology analyst perspectives.\n"
+            "Write a ONE-SENTENCE summary for this article cluster.\n"
+            "Write in {target_lang}."),
+        (
+            "human",
+            "Article:\n{article_titles}")
+    ]
+)
+
+
+def get_simple_summary_chain() -> Runnable:
+    """Returns LCEL chain for simple one-sentence summaries."""
+    return SIMPLE_SUMMARY_PROMPT | LLMWrapper() | StrOutputParser()
