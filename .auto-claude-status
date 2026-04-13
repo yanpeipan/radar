@@ -3,7 +3,7 @@
   "spec": "022-per-feed-refresh-interval-configuration",
   "state": "building",
   "subtasks": {
-    "completed": 1,
+    "completed": 2,
     "total": 18,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 4,
     "started_at": "2026-04-14T01:27:56.778324"
   },
-  "last_update": "2026-04-14T01:34:00.699782"
+  "last_update": "2026-04-14T01:36:17.746207"
 }

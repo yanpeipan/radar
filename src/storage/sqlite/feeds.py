@@ -295,8 +295,9 @@ def update_feed_metadata(
     weight: float | None = None,
     group: str | None = None,
     metadata: str | None = None,
+    refresh_interval: int | None = None,
 ) -> tuple[Feed | None, bool]:
-    """Update feed metadata (weight, group, metadata JSON).
+    """Update feed metadata (weight, group, metadata JSON, refresh_interval).
 
     Args:
         feed_id: The ID of the feed to update.
@@ -304,6 +305,8 @@ def update_feed_metadata(
         group: Optional new group name. If None, not updated.
             Use empty string to clear.
         metadata: Optional JSON metadata string. If None, not updated.
+        refresh_interval: Optional refresh interval in seconds. If None, not updated.
+            Must be >= 60 seconds.
 
     Returns:
         Tuple of (updated Feed object or None if not found, success bool).
@@ -323,6 +326,9 @@ def update_feed_metadata(
         if metadata is not None:
             set_clauses.append("metadata = ?")
             params.append(metadata)
+        if refresh_interval is not None:
+            set_clauses.append("refresh_interval = ?")
+            params.append(refresh_interval)
 
         if not set_clauses:
             # No fields to update, just return current feed
