@@ -28,6 +28,7 @@ from src.application.feed import (  # noqa: E402
     remove_feed,
     update_feed_metadata,
 )
+from src.application.opml import export_feeds_to_opml  # noqa: E402
 from src.cli.ui import (  # noqa: E402
     FetchProgress,
     format_discover_feeds,
@@ -487,6 +488,72 @@ def feed_update(
             return
         click.secho(f"Error: Failed to update feed: {e}", err=True, fg="red")
         logger.exception("Failed to update feed")
+        sys.exit(1)
+
+
+@feed.command("export")
+@click.option("--opml", "as_opml", is_flag=True, help="Export feeds as OPML 2.0 XML")
+@click.option(
+    "--output",
+    "-o",
+    "output_file",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True),
+    help="Output file path (default: stdout)",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def feed_export(
+    ctx: click.Context,
+    as_opml: bool,
+    output_file: str | None,
+    json_output: bool,
+) -> None:
+    """Export subscribed feeds.
+
+    Examples:
+
+      feedship feed export --opml                  Export all feeds as OPML to stdout
+      feedship feed export --opml -o feeds.opml    Export to file
+    """
+    try:
+        feeds = list_feeds()
+
+        if not feeds:
+            if json_output:
+                print_json({"feeds": [], "count": 0})
+            else:
+                click.secho("No feeds to export.", fg="yellow")
+            return
+
+        if not as_opml:
+            if json_output:
+                print_json(format_feed_list(feeds))
+            else:
+                click.secho("Use --opml to export feeds as OPML 2.0 XML.", fg="yellow")
+            return
+
+        opml_xml = export_feeds_to_opml(feeds)
+
+        if output_file:
+            Path(output_file).write_text(opml_xml, encoding="utf-8")
+            if json_output:
+                print_json({"file": output_file, "count": len(feeds), "exported": True})
+            else:
+                click.secho(
+                    f"Exported {len(feeds)} feed(s) to {output_file}", fg="green"
+                )
+        else:
+            click.echo(opml_xml)
+            if json_output:
+                # Already output OPML to stdout, print summary as JSON too
+                print_json({"count": len(feeds), "format": "opml"})
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to export feeds: {e}", "export_error")
+            return
+        click.secho(f"Error: Failed to export feeds: {e}", err=True, fg="red")
+        logger.exception("Failed to export feeds")
         sys.exit(1)
 
 
