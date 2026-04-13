@@ -104,7 +104,6 @@ def get_classify_translate_chain(
     target_lang: str = "zh",
 ) -> Runnable:
     """Returns LCEL chain for batch news classification and translation."""
-    return (
-        CLASSIFY_TRANSLATE_PROMPT
-        | LLMWrapper(structured_output=ClassifyTranslateOutput)
+    return CLASSIFY_TRANSLATE_PROMPT | LLMWrapper(
+        structured_output=ClassifyTranslateOutput
     )
