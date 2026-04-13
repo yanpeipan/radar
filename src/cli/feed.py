@@ -28,7 +28,7 @@ from src.application.feed import (  # noqa: E402
     remove_feed,
     update_feed_metadata,
 )
-from src.application.opml import export_feeds_to_opml  # noqa: E402
+from src.application.opml import export_feeds_to_opml, parse_opml_file  # noqa: E402
 from src.cli.ui import (  # noqa: E402
     FetchProgress,
     format_discover_feeds,
@@ -555,6 +555,107 @@ def feed_export(
         click.secho(f"Error: Failed to export feeds: {e}", err=True, fg="red")
         logger.exception("Failed to export feeds")
         sys.exit(1)
+
+
+@feed.command("import")
+@click.argument("opml_file", type=click.Path(exists=True))
+@click.option(
+    "--automatic",
+    default="off",
+    type=click.Choice(["on", "off"]),
+    help="Automatically add all feeds without confirmation (default: off)",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def feed_import(
+    ctx: click.Context,
+    opml_file: str,
+    automatic: str,
+    json_output: bool,
+) -> None:
+    """Import feeds from an OPML file.
+
+    Parses an OPML file and registers each discovered feed subscription.
+
+    Examples:
+
+      feedship feed import feeds.opml
+      feedship feed import feeds.opml --automatic on
+    """
+    try:
+        entries = parse_opml_file(opml_file)
+    except FileNotFoundError:
+        if json_output:
+            print_json_error(f"OPML file not found: {opml_file}", "file_not_found")
+        click.secho(f"OPML file not found: {opml_file}", err=True, fg="red")
+        sys.exit(1)
+    except ValueError as e:
+        if json_output:
+            print_json_error(f"Invalid OPML file: {e}", "parse_error")
+        click.secho(f"Invalid OPML file: {e}", err=True, fg="red")
+        sys.exit(1)
+
+    if not entries:
+        if json_output:
+            print_json({"feeds": [], "count": 0, "imported": 0})
+        else:
+            click.secho("No feeds found in OPML file.", fg="yellow")
+        return
+
+    if not json_output:
+        click.secho(f"Found {len(entries)} feed(s) in OPML file.", fg="cyan")
+
+    if automatic == "off":
+        import questionary
+
+        confirmed = questionary.confirm(
+            f"Add {len(entries)} feed(s) from OPML?",
+            default=True,
+            style=questionary.Style(
+                [
+                    ("selected", "bold cyan"),
+                    ("checkbox", "cyan"),
+                ]
+            ),
+        ).ask()
+        if not confirmed:
+            if json_output:
+                print_json({"cancelled": True, "count": len(entries)})
+            else:
+                click.secho("Import cancelled.", fg="yellow")
+            return
+
+    added_count = 0
+    updated_count = 0
+    for entry in entries:
+        feed_meta = FeedMetaData(feed_type="rss")
+        _, is_new = register_feed(
+            entry.url,
+            entry.title or entry.name,
+            None,  # weight: inherit from defaults
+            feed_meta,
+            entry.group,
+        )
+        if is_new:
+            added_count += 1
+        else:
+            updated_count += 1
+
+    if json_output:
+        print_json(
+            {
+                "imported": added_count,
+                "updated": updated_count,
+                "total": len(entries),
+            }
+        )
+    else:
+        if updated_count > 0:
+            click.secho(
+                f"Imported {added_count}, updated {updated_count} feed(s).", fg="green"
+            )
+        else:
+            click.secho(f"Imported {added_count} feed(s).", fg="green")
 
 
 @cli.command("fetch")
