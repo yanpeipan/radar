@@ -343,6 +343,9 @@ def feed_list(
                 articles_count = getattr(f, "articles_count", 0)
                 weight = f.weight if f.weight is not None else 0.3
 
+                tags = list_feed_tags(f.id)
+                tags_str = ", ".join(t.name for t in tags) if tags else "None"
+
                 table = Table(title=f.name, show_header=False, box=None, padding=(0, 1))
                 table.add_column(style="cyan", no_wrap=True)
                 table.add_column(style="white")
@@ -352,6 +355,7 @@ def feed_list(
                 table.add_row("Articles", str(articles_count))
                 table.add_row("Weight", f"{weight:.1f}")
                 table.add_row("Group", f.group or "Ungrouped")
+                table.add_row("Tags", tags_str)
                 table.add_row("Last Fetched", last_fetched)
                 console.print(table)
                 console.print()
