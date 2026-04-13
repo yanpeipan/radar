@@ -122,3 +122,111 @@ def delete_tag(tag_id: str) -> bool:
         deleted = cursor.rowcount > 0
         conn.commit()
         return deleted
+
+
+def assign_tag_to_feed(feed_id: str, tag_name: str) -> Tag:
+    """Assign a tag to a feed by name, creating the tag if it does not exist.
+
+    Args:
+        feed_id: The ID of the feed to tag.
+        tag_name: The name of the tag to assign.
+
+    Returns:
+        The Tag object that was assigned.
+    """
+    tag = _get_tag_by_name(tag_name)
+    if tag is None:
+        tag = add_tag(tag_name)
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT OR IGNORE INTO feed_tags (feed_id, tag_id) VALUES (?, ?)",
+            (feed_id, tag.id),
+        )
+        conn.commit()
+        return tag
+
+
+def remove_tag_from_feed(feed_id: str, tag_name: str) -> bool:
+    """Remove a tag assignment from a feed by name.
+
+    Args:
+        feed_id: The ID of the feed to untag.
+        tag_name: The name of the tag to remove.
+
+    Returns:
+        True if the assignment was removed, False if it was not found.
+    """
+    tag = _get_tag_by_name(tag_name)
+    if tag is None:
+        return False
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM feed_tags WHERE feed_id = ? AND tag_id = ?",
+            (feed_id, tag.id),
+        )
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        return deleted
+
+
+def get_tags_for_feed(feed_id: str) -> list[Tag]:
+    """Get all tags assigned to a feed.
+
+    Args:
+        feed_id: The ID of the feed.
+
+    Returns:
+        List of Tag objects assigned to the feed, ordered by name.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT t.id, t.name, t.created_at, t.description
+            FROM tags t
+            INNER JOIN feed_tags ft ON t.id = ft.tag_id
+            WHERE ft.feed_id = ?
+            ORDER BY t.name ASC
+            """,
+            (feed_id,),
+        )
+        rows = cursor.fetchall()
+        return [
+            Tag(
+                id=row["id"],
+                name=row["name"],
+                created_at=row["created_at"],
+                description=row["description"],
+            )
+            for row in rows
+        ]
+
+
+def _get_tag_by_name(name: str) -> Tag | None:
+    """Get a tag by name.
+
+    Args:
+        name: The tag name to look up.
+
+    Returns:
+        Tag object if found, None otherwise.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, name, created_at, description FROM tags WHERE name = ?",
+            (name,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return Tag(
+            id=row["id"],
+            name=row["name"],
+            created_at=row["created_at"],
+            description=row["description"],
+        )
