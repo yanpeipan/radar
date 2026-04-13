@@ -58,7 +58,7 @@ llm_router: Router = Router(
 # ---------------------------------------------------------------------------
 
 
-class _LLMWrapper:
+class LLMWrapper:
     """LCEL Runnable wrapper with retry and optional structured output.
 
     Retry on RateLimitError, APIConnectionError, Timeout, and
@@ -98,13 +98,13 @@ class _LLMWrapper:
         )
 
 
-def _get_llm_wrapper(
+def get_llm_wrapper(
     response_format: dict | None = None,
     thinking: dict | None = None,
     structured_output: type[BaseModel] | None = None,
 ) -> Runnable:
     """Get a ChatLiteLLMRouter wrapper with optional configuration and retry."""
-    return _LLMWrapper(
+    return LLMWrapper(
         response_format=response_format,
         thinking=thinking,
         structured_output=structured_output,
