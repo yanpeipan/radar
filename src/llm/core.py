@@ -89,4 +89,4 @@ def _get_llm_wrapper(
 
 
 # Default max tokens for LLM calls
-DEFAULT_MAX_TOKENS = 300
+DEFAULT_MAX_TOKENS = 16384
