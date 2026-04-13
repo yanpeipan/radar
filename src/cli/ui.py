@@ -306,6 +306,7 @@ def _serialize_feed(feed: Feed) -> dict:
         "fetched_at": _iso_timestamp(feed.fetched_at) if feed.fetched_at else None,
         "created_at": _iso_timestamp(feed.created_at) if feed.created_at else None,
         "weight": feed.weight,
+        "refresh_interval": feed.refresh_interval,
     }
 
 
