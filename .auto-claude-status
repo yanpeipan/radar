@@ -3,23 +3,23 @@
   "spec": "022-per-feed-refresh-interval-configuration",
   "state": "building",
   "subtasks": {
-    "completed": 10,
+    "completed": 17,
     "total": 18,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "CLI Changes",
+    "current": "Tests",
     "id": null,
-    "total": 5
+    "total": 4
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 10,
+    "number": 17,
     "started_at": "2026-04-14T01:27:56.778324"
   },
-  "last_update": "2026-04-14T01:49:11.109825"
+  "last_update": "2026-04-14T02:04:39.064227"
 }
