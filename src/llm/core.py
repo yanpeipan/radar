@@ -49,7 +49,6 @@ litellm.drop_params = True
 llm_router: Router = Router(
     model_list=_model_list,
     routing_strategy=_routing_strategy,
-    num_retries=0,
     timeout=_timeout_seconds,
 )
 
@@ -106,6 +105,7 @@ class LLMWrapper(Runnable):
         for k, v in self._bind_kwargs.items():
             router = router.bind(**{k: v})
         if self.structured_output:
+            router = router.bind_tools([self.structured_output])
             router = router.with_structured_output(self.structured_output)
         return router.with_retry(**self._retry_config)
 
