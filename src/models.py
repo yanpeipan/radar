@@ -1,6 +1,6 @@
 """Data models for RSS reader using Pydantic.
 
-Defines Pydantic models for Feed, Article, and FeedMetaData entities
+Defines Pydantic models for Feed, Article, Tag, and FeedMetaData entities
 with runtime validation.
 """
 
@@ -157,3 +157,21 @@ class Article(BaseModel):
         if not UrlPattern.match(v):
             raise ValueError(f"Invalid URL format: {v!r}")
         return v
+
+
+class Tag(BaseModel):
+    """Represents a tag for organizing feeds.
+
+    Attributes:
+        id: Unique identifier for the tag.
+        name: Display name of the tag (unique, max 100 chars).
+        created_at: ISO timestamp when tag was created.
+        description: Optional description of the tag.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    name: str = Field(max_length=100)
+    created_at: str
+    description: str | None = None
