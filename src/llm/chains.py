@@ -54,8 +54,9 @@ CLASSIFY_TRANSLATE_PROMPT = ChatPromptTemplate.from_messages(
             "Tag and translate news titles to {target_lang}.\n\n"
             "Candidate tags:\n{tag_list}\n\n"
             "Rules:\n"
-            "1. Each news item can have 0-3 tags, prefer the most specific.\n"
-            "2. Output JSON with 'items' as a proper array (not a string).\n\n"
+            "1. Each news item can have 1-3 tags, prefer the most specific.\n"
+            "2. If no tags apply, DO NOT include this item in the output.\n"
+            "3. Output JSON with 'items' as a proper array (not a string).\n\n"
             "News list:\n"
             "{news_list}",
         ),
