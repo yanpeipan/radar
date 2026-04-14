@@ -33,6 +33,9 @@ _ARTICLES_EXTRA_COLUMNS = {
     # Dedup fields (v1.12)
     "content_hash": "TEXT",  # SHA256 of title + first 500 chars
     "minhash_signature": "BLOB",  # Pickled MinHash signature
+    # Read/unread & bookmark fields
+    "read_at": "TEXT",  # ISO timestamp, NULL means unread
+    "is_starred": "INTEGER",  # 0=unstarred, 1=starred (SQLite bool)
 }
 
 
