@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-13T06:55:00.000Z"
-last_activity: "2026-04-13 — Completed quick task 260413-nco: LangChain LCEL optimization research + BatchClassifyChain factory refactor + deprecated BatchClassifyChain class removed"
+last_activity: "2026-04-13 — Completed quick task 260414-331: InsightChain replaces TLDRChain"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -145,3 +145,4 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 260412-x4s | BatchClassifyChain & BuildReportDataChain & TLDRChain LCEL pipe composition | 2026-04-12 | def3ec6 | | [260412-x4s-batchclassifychain-buildreportdatachain-](./quick/260412-x4s-batchclassifychain-buildreportdatachain-/) |
 | 260413-02d | BuildReportDataChain 直接接受 HeadingNode，移除 ReportDataAdapter | 2026-04-13 | 77510b4 | | [260413-02d-buildreportdatachain-headingnode-reportd](./quick/260413-02d-buildreportdatachain-headingnode-reportd/) |
 | 260412-u7q | Fix P0 crash (report_data initialization order) + remove EntityTag | 2026-04-12 | — | Blocked (pre-commit: B008 in models.py:59) | [260412-u7q-p0-bug-entitytag](./quick/260412-u7q-p0-bug-entitytag/) |
+| 260414-331 | report引入InsightChain(top_n=100, target_lang)取代TLDRChain：1 Cluster生成n Topics放入children；删除TLDRChain | 2026-04-13 | 951031c | Verified | [260414-331-report-chain-insightchain-top-n-100-targ](./quick/260414-331-report-chain-insightchain-top-n-100-targ/) |
