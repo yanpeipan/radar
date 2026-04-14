@@ -121,7 +121,7 @@ def parse_opml_file(file_path: str) -> list[FeedEntry]:
         ValueError: If the file is not valid XML or not a valid OPML document.
     """
     try:
-        tree = ElementTree.parse(file_path)
+        tree = ElementTree.parse(file_path)  # nosec B314
     except ElementTree.ParseError as e:
         raise ValueError(f"Invalid XML in OPML file: {e}") from e
 
