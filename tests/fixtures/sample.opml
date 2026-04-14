@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Feedship Sample Feeds</title>
+    <dateCreated>Mon, 01 Jan 2024 12:00:00 GMT</dateCreated>
+  </head>
+  <body>
+    <!-- Grouped feeds -->
+    <outline text="Tech News" title="Tech News">
+      <outline text="Hacker News" title="Hacker News" type="rss" xmlUrl="https://news.ycombinator.com/rss"/>
+      <outline text="The Verge" title="The Verge" type="rss" xmlUrl="https://www.theverge.com/rss/index.xml"/>
+    </outline>
+    <!-- Standalone feed with category attribute -->
+    <outline text="BBC News" title="BBC News" type="rss" xmlUrl="http://feeds.bbci.co.uk/news/rss.xml" category="News"/>
+    <!-- Ungrouped feeds -->
+    <outline text="Example Blog" title="Example Blog" type="rss" xmlUrl="https://example.com/feed.xml"/>
+    <outline text="Another Feed" type="atom" xmlUrl="https://example.org/atom.xml"/>
+  </body>
+</opml>

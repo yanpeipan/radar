@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>Test Duplicates</title>
+  </head>
+  <body>
+    <!-- Existing feed (should be skipped as duplicate) -->
+    <outline text="Google News" title="Google News" type="rss" xmlUrl="https://news.google.com/rss?hl=en-SG&amp;gl=SG&amp;ceid=SG:en" category="News"/>
+    <!-- New feeds -->
+    <outline text="Tech Blog" title="Tech Blog" type="rss" xmlUrl="https://example.com/feed.xml" category="Tech"/>
+    <outline text="New Feed" type="rss" xmlUrl="https://new.example.org/feed.xml"/>
+  </body>
+</opml>
