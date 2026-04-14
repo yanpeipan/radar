@@ -46,16 +46,13 @@ CLASSIFY_TRANSLATE_PROMPT = ChatPromptTemplate.from_messages(
         ),
         (
             "human",
-            "Tag and translate news titles.\n\n"
+            "Tag and translate news titles to {target_lang}.\n\n"
             "Candidate tags:\n{tag_list}\n\n"
             "Rules:\n"
             "1. Each news item can have 0-3 tags, prefer the most specific.\n"
             "2. If no tags apply, DO NOT include this item in the output.\n\n"
-            "Output format:\n"
-            'Return JSON object with "items" array, each element: {{"id": int, "tags": [], "translation": "..."}}\n\n'
             "News list:\n"
-            "{news_list}\n\n"
-            "Translate each title to {target_lang}.",
+            "{news_list}",
         ),
     ]
 )
@@ -84,16 +81,12 @@ INSIGHT_PROMPT = ChatPromptTemplate.from_messages(
             "You are a senior news analyst with CEO + AI/Technology analyst dual perspectives.\n"
             "Each cluster has multiple related articles on the same subject.\n"
             "Generate TOPICS worth deep-diving (only if 2+ articles can be synthesized).\n"
-            "Each topic: topic_id, title, summary (one sentence), multiple insights.\n"
-            "Each insight: title, content (2-4 sentences), source_indices (1-based).\n"
-            "Write in {target_lang}.\n"
-            "Return JSON with 'topics' array.",
+            "Write in {target_lang}.",
         ),
         (
             "human",
             "Cluster articles (top {top_n}):\n"
-            "{article_titles}\n\n"
-            "Return JSON with 'topics' array.",
+            "{article_titles}",
         ),
     ]
 )
