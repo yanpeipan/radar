@@ -112,7 +112,9 @@ class InsightChain(Runnable):
         # Step 3: separate by article count
         rich_clusters = [c for c in clusters_with_articles if len(c.articles) >= 2]
         simple_clusters = [
-            c for c in clusters_with_articles if len(c.articles) < 2 and len(c.articles) > 0
+            c
+            for c in clusters_with_articles
+            if len(c.articles) < 2 and len(c.articles) > 0
         ]
 
         # Step 4a: process rich clusters (>= 2 articles) with full insight chain
@@ -170,12 +172,20 @@ class InsightChain(Runnable):
                             "target_lang": self.target_lang,
                         }
                     )
-                    cluster.summary = result.strip() if isinstance(result, str) else str(result)
+                    cluster.summary = (
+                        result.strip() if isinstance(result, str) else str(result)
+                    )
                 except Exception as e:
-                    logger.warning("Simple summary failed for cluster %s: %s", cluster.name, e)
+                    logger.warning(
+                        "Simple summary failed for cluster %s: %s", cluster.name, e
+                    )
                     # Fallback: use article title as summary
                     if cluster.articles:
-                        cluster.summary = cluster.articles[0].translation or cluster.articles[0].title or ""
+                        cluster.summary = (
+                            cluster.articles[0].translation
+                            or cluster.articles[0].title
+                            or ""
+                        )
 
         return input
 
