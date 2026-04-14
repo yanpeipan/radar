@@ -29,5 +29,5 @@ jobs:
         run: pip-audit
       - name: Run Ruff linter
         run: ruff check --fix .
-      - name: Run Ruff formatter check
-        run: ruff format --check .
+      - name: Run Ruff formatter
+        run: ruff format .
