@@ -126,24 +126,10 @@ def search_articles_fts(
             from_parts.append("INNER JOIN tags t ON ft.tag_id = t.id")
         from_sql = "\n".join(from_parts)
 
-        # Build dynamic WHERE clause
-        where_parts = ["articles_fts MATCH ?"]
-        params = [query]
-
-        if feed_id:
-            where_parts.append("a.feed_id = ?")
-            params.append(feed_id)
+        # Extend WHERE clause with tag filter (already built by _build_fts_where_clause)
         if tag:
-            where_parts.append("t.name = ?")
+            where_sql += " AND t.name = ?"
             params.append(tag)
-        if groups:
-            placeholders = ",".join("?" * len(groups))
-            where_parts.append(f'f."group" IN ({placeholders})')
-            params.extend(groups)
-        if date_clause:
-            where_parts.append(date_clause)
-            params.extend(date_params)
-        where_sql = " AND ".join(where_parts)
 
         query_sql = f"""
             SELECT a.id, a.feed_id, f.name as feed_name,

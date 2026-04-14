@@ -1093,7 +1093,6 @@ class TestFeedUpdateRefreshInterval:
 
     def test_feed_update_refresh_interval_success(self, cli_runner, initialized_db):
         """feed update <id> --refresh-interval <n> updates interval and outputs success."""
-        # Add a feed via storage
         feed = Feed(
             id="update-ri-feed",
             name="Update RI Feed",
@@ -1101,12 +1100,10 @@ class TestFeedUpdateRefreshInterval:
         )
         add_feed(feed)
 
-        output_file = tmp_path / "export.opml"
         result = cli_runner.invoke(
-            cli, ["feed", "export", "--opml", "-o", str(output_file)]
+            cli, ["feed", "update", "update-ri-feed", "--refresh-interval", "3600"]
         )
         assert result.exit_code == 0
-        assert output_file.read_text(encoding="utf-8").count("File Export Feed") > 0
 
     def test_feed_export_opml_with_groups(self, cli_runner, initialized_db):
         """feed export --opml includes group outlines for grouped feeds."""
