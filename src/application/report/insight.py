@@ -140,20 +140,19 @@ class InsightChain(Runnable):
                 if isinstance(result, Exception):
                     logger.warning("InsightChain cluster failed: %s", result)
                 elif result and hasattr(result, "topics"):
-                    # Normalize topic_ids and assign to cluster.children
+                    # Assign topic_id and convert to ReportCluster for cluster.children
                     cluster.children = []
-                    for topic in result.topics:
-                        # Normalize topic_id format: "Topic 1" -> "Topic_01"
-                        topic_id = topic.topic_id.replace(" ", "_")
-                        if not topic_id.startswith("Topic_"):
-                            topic_id = f"Topic_{topic_id}"
-                        normalized_topic = type(topic)(
-                            topic_id=topic_id,
-                            title=topic.title,
+                    for i, topic in enumerate(result.topics, start=1):
+                        topic_id = f"Topic_{i:02d}"
+                        from src.application.report.models import ReportCluster
+
+                        rc = ReportCluster(
+                            name=topic_id,
                             summary=topic.summary,
-                            insights=topic.insights,
+                            children=[],
+                            articles=[],
                         )
-                        cluster.children.append(normalized_topic)
+                        cluster.children.append(rc)
                     # cluster.summary is set below from the first topic's summary or cluster-level summary
                     if result.topics:
                         cluster.summary = result.topics[0].summary
