@@ -1209,6 +1209,7 @@ class TestArticleStatus:
     def _get_article_status(self, article_id: str) -> dict:
         """Read read_at and is_starred directly from DB (get_article_detail omits them)."""
         import sqlite3
+
         from src.storage.sqlite.conn import get_db_path
 
         conn = sqlite3.connect(get_db_path())

@@ -568,9 +568,7 @@ class TestArticleMarkStarCommands:
         """article mark <id> --unread marks article as unread."""
         article_id = self._create_article(initialized_db)
 
-        result = cli_runner.invoke(
-            cli, ["article", "mark", article_id[:8], "--unread"]
-        )
+        result = cli_runner.invoke(cli, ["article", "mark", article_id[:8], "--unread"])
         assert result.exit_code == 0
         assert "unread" in result.output.lower()
 
@@ -612,9 +610,7 @@ class TestArticleMarkStarCommands:
         """article star <id> --unstar unstars the article."""
         article_id = self._create_article(initialized_db)
 
-        result = cli_runner.invoke(
-            cli, ["article", "star", article_id[:8], "--unstar"]
-        )
+        result = cli_runner.invoke(cli, ["article", "star", article_id[:8], "--unstar"])
         assert result.exit_code == 0
         assert "unstarred" in result.output.lower()
 
@@ -1087,7 +1083,6 @@ class TestInfoCommands:
         assert "Articles:" not in result.output
 
 
-
 class TestFeedUpdateRefreshInterval:
     """Tests for feed update --refresh-interval CLI command."""
 
@@ -1154,7 +1149,14 @@ class TestFeedUpdateRefreshInterval:
 
         result = cli_runner.invoke(
             cli,
-            ["feed", "update", "update-ri-json-feed", "--refresh-interval", "3600", "--json"],
+            [
+                "feed",
+                "update",
+                "update-ri-json-feed",
+                "--refresh-interval",
+                "3600",
+                "--json",
+            ],
         )
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -1220,6 +1222,7 @@ class TestFeedUpdateRefreshInterval:
         assert "Not a valid OPML file" in result.output
 
         result = cli_runner.invoke(
-            cli, ["feed", "update", "update-ri-invalid-feed", "--refresh-interval", "30"]
+            cli,
+            ["feed", "update", "update-ri-invalid-feed", "--refresh-interval", "30"],
         )
         assert result.exit_code != 0

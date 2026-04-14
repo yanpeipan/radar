@@ -41,7 +41,6 @@ from src.storage.sqlite.status import (
     star_article,
     toggle_article_star,
     unstar_article,
-
 )
 
 __all__ = [

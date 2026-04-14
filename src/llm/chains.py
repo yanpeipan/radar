@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
@@ -42,7 +44,10 @@ CLASSIFY_TRANSLATE_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a professional news tagging robot with CEO and news analyst judgment.",
+            "You are a professional news tagging robot with CEO and news analyst judgment.\n"
+            "Output ONLY valid JSON. Example format:\n"
+            '{{"items": [{{"id": 1, "tags": ["AI"], "translation": "title"}}]}}\n'
+            "The 'items' value must be a JSON array, NOT a quoted string.",
         ),
         (
             "human",
@@ -50,12 +55,31 @@ CLASSIFY_TRANSLATE_PROMPT = ChatPromptTemplate.from_messages(
             "Candidate tags:\n{tag_list}\n\n"
             "Rules:\n"
             "1. Each news item can have 0-3 tags, prefer the most specific.\n"
-            "2. If no tags apply, DO NOT include this item in the output.\n\n"
+            "2. Output JSON with 'items' as a proper array (not a string).\n\n"
             "News list:\n"
             "{news_list}",
         ),
     ]
 )
+
+
+def _parse_classify_output(text: str) -> ClassifyTranslateOutput:
+    """Parse LLM output, handling double-encoded JSON strings from MiniMax API.
+
+    MiniMax sometimes double-encodes the JSON array as a string within the
+    ClassifyTranslateOutput model. This parser catches that case.
+    """
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        # Try parsing as-is if not a JSON string
+        raise ValueError(f"Invalid JSON: {text[:200]}") from None
+
+    # MiniMax double-encodes: items is a JSON string instead of array
+    if isinstance(data, dict) and "items" in data and isinstance(data["items"], str):
+        data["items"] = json.loads(data["items"])
+
+    return ClassifyTranslateOutput.model_validate(data)
 
 
 def get_classify_translate_chain(
@@ -64,8 +88,11 @@ def get_classify_translate_chain(
     target_lang: str = "zh",
 ) -> Runnable:
     """Returns LCEL chain for batch news classification and translation."""
-    return CLASSIFY_TRANSLATE_PROMPT | LLMWrapper(
-        structured_output=ClassifyTranslateOutput
+    return (
+        CLASSIFY_TRANSLATE_PROMPT
+        | LLMWrapper()
+        | StrOutputParser()
+        | _parse_classify_output
     )
 
 
@@ -85,8 +112,7 @@ INSIGHT_PROMPT = ChatPromptTemplate.from_messages(
         ),
         (
             "human",
-            "Cluster articles (top {top_n}):\n"
-            "{article_titles}",
+            "Cluster articles (top {top_n}):\n{article_titles}",
         ),
     ]
 )

@@ -5,8 +5,8 @@ from __future__ import annotations
 from src.models import Tag
 from src.storage import assign_tag_to_feed as storage_assign_tag_to_feed
 from src.storage import get_feed as storage_get_feed
-from src.storage import remove_tag_from_feed as storage_remove_tag_from_feed
 from src.storage import get_tags_for_feed as storage_get_tags_for_feed
+from src.storage import remove_tag_from_feed as storage_remove_tag_from_feed
 
 
 class FeedNotFoundError(Exception):
