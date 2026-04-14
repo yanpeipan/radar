@@ -336,6 +336,8 @@ def list_articles(
     groups: list[str] | None = None,
     sort_by: str | None = None,
     min_quality: float | None = None,
+    unread_only: bool = False,
+    starred_only: bool = False,
 ) -> list:
     """List articles ordered by publication date.
 
@@ -348,6 +350,8 @@ def list_articles(
         groups: Optional list of feed groups to filter by (OR semantics).
         sort_by: "quality" to sort by quality_score DESC, NULLS LAST.
         min_quality: Minimum quality_score filter (0.0-1.0).
+        unread_only: If True, only return articles that have not been read.
+        starred_only: If True, only return starred/bookmarked articles.
     """
     import math
     from datetime import datetime, timezone
@@ -385,6 +389,10 @@ def list_articles(
     if min_quality is not None:
         conditions.append("a.quality_score >= ?")
         params.append(min_quality)
+    if unread_only:
+        conditions.append("a.read_at IS NULL")
+    if starred_only:
+        conditions.append("a.is_starred = 1")
     where_clause = " AND ".join(conditions) if conditions else "1=1"
 
     # Build ORDER BY
@@ -400,7 +408,8 @@ def list_articles(
             SELECT a.id, a.feed_id, f.name as feed_name, f.weight as feed_weight,
                    a.title, a.link, a.guid, a.published_at, a.description, a.content,
                    a.summary, a.quality_score, f.url as feed_url,
-                   a.content_hash, a.minhash_signature
+                   a.content_hash, a.minhash_signature,
+                   a.read_at, a.is_starred
             FROM articles a
             JOIN feeds f ON a.feed_id = f.id
             WHERE {where_clause}
