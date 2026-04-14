@@ -391,7 +391,7 @@ class TestReportIntegration:
 
     def test_v2_report_with_limit(self, cli_runner, initialized_db, monkeypatch):
         """V2 report respects --limit parameter and passes it to clustering."""
-        from src.application.report.models import ReportData
+        from src.application.report.models import ReportCluster, ReportData
 
         limit_captured = None
 
@@ -399,7 +399,7 @@ class TestReportIntegration:
             nonlocal limit_captured
             limit_captured = kwargs.get("limit")
             return ReportData(
-                clusters={},
+                cluster=ReportCluster(title=""),
                 date_range={"since": "2024-01-01", "until": "2024-01-31"},
             )
 
@@ -437,6 +437,7 @@ class TestV2Clustering:
     def test_report_v2_clustering_empty_returns_empty_layers(self, initialized_db):
         """cluster_articles_for_report returns empty ReportData when no articles."""
         from src.application.report.generator import cluster_articles_for_report
+        from src.application.report.models import ReportCluster
 
         with (
             patch(
@@ -454,7 +455,7 @@ class TestV2Clustering:
                 limit=10,
                 auto_summarize=False,
             )
-            assert hasattr(data, "clusters")
+            assert hasattr(data, "cluster")
             assert hasattr(data, "date_range")
-            assert isinstance(data.clusters, dict)
+            assert isinstance(data.cluster, ReportCluster)
             assert data.total_articles == 0

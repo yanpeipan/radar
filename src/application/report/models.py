@@ -98,40 +98,36 @@ class ReportData:
     """Complete report data for rendering.
 
     Attributes:
-        clusters: Entity topics grouped by layer
+        cluster: Root ReportCluster containing all topic children
         date_range: Date range for the report
         target_lang: Target language for the report
     """
 
-    clusters: dict[str, list[ReportCluster]] = field(default_factory=dict)
+    cluster: ReportCluster = field(default_factory=lambda: ReportCluster(title=""))
     date_range: dict[str, str] = field(default_factory=dict)
     target_lang: str = "zh"
     heading_tree: HeadingNode | None = field(default=None)
 
     @property
     def total_articles(self) -> int:
-        """Total number of articles across all clusters."""
-        return sum(
-            len(cluster.articles)
-            for cluster_list in self.clusters.values()
-            for cluster in cluster_list
-        )
+        """Total number of articles across all clusters (recursive)."""
+
+        def count(c: ReportCluster) -> int:
+            return len(c.articles) + sum(count(child) for child in c.children)
+
+        return count(self.cluster)
 
     def add_article(self, cluster_name: str, item: ArticleListItem) -> None:
-        """Add an article to a cluster, creating the cluster if needed.
+        """Add an article to a cluster in cluster.children, creating if needed.
 
         Args:
-            cluster_name: Key in self.clusters (e.g., "AI应用")
+            cluster_name: Key in cluster.children (e.g., "AI应用")
             item: ArticleListItem (should have .tags and .translation from enrichment)
         """
-        # Find existing cluster via recursive search, or create at top level
-        cluster = self.get_cluster(cluster_name)
+        cluster = self._find_cluster_in_children(self.cluster.children, cluster_name)
         if cluster is None:
-            if cluster_name not in self.clusters:
-                self.clusters[cluster_name] = []
             cluster = ReportCluster(title=cluster_name)
-            self.clusters[cluster_name].append(cluster)
-
+            self.cluster.children.append(cluster)
         cluster.articles.append(ReportArticle.from_article(item))
 
     def add_articles(
@@ -147,48 +143,30 @@ class ReportData:
             self.add_article(get_tag(item), item)
 
     def build(self, heading_tree: HeadingNode | None) -> None:
-        """Match clusters to heading_tree nodes by title.
-
-        Each heading title is matched against existing clusters by name.
-        If a heading has no matching cluster, create an empty one.
-        """
+        """Match clusters to heading_tree nodes by title, populate cluster.children."""
         if heading_tree is None:
             return
-        clusters: dict[str, list[ReportCluster]] = {}
+        self.cluster.children = []
         for node in heading_tree.children:
             matched = self.get_cluster(node.title)
             if matched is None:
                 matched = ReportCluster(title=node.title, children=[], articles=[])
-            clusters.setdefault(node.title, []).append(matched)
-        self.clusters = clusters
+            self.cluster.children.append(matched)
 
     def get_cluster(self, cluster_name: str) -> ReportCluster | None:
-        """Get the first cluster with the given name, searching recursively.
+        """Get the first cluster with the given name, searching recursively."""
+        return self._find_cluster_in_children(self.cluster.children, cluster_name)
 
-        Args:
-            cluster_name: Name of the cluster to find
-
-        Returns:
-            The first matching ReportCluster, or None if not found
-        """
-        for cluster_list in self.clusters.values():
-            result = self._find_cluster_in_list(cluster_list, cluster_name)
+    def _find_cluster_in_children(
+        self, children: list[ReportCluster], name: str
+    ) -> ReportCluster | None:
+        """Find a cluster by name in a list of children recursively."""
+        for c in children:
+            if c.title == name:
+                return c
+            result = self._find_cluster_in_children(c.children, name)
             if result is not None:
                 return result
-        return None
-
-    def _find_cluster_in_list(
-        self, clusters: list[ReportCluster], name: str
-    ) -> ReportCluster | None:
-        """Recursively find a cluster by name in a list of clusters."""
-        for cluster in clusters:
-            if cluster.title == name:
-                return cluster
-            # Search in children
-            if cluster.children:
-                result = self._find_cluster_in_list(cluster.children, name)
-                if result is not None:
-                    return result
         return None
 
 
@@ -218,7 +196,7 @@ class BuildReportDataChain(Runnable):
         """Add articles to ReportData and build clusters from heading_tree."""
         items = input
         report_data = ReportData(
-            clusters={},
+            cluster=ReportCluster(title=""),
             date_range={},
             target_lang=self.target_lang,
             heading_tree=self.heading_tree,

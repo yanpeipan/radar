@@ -40,25 +40,12 @@ class InsightChain(Runnable):
         self.target_lang = target_lang
         self.max_concurrency = max_concurrency
 
-    def _collect_all_clusters(
-        self, clusters: dict[str, list[ReportCluster]]
-    ) -> list[ReportCluster]:
+    def _collect_all_clusters(self, cluster: ReportCluster) -> list[ReportCluster]:
         """Recursively flatten all clusters including children."""
-
-        all_clusters: list[ReportCluster] = []
-        for cluster_list in clusters.values():
-            all_clusters.extend(self._flatten_clusters(cluster_list))
+        all_clusters = [cluster]
+        for child in cluster.children:
+            all_clusters.extend(self._collect_all_clusters(child))
         return all_clusters
-
-    def _flatten_clusters(self, clusters: list[ReportCluster]) -> list[ReportCluster]:
-        """Flatten a list of clusters recursively."""
-
-        result: list[ReportCluster] = []
-        for cluster in clusters:
-            result.append(cluster)
-            if cluster.children:
-                result.extend(self._flatten_clusters(cluster.children))
-        return result
 
     def _build_article_titles(self, cluster: ReportCluster) -> tuple[str, list]:
         """Build article_titles for a single cluster with multiple articles.
@@ -101,7 +88,7 @@ class InsightChain(Runnable):
         from src.llm.chains import get_insight_chain
 
         # Step 1: collect all clusters
-        all_clusters = self._collect_all_clusters(input.clusters)
+        all_clusters = self._collect_all_clusters(input.cluster)
 
         # Step 2: filter clusters with articles
         clusters_with_articles = [c for c in all_clusters if c.articles]

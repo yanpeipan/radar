@@ -33,8 +33,10 @@ def test_entity_topic_fields():
 
 
 def test_report_data_fields():
+    from src.application.report.models import ReportCluster
+
     data = ReportData(
-        clusters={},
+        cluster=ReportCluster(title=""),
         date_range={"since": "2026-04-07", "until": "2026-04-10"},
         target_lang="zh",
     )

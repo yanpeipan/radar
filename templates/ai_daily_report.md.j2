@@ -3,97 +3,21 @@ AI 日报 — {{ report_data.date_range.until }}
 {% if director_note %}💡 主编导读：{{ director_note }}
 
 {% endif %}
-## AI应用
-{%- for cluster in report_data.clusters.get("AI应用", []) %}
-  {%- if cluster.children %}
-    {%- for child in cluster.children %}
+{%- for section in report_data.cluster.children %}
+## {{ section.title }}
+{%- if section.children %}
+  {%- for child in section.children %}
 > {{ child.summary or '' }}
-      {%- for article in child.articles %}
-- [{{ article.translation }}]({{ article.link }})
-      {%- endfor %}
-    {%- endfor %}
-  {%- else %}
-> {{ cluster.summary or '' }}
-    {%- for article in cluster.articles %}
+    {%- for article in child.articles %}
 - [{{ article.translation }}]({{ article.link }})
     {%- endfor %}
-  {%- endif %}
-{% else %}
-（本期暂无相关来源）
-{% endfor %}
-
-## AI模型
-{%- for cluster in report_data.clusters.get("AI模型", []) %}
-  {%- if cluster.children %}
-    {%- for child in cluster.children %}
-> {{ child.summary or '' }}
-      {%- for article in child.articles %}
+  {%- endfor %}
+{%- else %}
+> {{ section.summary or '' }}
+  {%- for article in section.articles %}
 - [{{ article.translation }}]({{ article.link }})
-      {%- endfor %}
-    {%- endfor %}
-  {%- else %}
-> {{ cluster.summary or '' }}
-    {%- for article in cluster.articles %}
-- [{{ article.translation }}]({{ article.link }})
-    {%- endfor %}
-  {%- endif %}
-{% else %}
-（本期暂无相关来源）
-{% endfor %}
-
-## AI基础设施
-{%- for cluster in report_data.clusters.get("AI基础设施", []) %}
-  {%- if cluster.children %}
-    {%- for child in cluster.children %}
-> {{ child.summary or '' }}
-      {%- for article in child.articles %}
-- [{{ article.translation }}]({{ article.link }})
-      {%- endfor %}
-    {%- endfor %}
-  {%- else %}
-> {{ cluster.summary or '' }}
-    {%- for article in cluster.articles %}
-- [{{ article.translation }}]({{ article.link }})
-    {%- endfor %}
-  {%- endif %}
-{% else %}
-（本期暂无相关来源）
-{% endfor %}
-
-## AI芯片
-{%- for cluster in report_data.clusters.get("AI芯片", []) %}
-  {%- if cluster.children %}
-    {%- for child in cluster.children %}
-> {{ child.summary or '' }}
-      {%- for article in child.articles %}
-- [{{ article.translation }}]({{ article.link }})
-      {%- endfor %}
-    {%- endfor %}
-  {%- else %}
-> {{ cluster.summary or '' }}
-    {%- for article in cluster.articles %}
-- [{{ article.translation }}]({{ article.link }})
-    {%- endfor %}
-  {%- endif %}
-{% else %}
-（本期暂无相关来源）
-{% endfor %}
-
-## AI能源
-{%- for cluster in report_data.clusters.get("AI能源", []) %}
-  {%- if cluster.children %}
-    {%- for child in cluster.children %}
-> {{ child.summary or '' }}
-      {%- for article in child.articles %}
-- [{{ article.translation }}]({{ article.link }})
-      {%- endfor %}
-    {%- endfor %}
-  {%- else %}
-> {{ cluster.summary or '' }}
-    {%- for article in cluster.articles %}
-- [{{ article.translation }}]({{ article.link }})
-    {%- endfor %}
-  {%- endif %}
+  {%- endfor %}
+{%- endif %}
 {% else %}
 （本期暂无相关来源）
 {% endfor %}
