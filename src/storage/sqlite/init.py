@@ -106,7 +106,7 @@ class DatabaseInitializer:
             for idx_sql in (
                 "CREATE INDEX IF NOT EXISTS idx_articles_feed_id ON articles(feed_id)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_published_at ON articles(published_at)",
-                "CREATE INDEX IF NOT EXISTS idx_articles_link ON articles(link)",
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_articles_link_unique ON articles(link)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_guid ON articles(guid)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_feed_published ON articles(feed_id, published_at DESC)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_content_hash ON articles(content_hash)",
