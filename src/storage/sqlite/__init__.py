@@ -34,6 +34,13 @@ from src.storage.sqlite.llm import (
     update_article_llm,
 )
 from src.storage.sqlite.search import search_articles_fts
+from src.storage.sqlite.status import (
+    mark_article_read,
+    mark_article_unread,
+    star_article,
+    toggle_article_star,
+    unstar_article,
+)
 
 __all__ = [
     "DatabaseInitializer",
@@ -60,4 +67,9 @@ __all__ = [
     "get_articles_by_ids",
     "update_article_llm",
     "get_article_with_llm",
+    "mark_article_read",
+    "mark_article_unread",
+    "toggle_article_star",
+    "star_article",
+    "unstar_article",
 ]

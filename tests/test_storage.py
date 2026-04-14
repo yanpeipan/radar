@@ -1199,6 +1199,358 @@ class TestUpdateArticleContent:
 
 
 # =============================================================================
+# TestArticleStatus
+# =============================================================================
+
+
+class TestArticleStatus:
+    """Tests for mark_article_read, mark_article_unread, toggle_article_star."""
+
+    def _get_article_status(self, article_id: str) -> dict:
+        """Read read_at and is_starred directly from DB (get_article_detail omits them)."""
+        import sqlite3
+        from src.storage.sqlite.conn import get_db_path
+
+        conn = sqlite3.connect(get_db_path())
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT read_at, is_starred FROM articles WHERE id = ?",
+            (article_id,),
+        )
+        row = cur.fetchone()
+        conn.close()
+        if row is None:
+            return {}
+        return {"read_at": row["read_at"], "is_starred": row["is_starred"]}
+
+    def test_mark_article_read_sets_read_at(self, initialized_db):
+        """mark_article_read() sets read_at timestamp on the article."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, mark_article_read, store_article
+
+        feed = Feed(
+            id="read-status-feed",
+            name="Read Status Feed",
+            url="https://example.com/read-status.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="read-status-guid",
+            title="Read Status Article",
+            content="<p>Content</p>",
+            link="https://example.com/read-status",
+            feed_id="read-status-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        # Verify article starts unread
+        status = self._get_article_status(article_id)
+        assert status["read_at"] is None
+
+        # Mark as read
+        result = mark_article_read(article_id)
+        assert result["success"] is True
+        assert result["error"] is None
+
+        # Verify read_at is now set
+        status = self._get_article_status(article_id)
+        assert status["read_at"] is not None
+        assert len(status["read_at"]) > 0
+
+    def test_mark_article_read_with_truncated_id(self, initialized_db):
+        """mark_article_read() works with 8-char truncated article ID."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, mark_article_read, store_article
+
+        feed = Feed(
+            id="trunc-read-feed",
+            name="Trunc Read Feed",
+            url="https://example.com/trunc-read.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="trunc-read-guid",
+            title="Trunc Read Article",
+            content="<p>Content</p>",
+            link="https://example.com/trunc-read",
+            feed_id="trunc-read-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        # Use truncated ID
+        result = mark_article_read(article_id[:8])
+        assert result["success"] is True
+
+        status = self._get_article_status(article_id)
+        assert status["read_at"] is not None
+
+    def test_mark_article_read_not_found(self, initialized_db):
+        """mark_article_read() returns error when article does not exist."""
+        from src.storage.sqlite import mark_article_read
+
+        result = mark_article_read("non-existent-id")
+        assert result["success"] is False
+        assert result["error"] is not None
+        assert "not found" in result["error"].lower()
+
+    def test_mark_article_unread_clears_read_at(self, initialized_db):
+        """mark_article_unread() clears read_at (sets it back to NULL)."""
+        from src.models import Feed
+        from src.storage.sqlite import (
+            add_feed,
+            mark_article_read,
+            mark_article_unread,
+            store_article,
+        )
+
+        feed = Feed(
+            id="unread-status-feed",
+            name="Unread Status Feed",
+            url="https://example.com/unread-status.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="unread-status-guid",
+            title="Unread Status Article",
+            content="<p>Content</p>",
+            link="https://example.com/unread-status",
+            feed_id="unread-status-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        # Mark as read first
+        mark_article_read(article_id)
+        assert self._get_article_status(article_id)["read_at"] is not None
+
+        # Mark as unread
+        result = mark_article_unread(article_id)
+        assert result["success"] is True
+        assert result["error"] is None
+
+        # Verify read_at is cleared
+        status = self._get_article_status(article_id)
+        assert status["read_at"] is None
+
+    def test_mark_article_unread_with_truncated_id(self, initialized_db):
+        """mark_article_unread() works with 8-char truncated article ID."""
+        from src.models import Feed
+        from src.storage.sqlite import (
+            add_feed,
+            mark_article_read,
+            mark_article_unread,
+            store_article,
+        )
+
+        feed = Feed(
+            id="trunc-unread-feed",
+            name="Trunc Unread Feed",
+            url="https://example.com/trunc-unread.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="trunc-unread-guid",
+            title="Trunc Unread Article",
+            content="<p>Content</p>",
+            link="https://example.com/trunc-unread",
+            feed_id="trunc-unread-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        mark_article_read(article_id)
+        result = mark_article_unread(article_id[:8])
+        assert result["success"] is True
+
+        status = self._get_article_status(article_id)
+        assert status["read_at"] is None
+
+    def test_mark_article_unread_not_found(self, initialized_db):
+        """mark_article_unread() returns error when article does not exist."""
+        from src.storage.sqlite import mark_article_unread
+
+        result = mark_article_unread("non-existent-id")
+        assert result["success"] is False
+        assert result["error"] is not None
+        assert "not found" in result["error"].lower()
+
+    def test_toggle_article_star_from_unstarred_to_starred(self, initialized_db):
+        """toggle_article_star() stars an unstarred article (NULL -> 1)."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, store_article, toggle_article_star
+
+        feed = Feed(
+            id="toggle-star-feed",
+            name="Toggle Star Feed",
+            url="https://example.com/toggle-star.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="toggle-star-guid",
+            title="Toggle Star Article",
+            content="<p>Content</p>",
+            link="https://example.com/toggle-star",
+            feed_id="toggle-star-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        # Verify article starts unstarred
+        status = self._get_article_status(article_id)
+        assert status["is_starred"] in (None, 0)
+
+        # Toggle: unstarred -> starred
+        result = toggle_article_star(article_id)
+        assert result["success"] is True
+        assert result["error"] is None
+        assert result["is_starred"] is True
+
+        status = self._get_article_status(article_id)
+        assert status["is_starred"] == 1
+
+    def test_toggle_article_star_from_starred_to_unstarred(self, initialized_db):
+        """toggle_article_star() unstars a starred article (1 -> 0)."""
+        from src.models import Feed
+        from src.storage.sqlite import (
+            add_feed,
+            store_article,
+            toggle_article_star,
+        )
+
+        feed = Feed(
+            id="toggle-unstar-feed",
+            name="Toggle Unstar Feed",
+            url="https://example.com/toggle-unstar.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="toggle-unstar-guid",
+            title="Toggle Unstar Article",
+            content="<p>Content</p>",
+            link="https://example.com/toggle-unstar",
+            feed_id="toggle-unstar-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        # Star the article first
+        toggle_article_star(article_id)
+        assert self._get_article_status(article_id)["is_starred"] == 1
+
+        # Toggle: starred -> unstarred
+        result = toggle_article_star(article_id)
+        assert result["success"] is True
+        assert result["is_starred"] is False
+
+        status = self._get_article_status(article_id)
+        assert status["is_starred"] == 0
+
+    def test_toggle_article_star_with_truncated_id(self, initialized_db):
+        """toggle_article_star() works with 8-char truncated article ID."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, store_article, toggle_article_star
+
+        feed = Feed(
+            id="trunc-star-feed",
+            name="Trunc Star Feed",
+            url="https://example.com/trunc-star.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="trunc-star-guid",
+            title="Trunc Star Article",
+            content="<p>Content</p>",
+            link="https://example.com/trunc-star",
+            feed_id="trunc-star-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        result = toggle_article_star(article_id[:8])
+        assert result["success"] is True
+        assert result["is_starred"] is True
+
+        status = self._get_article_status(article_id)
+        assert status["is_starred"] == 1
+
+    def test_toggle_article_star_not_found(self, initialized_db):
+        """toggle_article_star() returns error when article does not exist."""
+        from src.storage.sqlite import toggle_article_star
+
+        result = toggle_article_star("non-existent-id")
+        assert result["success"] is False
+        assert result["error"] is not None
+        assert "not found" in result["error"].lower()
+        assert result["is_starred"] is None
+
+    def test_mark_article_read_idempotent(self, initialized_db):
+        """mark_article_read() is idempotent: calling it twice succeeds both times."""
+        from src.models import Feed
+        from src.storage.sqlite import (
+            add_feed,
+            mark_article_read,
+            store_article,
+        )
+
+        feed = Feed(
+            id="idempotent-read-feed",
+            name="Idempotent Read Feed",
+            url="https://example.com/idempotent-read.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+
+        article_id = store_article(
+            guid="idempotent-read-guid",
+            title="Idempotent Read Article",
+            content="<p>Content</p>",
+            link="https://example.com/idempotent-read",
+            feed_id="idempotent-read-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+
+        result1 = mark_article_read(article_id)
+        assert result1["success"] is True
+
+        result2 = mark_article_read(article_id)
+        assert result2["success"] is True
+
+
+# =============================================================================
 # TestUpsertArticles
 # =============================================================================
 
