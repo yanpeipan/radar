@@ -18,7 +18,12 @@ from src.cli.ui import (
     print_json,
     print_json_error,
 )
-from src.storage import mark_article_read, mark_article_unread
+from src.storage import (
+    mark_article_read,
+    mark_article_unread,
+    star_article,
+    unstar_article,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -488,4 +493,69 @@ def article_mark(
             return
         click.secho(f"Error: Failed to mark article: {e}", err=True, fg="red")
         logger.exception("Failed to mark article")
+        sys.exit(1)
+
+
+@article.command("star")
+@click.argument("article_id")
+@click.option("--star", "do_star", is_flag=True, help="Star/bookmark the article")
+@click.option(
+    "--unstar", "do_unstar", is_flag=True, help="Remove star/bookmark from the article"
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def article_star(
+    ctx: click.Context,
+    article_id: str,
+    do_star: bool,
+    do_unstar: bool,
+    json_output: bool,
+) -> None:
+    """Star or unstar a bookmarked article.
+
+    Examples:
+
+      feedship article star abc12345 --star
+      feedship article star abc12345 --unstar
+    """
+    if do_star and do_unstar:
+        if json_output:
+            print_json_error(
+                "Cannot use both --star and --unstar", "mutual_exclusion", exit_code=1
+            )
+        click.secho("Error: Cannot use both --star and --unstar", err=True, fg="red")
+        sys.exit(1)
+
+    if not do_star and not do_unstar:
+        if json_output:
+            print_json_error(
+                "Must specify --star or --unstar", "missing_flag", exit_code=1
+            )
+        click.secho("Error: Must specify --star or --unstar", err=True, fg="red")
+        sys.exit(1)
+
+    try:
+        result = star_article(article_id) if do_star else unstar_article(article_id)
+
+        if not result.get("success"):
+            if json_output:
+                print_json_error(
+                    result.get("error", "Unknown error"), "not_found", exit_code=1
+                )
+            click.secho(f"Error: {result.get('error', 'Unknown error')}", fg="red")
+            sys.exit(1)
+
+        status = "starred" if do_star else "unstarred"
+        if json_output:
+            print_json(
+                {"item": {"id": article_id, "is_starred": do_star, "updated": True}}
+            )
+        else:
+            click.secho(f"Article {status}: {article_id}", fg="green")
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to star article: {e}", "star_error")
+            return
+        click.secho(f"Error: Failed to star article: {e}", err=True, fg="red")
+        logger.exception("Failed to star article")
         sys.exit(1)

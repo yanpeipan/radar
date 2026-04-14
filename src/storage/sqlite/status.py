@@ -79,6 +79,54 @@ def mark_article_unread(article_id: str) -> dict:
         return {"success": True, "error": None}
 
 
+def _set_article_star(article_id: str, starred: bool) -> dict:
+    """Set the star/bookmark state of an article.
+
+    Args:
+        article_id: The article ID (supports 8-char truncated or full 32-char).
+        starred: True to star the article, False to unstar.
+
+    Returns:
+        Dict with 'success' (bool) and optional 'error' (str).
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        actual_id = _resolve_article_id(cursor, article_id)
+        if actual_id is None:
+            return {"success": False, "error": f"Article not found: {article_id}"}
+
+        cursor.execute(
+            "UPDATE articles SET is_starred = ? WHERE id = ?",
+            (1 if starred else 0, actual_id),
+        )
+        conn.commit()
+        return {"success": True, "error": None}
+
+
+def star_article(article_id: str) -> dict:
+    """Star/bookmark an article.
+
+    Args:
+        article_id: The article ID (supports 8-char truncated or full 32-char).
+
+    Returns:
+        Dict with 'success' (bool) and optional 'error' (str).
+    """
+    return _set_article_star(article_id, starred=True)
+
+
+def unstar_article(article_id: str) -> dict:
+    """Remove star/bookmark from an article.
+
+    Args:
+        article_id: The article ID (supports 8-char truncated or full 32-char).
+
+    Returns:
+        Dict with 'success' (bool) and optional 'error' (str).
+    """
+    return _set_article_star(article_id, starred=False)
+
+
 def toggle_article_star(article_id: str) -> dict:
     """Toggle the star/bookmark state of an article.
 
@@ -96,7 +144,11 @@ def toggle_article_star(article_id: str) -> dict:
         cursor = conn.cursor()
         actual_id = _resolve_article_id(cursor, article_id)
         if actual_id is None:
-            return {"success": False, "error": f"Article not found: {article_id}", "is_starred": None}
+            return {
+                "success": False,
+                "error": f"Article not found: {article_id}",
+                "is_starred": None,
+            }
 
         # Read current state
         cursor.execute(

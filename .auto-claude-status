@@ -3,7 +3,7 @@
   "spec": "023-read-unread-tracking-article-bookmarking",
   "state": "building",
   "subtasks": {
-    "completed": 7,
+    "completed": 8,
     "total": 14,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 9,
+    "number": 10,
     "started_at": "2026-04-14T14:21:19.310097"
   },
-  "last_update": "2026-04-14T14:54:58.547298"
+  "last_update": "2026-04-14T14:57:42.091197"
 }

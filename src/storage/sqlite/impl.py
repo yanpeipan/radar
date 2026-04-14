@@ -80,7 +80,9 @@ from src.storage.sqlite.search import (  # noqa: F401, E402
 from src.storage.sqlite.status import (  # noqa: F401, E402
     mark_article_read,
     mark_article_unread,
+    star_article,
     toggle_article_star,
+    unstar_article,
 )
 
 # ---------------------------------------------------------------------------

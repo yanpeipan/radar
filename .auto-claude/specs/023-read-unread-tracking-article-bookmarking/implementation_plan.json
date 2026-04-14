@@ -200,7 +200,9 @@
             "command": "python -c \"from src.cli.article import article_mark; print('article_mark exists')\"",
             "expected": "article_mark exists"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Implemented article_mark command with --read and --unread flags. Committed as 500962d.",
+          "updated_at": "2026-04-14T06:56:57.187086+00:00"
         },
         {
           "id": "subtask-4-2",
@@ -427,6 +429,6 @@
   "planStatus": "in_progress",
   "xstateState": "backlog",
   "executionPhase": "coding",
-  "updated_at": "2026-04-14T06:54:58.514Z",
-  "last_updated": "2026-04-14T06:53:33.745215+00:00"
+  "updated_at": "2026-04-14T06:57:42.057Z",
+  "last_updated": "2026-04-14T06:56:57.187102+00:00"
 }
