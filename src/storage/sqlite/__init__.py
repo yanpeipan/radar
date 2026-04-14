@@ -35,6 +35,13 @@ from src.storage.sqlite.llm import (
     update_article_llm,
 )
 from src.storage.sqlite.search import search_articles_fts
+from src.storage.sqlite.tags import (
+    add_tag,
+    delete_tag,
+    get_tag,
+    list_tags,
+    tag_exists,
+)
 
 __all__ = [
     "DatabaseInitializer",
@@ -62,4 +69,9 @@ __all__ = [
     "get_articles_by_ids",
     "update_article_llm",
     "get_article_with_llm",
+    "tag_exists",
+    "add_tag",
+    "list_tags",
+    "get_tag",
+    "delete_tag",
 ]

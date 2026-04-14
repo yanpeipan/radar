@@ -189,7 +189,10 @@ class TestRSSProvider:
         mock_feed.entries = [mock_entry1, mock_entry2]
 
         with (
-            patch("scrapling.Fetcher.get", return_value=mock_response),
+            patch(
+                "src.utils.scraping_utils.fetch_with_fallback",
+                return_value=mock_response,
+            ),
             patch(
                 "src.providers.rss_provider.feedparser.parse", return_value=mock_feed
             ),
@@ -279,7 +282,10 @@ class TestRSSProvider:
         mock_response.headers = {"etag": "feed-etag", "last-modified": "feed-lm"}
 
         with (
-            patch("scrapling.Fetcher.get", return_value=mock_response),
+            patch(
+                "src.utils.scraping_utils.fetch_with_fallback",
+                return_value=mock_response,
+            ),
             patch("src.providers.rss_provider.feedparser.parse") as mock_parse,
         ):
             mock_parsed = MagicMock()

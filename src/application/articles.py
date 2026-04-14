@@ -190,6 +190,7 @@ def search_articles_fts(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
+    tag: str | None = None,
     cross_encoder: bool = False,
 ) -> list[ArticleListItem]:
     """Search articles using FTS5 full-text search with BM25 scoring.
@@ -202,6 +203,7 @@ def search_articles_fts(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
+        tag: Optional tag name to filter by (articles from feeds with this tag).
         cross_encoder: If True, apply Cross-Encoder reranking after initial search.
 
     Returns:
@@ -215,6 +217,7 @@ def search_articles_fts(
         until=until,
         on=on,
         groups=groups,
+        tag=tag,
     )
     if cross_encoder:
         from src.application.cross_encoder import cross_encoder as _cross_encoder_func
@@ -241,6 +244,7 @@ def search_articles_semantic(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
+    tag: str | None = None,
     cross_encoder: bool = False,
 ) -> list[ArticleListItem]:
     """Search articles by semantic similarity with vector scoring.
@@ -252,6 +256,7 @@ def search_articles_semantic(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
+        tag: Optional tag name to filter by (articles from feeds with this tag).
         cross_encoder: If True, apply Cross-Encoder reranking after initial search.
 
     Returns:
@@ -268,6 +273,7 @@ def search_articles_semantic(
         until=until,
         on=on,
         groups=groups,
+        tag=tag,
     )
     if cross_encoder:
         from src.application.cross_encoder import cross_encoder as _cross_encoder_func

@@ -110,6 +110,31 @@ class DatabaseInitializer:
             ):
                 cursor.execute(idx_sql)
 
+            # Tags table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tags (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    description TEXT
+                )
+            """)
+
+            # Feed tags join table (many-to-many)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS feed_tags (
+                    feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+                    tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+                    PRIMARY KEY (feed_id, tag_id)
+                )
+            """)
+
+            # Index for fast tag-to-feed lookup
+            for idx_sql in (
+                "CREATE INDEX IF NOT EXISTS idx_feed_tags_tag_id ON feed_tags(tag_id)",
+            ):
+                cursor.execute(idx_sql)
+
             # FTS5 virtual table for full-text search
             cursor.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS articles_fts USING fts5(

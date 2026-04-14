@@ -28,6 +28,11 @@ from src.application.feed import (  # noqa: E402
     remove_feed,
     update_feed_metadata,
 )
+from src.application.tag_management import (  # noqa: E402
+    add_tag_to_feed,
+    list_feed_tags,
+    remove_tag_from_feed,
+)
 from src.application.opml import export_feeds_to_opml, parse_opml_file  # noqa: E402
 from src.cli.ui import (  # noqa: E402
     FetchProgress,
@@ -284,13 +289,29 @@ def feed_add(
     type=str,
     help="Filter feeds by group (exact match)",
 )
+@click.option(
+    "--tag",
+    default=None,
+    type=str,
+    help="Filter feeds by tag (exact match)",
+)
 @click.pass_context
 def feed_list(
-    ctx: click.Context, verbose: bool, json_output: bool, group: str | None
+    ctx: click.Context,
+    verbose: bool,
+    json_output: bool,
+    group: str | None,
+    tag: str | None,
 ) -> None:
     """List all subscribed feeds with provider type."""
     try:
-        feeds = list_feeds()
+        # Filter by tag if specified
+        if tag is not None:
+            from src.storage import get_feeds_by_tag
+
+            feeds = get_feeds_by_tag(tag)
+        else:
+            feeds = list_feeds()
 
         # Filter by group if specified
         if group is not None:
@@ -329,6 +350,9 @@ def feed_list(
                 else:
                     refresh_display = "Default"
 
+                tags = list_feed_tags(f.id)
+                tags_str = ", ".join(t.name for t in tags) if tags else "None"
+
                 table = Table(title=f.name, show_header=False, box=None, padding=(0, 1))
                 table.add_column(style="cyan", no_wrap=True)
                 table.add_column(style="white")
@@ -338,6 +362,7 @@ def feed_list(
                 table.add_row("Articles", str(articles_count))
                 table.add_row("Weight", f"{weight:.1f}")
                 table.add_row("Group", f.group or "Ungrouped")
+                table.add_row("Tags", tags_str)
                 table.add_row("Last Fetched", last_fetched)
                 table.add_row("Refresh Interval", refresh_display)
                 console.print(table)
@@ -511,6 +536,121 @@ def feed_update(
         logger.exception("Failed to update feed")
         sys.exit(1)
 
+
+@feed.group()
+@click.pass_context
+def tag(ctx: click.Context) -> None:
+    """Manage tags on feeds (add, remove, list)."""
+    pass
+
+
+@tag.command("add")
+@click.argument("feed_id")
+@click.argument("tag_name")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def tag_add(ctx: click.Context, feed_id: str, tag_name: str, json_output: bool) -> None:
+    """Assign a tag to a feed by name, creating the tag if it does not exist.
+
+    Examples:
+
+      feedship feed tag add abc123 AI
+      feedship feed tag add abc123 "machine learning"
+    """
+    try:
+        tag_obj = add_tag_to_feed(feed_id, tag_name)
+        if json_output:
+            print_json(
+                {"item": {"id": tag_obj.id, "name": tag_obj.name, "feed_id": feed_id}}
+            )
+        else:
+            click.secho(f"Added tag '{tag_obj.name}' to feed {feed_id}", fg="green")
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to add tag: {e}", "tag_error")
+            return
+        click.secho(f"Error: Failed to add tag: {e}", err=True, fg="red")
+        logger.exception("Failed to add tag")
+        sys.exit(1)
+
+
+@tag.command("remove")
+@click.argument("feed_id")
+@click.argument("tag_name")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def tag_remove(
+    ctx: click.Context, feed_id: str, tag_name: str, json_output: bool
+) -> None:
+    """Remove a tag assignment from a feed.
+
+    Examples:
+
+      feedship feed tag remove abc123 AI
+    """
+    try:
+        removed = remove_tag_from_feed(feed_id, tag_name)
+        if removed:
+            if json_output:
+                print_json(
+                    {"item": {"feed_id": feed_id, "tag": tag_name, "removed": True}}
+                )
+            else:
+                click.secho(f"Removed tag '{tag_name}' from feed {feed_id}", fg="green")
+        else:
+            if json_output:
+                print_json_error(
+                    f"Tag '{tag_name}' is not assigned to feed {feed_id}",
+                    "not_found",
+                    exit_code=2,
+                )
+            click.secho(
+                f"Tag '{tag_name}' is not assigned to feed {feed_id}", fg="yellow"
+            )
+            sys.exit(1)
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to remove tag: {e}", "tag_error")
+            return
+        click.secho(f"Error: Failed to remove tag: {e}", err=True, fg="red")
+        logger.exception("Failed to remove tag")
+        sys.exit(1)
+
+
+@tag.command("list")
+@click.argument("feed_id")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def tag_list(ctx: click.Context, feed_id: str, json_output: bool) -> None:
+    """List all tags assigned to a feed.
+
+    Examples:
+
+      feedship feed tag list abc123
+    """
+    try:
+        tags = list_feed_tags(feed_id)
+        if json_output:
+            print_json(
+                {
+                    "feed_id": feed_id,
+                    "tags": [{"id": t.id, "name": t.name} for t in tags],
+                    "count": len(tags),
+                }
+            )
+        else:
+            if not tags:
+                click.secho(f"No tags assigned to feed {feed_id}.", fg="yellow")
+                return
+            for t in tags:
+                click.echo(t.name)
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to list tags: {e}", "list_error")
+            return
+        click.secho(f"Error: Failed to list tags: {e}", err=True, fg="red")
+        logger.exception("Failed to list tags")
+        sys.exit(1)
 
 @feed.command("export")
 @click.option("--opml", "as_opml", is_flag=True, help="Export feeds as OPML 2.0 XML")

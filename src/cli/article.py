@@ -18,6 +18,7 @@ from src.cli.ui import (
     print_json,
     print_json_error,
 )
+from src.storage import list_articles_by_tag
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,11 @@ def article(ctx: click.Context) -> None:
     "--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)"
 )
 @click.option(
+    "--tag",
+    default=None,
+    help="Filter by tag name (articles from feeds with this tag)",
+)
+@click.option(
     "--sort",
     default=None,
     type=click.Choice(["quality"]),
@@ -139,6 +145,7 @@ def article_list(
     until: str | None,
     on: tuple,
     groups: str | None,
+    tag: str | None,
     sort: str | None,
     min_quality: float | None,
     json_output: bool,
@@ -147,16 +154,19 @@ def article_list(
     try:
         on_list = list(on) if on else None
         groups_list = groups.split(",") if groups else None
-        articles = list_articles(
-            limit=limit,
-            feed_id=feed_id,
-            since=since,
-            until=until,
-            on=on_list,
-            groups=groups_list,
-            sort_by=sort,
-            min_quality=min_quality,
-        )
+        if tag:
+            articles = list_articles_by_tag(tag, limit=limit)
+        else:
+            articles = list_articles(
+                limit=limit,
+                feed_id=feed_id,
+                since=since,
+                until=until,
+                on=on_list,
+                groups=groups_list,
+                sort_by=sort,
+                min_quality=min_quality,
+            )
         if json_output:
             print_json(format_article_list(articles, limit))
             return
@@ -332,6 +342,11 @@ def article_open(ctx: click.Context, article_id: str) -> None:
 @click.option(
     "--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)"
 )
+@click.option(
+    "--tag",
+    default=None,
+    help="Filter by tag name (articles from feeds with this tag)",
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def article_search(
@@ -345,6 +360,7 @@ def article_search(
     until: str | None,
     on: tuple,
     groups: str | None,
+    tag: str | None,
     json_output: bool,
 ) -> None:
     try:
@@ -365,6 +381,7 @@ def article_search(
                     until=until,
                     on=on_list,
                     groups=groups_list,
+                    tag=tag,
                     cross_encoder=cross_encoder,
                 )
             except RuntimeError as e:
@@ -384,6 +401,7 @@ def article_search(
                 until=until,
                 on=on_list,
                 groups=groups_list,
+                tag=tag,
                 cross_encoder=cross_encoder,
             )
 
