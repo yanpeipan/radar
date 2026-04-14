@@ -64,7 +64,8 @@ class DatabaseInitializer:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     metadata TEXT,
                     weight REAL DEFAULT 0.3,
-                    "group" TEXT
+                    "group" TEXT,
+                    refresh_interval INTEGER DEFAULT 3600
                 )
             """)
 
@@ -72,6 +73,13 @@ class DatabaseInitializer:
             if "group" not in {row[1] for row in cursor.fetchall()}:
                 cursor.execute('ALTER TABLE feeds ADD COLUMN "group" TEXT')
                 logger.debug("Migrated group column")
+
+            cursor.execute("PRAGMA table_info(feeds)")
+            if "refresh_interval" not in {row[1] for row in cursor.fetchall()}:
+                cursor.execute(
+                    "ALTER TABLE feeds ADD COLUMN refresh_interval INTEGER DEFAULT 3600"
+                )
+                logger.debug("Migrated refresh_interval column")
 
             extra_cols = "".join(
                 f"\n    {name} {typ}," for name, typ in _ARTICLES_EXTRA_COLUMNS.items()
@@ -102,6 +110,31 @@ class DatabaseInitializer:
                 "CREATE INDEX IF NOT EXISTS idx_articles_guid ON articles(guid)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_feed_published ON articles(feed_id, published_at DESC)",
                 "CREATE INDEX IF NOT EXISTS idx_articles_content_hash ON articles(content_hash)",
+            ):
+                cursor.execute(idx_sql)
+
+            # Tags table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tags (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL UNIQUE,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    description TEXT
+                )
+            """)
+
+            # Feed tags join table (many-to-many)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS feed_tags (
+                    feed_id TEXT NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+                    tag_id TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+                    PRIMARY KEY (feed_id, tag_id)
+                )
+            """)
+
+            # Index for fast tag-to-feed lookup
+            for idx_sql in (
+                "CREATE INDEX IF NOT EXISTS idx_feed_tags_tag_id ON feed_tags(tag_id)",
             ):
                 cursor.execute(idx_sql)
 

@@ -26,6 +26,7 @@ from src.storage.sqlite.feeds import (
     list_feeds,
     remove_feed,
     update_feed,
+    update_feed_metadata,
     upsert_feed,
 )
 from src.storage.sqlite.init import DatabaseInitializer
@@ -40,6 +41,7 @@ from src.storage.sqlite.status import (
     star_article,
     toggle_article_star,
     unstar_article,
+
 )
 
 __all__ = [
@@ -58,6 +60,7 @@ __all__ = [
     "get_feeds_by_ids",
     "remove_feed",
     "update_feed",
+    "update_feed_metadata",
     "update_article_content",
     "upsert_feed",
     "list_articles",
@@ -72,4 +75,9 @@ __all__ = [
     "toggle_article_star",
     "star_article",
     "unstar_article",
+    "tag_exists",
+    "add_tag",
+    "list_tags",
+    "get_tag",
+    "delete_tag",
 ]

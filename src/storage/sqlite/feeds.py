@@ -37,8 +37,8 @@ def add_feed(feed: Feed) -> Feed:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            """INSERT INTO feeds (id, name, url, etag, modified_at, fetched_at, created_at, weight)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO feeds (id, name, url, etag, modified_at, fetched_at, created_at, weight, refresh_interval)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 feed.id,
                 feed.name,
@@ -48,6 +48,7 @@ def add_feed(feed: Feed) -> Feed:
                 feed.fetched_at,
                 feed.created_at,
                 feed.weight,
+                feed.refresh_interval,
             ),
         )
         conn.commit()
@@ -66,7 +67,7 @@ def list_feeds() -> list[Feed]:
         cursor.execute(
             """
             SELECT f.id, f.name, f.url, f.etag, f.modified_at, f.fetched_at,
-                   f.created_at, f.weight, f."group",
+                   f.created_at, f.weight, f."group", f.refresh_interval,
                    COUNT(a.id) as articles_count
             FROM feeds f
             LEFT JOIN articles a ON f.id = a.feed_id
@@ -87,6 +88,7 @@ def list_feeds() -> list[Feed]:
                 created_at=row["created_at"],
                 weight=row["weight"],
                 group=row["group"],
+                refresh_interval=row["refresh_interval"],
             )
             feed.articles_count = row["articles_count"]
             feeds.append(feed)
@@ -105,7 +107,7 @@ def get_feed(feed_id: str) -> Feed | None:
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, "group" FROM feeds WHERE id = ?',
+            'SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, "group", refresh_interval FROM feeds WHERE id = ?',
             (feed_id,),
         )
         row = cursor.fetchone()
@@ -121,6 +123,7 @@ def get_feed(feed_id: str) -> Feed | None:
             created_at=row["created_at"],
             weight=row["weight"],
             group=row["group"],
+            refresh_interval=row["refresh_interval"],
         )
 
 
@@ -139,7 +142,7 @@ def get_feeds_by_ids(ids: list[str]) -> dict[str, Feed]:
         cursor = conn.cursor()
         placeholders = ",".join("?" * len(ids))
         cursor.execute(  # nosec B608
-            f'SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, "group" FROM feeds WHERE id IN ({placeholders})',
+            f'SELECT id, name, url, etag, modified_at, fetched_at, created_at, weight, "group", refresh_interval FROM feeds WHERE id IN ({placeholders})',
             ids,
         )
         return {
@@ -153,6 +156,7 @@ def get_feeds_by_ids(ids: list[str]) -> dict[str, Feed]:
                 created_at=row["created_at"],
                 weight=row["weight"],
                 group=row["group"],
+                refresh_interval=row["refresh_interval"],
             )
             for row in cursor.fetchall()
         }
@@ -196,7 +200,7 @@ def upsert_feed(feed: Feed) -> tuple[Feed, bool]:
         if existing:
             # UPDATE existing feed, preserving original id
             cursor.execute(
-                """UPDATE feeds SET name = ?, etag = ?, modified_at = ?, fetched_at = ?, weight = ?, metadata = ?, "group" = ?
+                """UPDATE feeds SET name = ?, etag = ?, modified_at = ?, fetched_at = ?, weight = ?, metadata = ?, "group" = ?, refresh_interval = ?
                    WHERE url = ?""",
                 (
                     feed.name,
@@ -206,6 +210,7 @@ def upsert_feed(feed: Feed) -> tuple[Feed, bool]:
                     feed.weight,
                     feed.metadata,
                     feed.group,
+                    feed.refresh_interval,
                     feed.url,
                 ),
             )
@@ -223,14 +228,15 @@ def upsert_feed(feed: Feed) -> tuple[Feed, bool]:
                     weight=feed.weight,
                     metadata=feed.metadata,
                     group=feed.group,
+                    refresh_interval=feed.refresh_interval,
                 ),
                 False,  # not new
             )
         else:
             # INSERT new feed
             cursor.execute(
-                """INSERT INTO feeds (id, name, url, etag, modified_at, fetched_at, created_at, weight, metadata, "group")
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO feeds (id, name, url, etag, modified_at, fetched_at, created_at, weight, metadata, "group", refresh_interval)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     feed.id,
                     feed.name,
@@ -242,6 +248,7 @@ def upsert_feed(feed: Feed) -> tuple[Feed, bool]:
                     feed.weight,
                     feed.metadata,
                     feed.group,
+                    feed.refresh_interval,
                 ),
             )
             conn.commit()
@@ -288,8 +295,9 @@ def update_feed_metadata(
     weight: float | None = None,
     group: str | None = None,
     metadata: str | None = None,
+    refresh_interval: int | None = None,
 ) -> tuple[Feed | None, bool]:
-    """Update feed metadata (weight, group, metadata JSON).
+    """Update feed metadata (weight, group, metadata JSON, refresh_interval).
 
     Args:
         feed_id: The ID of the feed to update.
@@ -297,6 +305,8 @@ def update_feed_metadata(
         group: Optional new group name. If None, not updated.
             Use empty string to clear.
         metadata: Optional JSON metadata string. If None, not updated.
+        refresh_interval: Optional refresh interval in seconds. If None, not updated.
+            Must be >= 60 seconds.
 
     Returns:
         Tuple of (updated Feed object or None if not found, success bool).
@@ -316,6 +326,9 @@ def update_feed_metadata(
         if metadata is not None:
             set_clauses.append("metadata = ?")
             params.append(metadata)
+        if refresh_interval is not None:
+            set_clauses.append("refresh_interval = ?")
+            params.append(refresh_interval)
 
         if not set_clauses:
             # No fields to update, just return current feed

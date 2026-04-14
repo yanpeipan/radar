@@ -411,6 +411,7 @@ def search_articles_semantic(
     until: str | None = None,
     on: list[str] | None = None,
     groups: list[str] | None = None,
+    tag: str | None = None,
 ) -> list[ArticleListItem]:
     """Search articles by semantic similarity using ChromaDB.
 
@@ -421,6 +422,7 @@ def search_articles_semantic(
         until: Optional end date (inclusive), format YYYY-MM-DD.
         on: Optional list of specific dates to match.
         groups: Optional list of feed groups to filter by (OR semantics).
+        tag: Optional tag name to filter by (articles from feeds with this tag).
 
     Returns:
         List of ArticleListItem with keys: id, feed_id, feed_name, title, link, guid, published_at, score
@@ -531,6 +533,27 @@ def search_articles_semantic(
     # Post-fetch group filtering (ChromaDB doesn't store group metadata)
     if groups:
         ranked_results = [r for r in ranked_results if r.get("feed_group") in groups]
+
+    # Post-fetch tag filtering
+    if tag:
+        # Get feed IDs that have this tag
+        from src.storage.sqlite.conn import get_db
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT DISTINCT ft.feed_id
+                FROM feed_tags ft
+                JOIN tags t ON ft.tag_id = t.id
+                WHERE t.name = ?
+                """,
+                (tag,),
+            )
+            tagged_feed_ids = {row[0] for row in cursor.fetchall()}
+        ranked_results = [
+            r for r in ranked_results if r.get("feed_id") in tagged_feed_ids
+        ]
     ranked_results = ranked_results[:limit]
 
     # Convert to ArticleListItem

@@ -1,10 +1,10 @@
 {
   "active": true,
-  "spec": "023-read-unread-tracking-article-bookmarking",
+  "spec": "022-per-feed-refresh-interval-configuration",
   "state": "building",
   "subtasks": {
-    "completed": 13,
-    "total": 14,
+    "completed": 17,
+    "total": 18,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 15,
-    "started_at": "2026-04-14T14:21:19.310097"
+    "number": 17,
+    "started_at": "2026-04-14T01:27:56.778324"
   },
-  "last_update": "2026-04-14T15:20:02.924436"
+  "last_update": "2026-04-14T02:04:39.064227"
 }

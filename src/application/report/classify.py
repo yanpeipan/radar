@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 def BatchClassifyChain(
     tag_list: str,
     target_lang: str,
-    batch_size: int = 50,
-    max_concurrency: int = 5,
+    batch_size: int = 100,
+    max_concurrency: int = 3,
 ) -> Runnable:
     """Factory: returns RunnableLambda that processes list[ArticleListItem] -> list[ArticleListItem].
 

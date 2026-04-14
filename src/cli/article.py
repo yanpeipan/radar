@@ -132,6 +132,11 @@ def article(ctx: click.Context) -> None:
     "--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)"
 )
 @click.option(
+    "--tag",
+    default=None,
+    help="Filter by tag name (articles from feeds with this tag)",
+)
+@click.option(
     "--sort",
     default=None,
     type=click.Choice(["quality"]),
@@ -163,6 +168,7 @@ def article_list(
     until: str | None,
     on: tuple,
     groups: str | None,
+    tag: str | None,
     sort: str | None,
     min_quality: float | None,
     json_output: bool,
@@ -361,6 +367,11 @@ def article_open(ctx: click.Context, article_id: str) -> None:
 @click.option(
     "--groups", default=None, help="Filter by feed groups (comma-separated, OR logic)"
 )
+@click.option(
+    "--tag",
+    default=None,
+    help="Filter by tag name (articles from feeds with this tag)",
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def article_search(
@@ -374,6 +385,7 @@ def article_search(
     until: str | None,
     on: tuple,
     groups: str | None,
+    tag: str | None,
     json_output: bool,
 ) -> None:
     try:
@@ -394,6 +406,7 @@ def article_search(
                     until=until,
                     on=on_list,
                     groups=groups_list,
+                    tag=tag,
                     cross_encoder=cross_encoder,
                 )
             except RuntimeError as e:
@@ -413,6 +426,7 @@ def article_search(
                 until=until,
                 on=on_list,
                 groups=groups_list,
+                tag=tag,
                 cross_encoder=cross_encoder,
             )
 

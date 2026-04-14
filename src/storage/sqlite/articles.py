@@ -614,3 +614,75 @@ def update_article_content(article_id: str, content: str) -> dict:
         )
         conn.commit()
         return {"success": True, "error": None}
+
+
+def list_articles_by_tag(tag_name: str, limit: int = 20) -> list:
+    """List articles belonging to feeds with the given tag name.
+
+    Args:
+        tag_name: The name of the tag to filter by.
+        limit: Maximum number of articles to return.
+
+    Returns:
+        List of ArticleListItem objects for articles from tagged feeds,
+        ordered by publication date descending.
+    """
+    import math
+    from datetime import datetime, timezone
+
+    from src.application.articles import ArticleListItem
+    from src.storage.sqlite.conn import get_db
+    from src.storage.vector import _published_at_to_timestamp
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT a.id, a.feed_id, f.name as feed_name, f.weight as feed_weight,
+                   a.title, a.link, a.guid, a.published_at, a.description, a.content,
+                   a.summary, a.quality_score, f.url as feed_url,
+                   a.content_hash, a.minhash_signature
+            FROM articles a
+            JOIN feeds f ON a.feed_id = f.id
+            INNER JOIN feed_tags ft ON f.id = ft.feed_id
+            INNER JOIN tags t ON ft.tag_id = t.id
+            WHERE t.name = ?
+            ORDER BY a.published_at DESC, a.created_at DESC
+            LIMIT ?
+            """,
+            (tag_name, limit),
+        )
+        rows = cursor.fetchall()
+
+        def _compute_article_item(row):
+            pub_ts = _published_at_to_timestamp(row["published_at"])
+            freshness = 0.0
+            if pub_ts:
+                pub_dt = datetime.fromtimestamp(pub_ts, tz=timezone.utc)
+                days_ago = (datetime.now(timezone.utc) - pub_dt).days
+                freshness = math.exp(-days_ago / 7)
+            return ArticleListItem(
+                id=row["id"],
+                feed_id=row["feed_id"],
+                feed_name=row["feed_name"],
+                title=row["title"],
+                link=row["link"],
+                guid=row["guid"],
+                published_at=row["published_at"],
+                description=row["description"],
+                vec_sim=0.0,
+                bm25_score=0.0,
+                freshness=freshness,
+                source_weight=0.3,
+                ce_score=0.0,
+                score=0.0,
+                quality_score=row["quality_score"],
+                content=row["content"],
+                summary=row["summary"],
+                feed_weight=row["feed_weight"],
+                feed_url=row["feed_url"],
+                content_hash=row["content_hash"],
+                minhash_signature=row["minhash_signature"],
+            )
+
+        return [_compute_article_item(row) for row in rows]

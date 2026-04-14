@@ -1085,3 +1085,174 @@ class TestInfoCommands:
         assert "feedship v" in result.output
         assert "Config:" in result.output
         assert "Articles:" not in result.output
+
+
+
+class TestFeedUpdateRefreshInterval:
+    """Tests for feed update --refresh-interval CLI command."""
+
+    def test_feed_update_refresh_interval_success(self, cli_runner, initialized_db):
+        """feed update <id> --refresh-interval <n> updates interval and outputs success."""
+        # Add a feed via storage
+        feed = Feed(
+            id="update-ri-feed",
+            name="Update RI Feed",
+            url="https://example.com/update-ri.xml",
+        )
+        add_feed(feed)
+
+        output_file = tmp_path / "export.opml"
+        result = cli_runner.invoke(
+            cli, ["feed", "export", "--opml", "-o", str(output_file)]
+        )
+        assert result.exit_code == 0
+        assert output_file.read_text(encoding="utf-8").count("File Export Feed") > 0
+
+    def test_feed_export_opml_with_groups(self, cli_runner, initialized_db):
+        """feed export --opml includes group outlines for grouped feeds."""
+        feed_ai = Feed(
+            id="export-group-ai",
+            name="AI News",
+            url="https://example.com/ai.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            group="AI",
+        )
+        feed_tech = Feed(
+            id="export-group-tech",
+            name="Tech News",
+            url="https://example.com/tech.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-02T00:00:00+00:00",
+            group="Tech",
+        )
+        # upsert_feed persists the group column (add_feed does not)
+        upsert_feed(feed_ai)
+        upsert_feed(feed_tech)
+
+        result = cli_runner.invoke(cli, ["feed", "export", "--opml"])
+        assert result.exit_code == 0
+        assert 'text="AI"' in result.output
+        assert 'text="Tech"' in result.output
+        assert "AI News" in result.output
+        assert "Tech News" in result.output
+
+    def test_feed_export_no_opml_flag_shows_hint(self, cli_runner, initialized_db):
+        """feed export without --opml flag outputs hint to use --opml."""
+        feed = Feed(
+            id="export-no-opml-flag",
+            name="No Opml Flag Feed",
+            url="https://example.com/no-opml.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=None,
+        )
+        add_feed(feed)
+
+        result = cli_runner.invoke(
+            cli,
+            ["feed", "update", "update-ri-json-feed", "--refresh-interval", "3600", "--json"],
+        )
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["item"]["refresh_interval"] == 3600
+        assert data["item"]["updated"] is True
+
+    def test_feed_update_refresh_interval_not_found(self, cli_runner, initialized_db):
+        """feed update <id> --refresh-interval <n> with non-existent ID returns exit code 1."""
+        result = cli_runner.invoke(
+            cli, ["feed", "update", "non-existent-id", "--refresh-interval", "1800"]
+        )
+        assert result.exit_code == 1
+        assert "not found" in result.output.lower()
+
+    def test_feed_update_refresh_interval_invalid_too_low(
+        self, cli_runner, initialized_db
+    ):
+        """feed update <id> --refresh-interval <60s> fails with usage error."""
+        # Add a feed via storage
+        feed = Feed(
+            id="update-ri-invalid-feed",
+            name="Update RI Invalid Feed",
+            url="https://example.com/update-ri-invalid.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(existing)
+
+        opml_content = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head/>
+  <body>
+    <outline text="Existing Feed" xmlUrl="https://example.com/existing.xml"/>
+  </body>
+</opml>
+"""
+        opml_file = tmp_path / "dup.opml"
+        opml_file.write_text(opml_content, encoding="utf-8")
+
+        result = cli_runner.invoke(
+            cli, ["feed", "import", str(opml_file), "--automatic", "on"]
+        )
+        assert result.exit_code == 0
+        assert (
+            "skipped" in result.output.lower() or "duplicate" in result.output.lower()
+        )
+
+    def test_feed_import_with_group(self, cli_runner, initialized_db, tmp_path):
+        """feed import preserves group from OPML nested outline."""
+        opml_content = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head/>
+  <body>
+    <outline text="AI">
+      <outline text="AI News" xmlUrl="https://example.com/ai.xml"/>
+    </outline>
+  </body>
+</opml>
+"""
+        opml_file = tmp_path / "grouped.opml"
+        opml_file.write_text(opml_content, encoding="utf-8")
+
+        result = cli_runner.invoke(
+            cli, ["feed", "import", str(opml_file), "--automatic", "on"]
+        )
+        assert result.exit_code == 0
+
+        # Verify feed was imported with group
+        from src.storage.sqlite import list_feeds
+
+        feeds = list_feeds()
+        assert len(feeds) == 1
+        assert feeds[0].group == "AI"
+        assert feeds[0].url == "https://example.com/ai.xml"
+
+    def test_feed_import_not_opml_file(self, cli_runner, initialized_db, tmp_path):
+        """feed import with non-OPML XML exits with error about not being valid OPML."""
+        opml_file = tmp_path / "notopml.xml"
+        opml_file.write_text(
+            '<?xml version="1.0"?><rss version="2.0"><channel/></rss>',
+            encoding="utf-8",
+        )
+
+        result = cli_runner.invoke(cli, ["feed", "import", str(opml_file)])
+        assert result.exit_code == 1
+        assert "Not a valid OPML file" in result.output
+            refresh_interval=None,
+        )
+        add_feed(feed)
+
+        result = cli_runner.invoke(
+            cli, ["feed", "update", "update-ri-invalid-feed", "--refresh-interval", "30"]
+        )
+        assert result.exit_code != 0

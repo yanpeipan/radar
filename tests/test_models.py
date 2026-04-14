@@ -112,3 +112,117 @@ class TestFeedModelGroup:
             group="📰 News",
         )
         assert feed_emoji.group == "📰 News"
+
+
+class TestFeedModelRefreshInterval:
+    """Tests for Feed model refresh_interval field validation."""
+
+    def test_feed_refresh_interval_minimum_60_seconds(self):
+        """Feed model rejects refresh_interval below 60 seconds."""
+        from src.models import Feed
+
+        # 60 seconds is valid
+        feed = Feed(
+            id="test-feed-min-valid",
+            name="Test Feed Min Valid",
+            url="https://example.com/feed.xml",
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=60,
+        )
+        assert feed.refresh_interval == 60
+
+        # 59 seconds should fail
+        with pytest.raises(ValidationError) as exc_info:
+            Feed(
+                id="test-feed-min-invalid",
+                name="Test Feed Min Invalid",
+                url="https://example.com/feed2.xml",
+                created_at="2024-01-01T00:00:00+00:00",
+                refresh_interval=59,
+            )
+        assert "greater than or equal to 60" in str(exc_info.value)
+
+    def test_feed_refresh_interval_accepts_valid_values(self):
+        """Feed model accepts valid refresh_interval values."""
+        from src.models import Feed
+
+        # Various valid intervals (seconds)
+        valid_intervals = [60, 120, 300, 600, 1800, 3600, 7200, 86400]
+
+        for i, interval in enumerate(valid_intervals):
+            feed = Feed(
+                id=f"test-feed-interval-{i}",
+                name=f"Test Feed Interval {i}",
+                url=f"https://example.com/feed{i}.xml",
+                created_at="2024-01-01T00:00:00+00:00",
+                refresh_interval=interval,
+            )
+            assert feed.refresh_interval == interval
+
+    def test_feed_refresh_interval_default_none(self):
+        """Feed model defaults refresh_interval to None when not specified."""
+        from src.models import Feed
+
+        feed = Feed(
+            id="test-feed-default",
+            name="Test Feed",
+            url="https://example.com/feed.xml",
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        assert feed.refresh_interval is None
+
+    def test_feed_refresh_interval_explicit_none(self):
+        """Feed model accepts explicit None for refresh_interval."""
+        from src.models import Feed
+
+        feed = Feed(
+            id="test-feed-explicit-none",
+            name="Test Feed",
+            url="https://example.com/feed.xml",
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=None,
+        )
+        assert feed.refresh_interval is None
+
+    def test_feed_refresh_interval_rejects_zero(self):
+        """Feed model rejects refresh_interval of zero."""
+        from src.models import Feed
+
+        with pytest.raises(ValidationError) as exc_info:
+            Feed(
+                id="test-feed-zero",
+                name="Test Feed Zero",
+                url="https://example.com/feed.xml",
+                created_at="2024-01-01T00:00:00+00:00",
+                refresh_interval=0,
+            )
+        assert "greater than or equal to 60" in str(exc_info.value)
+
+    def test_feed_refresh_interval_rejects_negative(self):
+        """Feed model rejects negative refresh_interval values."""
+        from src.models import Feed
+
+        with pytest.raises(ValidationError) as exc_info:
+            Feed(
+                id="test-feed-negative",
+                name="Test Feed Negative",
+                url="https://example.com/feed.xml",
+                created_at="2024-01-01T00:00:00+00:00",
+                refresh_interval=-300,
+            )
+        assert "greater than or equal to 60" in str(exc_info.value)
+
+    def test_feed_refresh_interval_rejects_non_integer(self):
+        """Feed model rejects non-integer refresh_interval values like floats."""
+        from src.models import Feed
+
+        # Float with fractional part should fail
+        with pytest.raises(ValidationError) as exc_info:
+            Feed(
+                id="test-feed-float",
+                name="Test Feed Float",
+                url="https://example.com/feed.xml",
+                created_at="2024-01-01T00:00:00+00:00",
+                refresh_interval=60.5,
+            )
+        assert "got a number with a fractional part" in str(exc_info.value)

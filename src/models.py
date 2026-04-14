@@ -1,6 +1,6 @@
 """Data models for RSS reader using Pydantic.
 
-Defines Pydantic models for Feed, Article, and FeedMetaData entities
+Defines Pydantic models for Feed, Article, Tag, and FeedMetaData entities
 with runtime validation.
 """
 
@@ -73,6 +73,8 @@ class Feed(BaseModel):
             When accessed, it returns the stored string (backward compat with storage layer).
             Use metadata_parsed property to get typed FeedMetaData object.
         weight: Feed weight for semantic search ranking (default 0.3, range 0-1).
+        group: Optional group name for organizing feeds (max 100 chars).
+        refresh_interval: Refresh interval in seconds (default None, min 60s). None uses global default.
     """
 
     model_config = ConfigDict(
@@ -89,6 +91,7 @@ class Feed(BaseModel):
     metadata: str | FeedMetaData | None = None  # Stored as JSON string for DB compat
     weight: float | None = Field(default=None, ge=0.0, le=1.0)
     group: str | None = Field(default=None, max_length=100)
+    refresh_interval: int | None = Field(default=None, ge=60)  # seconds, min 60s
 
     @field_validator("url")
     @classmethod
@@ -157,3 +160,21 @@ class Article(BaseModel):
         if not UrlPattern.match(v):
             raise ValueError(f"Invalid URL format: {v!r}")
         return v
+
+
+class Tag(BaseModel):
+    """Represents a tag for organizing feeds.
+
+    Attributes:
+        id: Unique identifier for the tag.
+        name: Display name of the tag (unique, max 100 chars).
+        created_at: ISO timestamp when tag was created.
+        description: Optional description of the tag.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    name: str = Field(max_length=100)
+    created_at: str
+    description: str | None = None
