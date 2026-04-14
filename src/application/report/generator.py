@@ -53,18 +53,19 @@ async def _entity_report_async(
         filtered = signal_filter.filter(deduped)
 
         # --- Layer 2-4: LCEL chain composition ---
-        # Candidate tags derived from template heading structure
-        tag_list = "\n".join(heading_tree.titles)
-
-        from src.application.report.classify import BatchClassifyChain
         from src.application.report.insight import InsightChain
         from src.application.report.models import BuildReportDataChain
 
-        chain = (
-            BatchClassifyChain(tag_list=tag_list, target_lang=target_lang)
-            | BuildReportDataChain(heading_tree=heading_tree, target_lang=target_lang)
-            | InsightChain(top_n=100, target_lang=target_lang)
+        first_heading = (
+            heading_tree.children[0].title
+            if heading_tree and heading_tree.children
+            else "其他"
         )
+        chain = BuildReportDataChain(
+            heading_tree=heading_tree,
+            target_lang=target_lang,
+            fallback_tag=first_heading,
+        ) | InsightChain(top_n=100, target_lang=target_lang)
 
         report_data = await chain.ainvoke(filtered)
         report_data.date_range = {"since": since, "until": until}

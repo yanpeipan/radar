@@ -183,10 +183,14 @@ class BuildReportDataChain(Runnable):
     """
 
     def __init__(
-        self, heading_tree: HeadingNode | None = None, target_lang: str = "zh"
+        self,
+        heading_tree: HeadingNode | None = None,
+        target_lang: str = "zh",
+        fallback_tag: str = "其他",
     ) -> None:
         self.heading_tree = heading_tree
         self.target_lang = target_lang
+        self.fallback_tag = fallback_tag
 
     async def ainvoke(
         self,
@@ -201,7 +205,9 @@ class BuildReportDataChain(Runnable):
             target_lang=self.target_lang,
             heading_tree=self.heading_tree,
         )
-        report_data.add_articles(items, lambda a: a.tags[0] if a.tags else "unknown")
+        report_data.add_articles(
+            items, lambda a: a.tags[0] if a.tags else self.fallback_tag
+        )
         report_data.build(self.heading_tree)
         return report_data
 
