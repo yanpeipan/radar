@@ -7,13 +7,6 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 
-class TLDRItem(BaseModel):
-    """Single TLDR item for an entity topic."""
-
-    entity_id: str = Field(description="Normalized entity identifier")
-    tldr: str = Field(description="One-sentence TLDR in target language")
-
-
 class ClassifyTranslateItem(BaseModel):
     """Single news classification and translation result."""
 
@@ -30,3 +23,33 @@ class ClassifyTranslateOutput(BaseModel):
     items: list[ClassifyTranslateItem] = Field(
         description="List of classification results, one per news item"
     )
+
+
+# ---------------------------------------------------------------------------
+# InsightChain models — replaces TLDRItem/Topic structure
+# ---------------------------------------------------------------------------
+
+
+class Insight(BaseModel):
+    """Single insight within a topic."""
+
+    title: str = Field(description="Insight subtitle")
+    content: str = Field(description="2-4 sentence coherent paragraph")
+    source_indices: list[int] = Field(
+        description="1-based article indices from the presented list"
+    )
+
+
+class Topic(BaseModel):
+    """A topic within a cluster."""
+
+    topic_id: str = Field(description="Topic identifier, e.g., Topic_01")
+    title: str = Field(description="Topic title in target language")
+    summary: str = Field(description="One-sentence deep insight")
+    insights: list[Insight] = Field(description="Multiple insights for this topic")
+
+
+class TopicInsightOutput(BaseModel):
+    """Output from InsightChain — variable-length list of topics."""
+
+    topics: list[Topic] = Field(description="Topics worth deep-diving")

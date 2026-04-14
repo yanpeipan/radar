@@ -56,6 +56,7 @@ class FeedshipSettings(BaseSettings):
     timezone: str = Field(default="Asia/Shanghai")
     bm25_factor: float = Field(default=0.5)
     feed_default_weight: float = Field(default=0.3)
+    feed_default_refresh_interval: int = Field(default=3600)
     reports_dir: str | None = Field(default=None)
 
     # Complex nested config stored as dict (rate limiting, tavily, nitter, webpage_sites, llm)
@@ -135,6 +136,7 @@ def _create_default_config(config_path: Path) -> None:
         "timezone": "Asia/Shanghai",
         "bm25_factor": 0.5,
         "feed_default_weight": 0.3,
+        "feed_default_refresh_interval": 3600,
         "rate_limit": {},
         "tavily": {},
         "nitter": {},
@@ -170,6 +172,11 @@ def get_timezone() -> ZoneInfo:
 def get_default_feed_weight() -> float:
     """Return the default feed weight for semantic search ranking."""
     return _get_settings().feed_default_weight
+
+
+def get_default_refresh_interval() -> int:
+    """Return the default refresh interval for feed updates in seconds."""
+    return _get_settings().feed_default_refresh_interval
 
 
 def get_bm25_factor() -> float:

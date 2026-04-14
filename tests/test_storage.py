@@ -1366,3 +1366,332 @@ class TestUpsertArticles:
 
         results = upsert_articles([])
         assert results == []
+
+
+# =============================================================================
+# TestRefreshIntervalCRUD
+# =============================================================================
+
+
+class TestRefreshIntervalCRUD:
+    """Tests for refresh_interval CRUD operations in storage layer.
+
+    Covers: add_feed, upsert_feed, get_feed, list_feeds, update_feed_metadata.
+    """
+
+    def test_add_feed_stores_refresh_interval(self, initialized_db):
+        """add_feed() stores and retrieves feed with refresh_interval."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, get_feed
+
+        feed = Feed(
+            id="ri-add-feed-1",
+            name="Refresh Interval Add Feed",
+            url="https://example.com/ri-add.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=7200,
+        )
+        add_feed(feed)
+
+        stored = get_feed("ri-add-feed-1")
+        assert stored is not None
+        assert stored.refresh_interval == 7200
+
+    def test_add_feed_with_null_refresh_interval(self, initialized_db):
+        """add_feed() handles null refresh_interval (uses global default)."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, get_feed
+
+        feed = Feed(
+            id="ri-null-feed-1",
+            name="Null Refresh Interval Feed",
+            url="https://example.com/ri-null.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=None,
+        )
+        add_feed(feed)
+
+        stored = get_feed("ri-null-feed-1")
+        assert stored is not None
+        assert stored.refresh_interval is None
+
+    def test_upsert_feed_stores_refresh_interval(self, initialized_db):
+        """upsert_feed() stores and retrieves feed with refresh_interval."""
+        from src.models import Feed
+        from src.storage.sqlite import get_feed, upsert_feed
+
+        feed = Feed(
+            id="ri-upsert-feed-1",
+            name="Upsert Refresh Interval Feed",
+            url="https://example.com/ri-upsert.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=3600,
+        )
+        result, is_new = upsert_feed(feed)
+        assert is_new is True
+        assert result.refresh_interval == 3600
+
+        stored = get_feed("ri-upsert-feed-1")
+        assert stored is not None
+        assert stored.refresh_interval == 3600
+
+    def test_upsert_feed_updates_refresh_interval(self, initialized_db):
+        """upsert_feed() updates existing feed's refresh_interval."""
+        from src.models import Feed
+        from src.storage.sqlite import get_feed, upsert_feed
+
+        feed1 = Feed(
+            id="ri-update-ri-1",
+            name="Update Refresh Interval Feed",
+            url="https://example.com/ri-update.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=1800,
+        )
+        upsert_feed(feed1)
+
+        # Update with new refresh_interval
+        feed2 = Feed(
+            id="ri-update-ri-1",
+            name="Update Refresh Interval Feed",
+            url="https://example.com/ri-update.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=10800,
+        )
+        result, is_new = upsert_feed(feed2)
+        assert is_new is False
+        assert result.refresh_interval == 10800
+
+        stored = get_feed("ri-update-ri-1")
+        assert stored is not None
+        assert stored.refresh_interval == 10800
+
+    def test_get_feed_returns_refresh_interval(self, initialized_db):
+        """get_feed() returns feed with refresh_interval value."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, get_feed
+
+        feed = Feed(
+            id="ri-get-feed-1",
+            name="Get Refresh Interval Feed",
+            url="https://example.com/ri-get.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=5400,
+        )
+        add_feed(feed)
+
+        result = get_feed("ri-get-feed-1")
+        assert result is not None
+        assert result.id == "ri-get-feed-1"
+        assert result.refresh_interval == 5400
+
+    def test_get_feed_nonexistent_returns_none(self, initialized_db):
+        """get_feed() with non-existing ID returns None."""
+        from src.storage.sqlite import get_feed
+
+        result = get_feed("non-existent-ri-feed")
+        assert result is None
+
+    def test_list_feeds_returns_refresh_intervals(self, initialized_db):
+        """list_feeds() returns feeds with their refresh_interval values."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, list_feeds
+
+        feeds = [
+            Feed(
+                id="ri-list-feed-1",
+                name="List Refresh Interval Feed 1",
+                url="https://example.com/ri-list1.xml",
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-01T00:00:00+00:00",
+                refresh_interval=600,
+            ),
+            Feed(
+                id="ri-list-feed-2",
+                name="List Refresh Interval Feed 2",
+                url="https://example.com/ri-list2.xml",
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-02T00:00:00+00:00",
+                refresh_interval=3600,
+            ),
+            Feed(
+                id="ri-list-feed-3",
+                name="List Refresh Interval Feed 3",
+                url="https://example.com/ri-list3.xml",
+                etag=None,
+                modified_at=None,
+                fetched_at=None,
+                created_at="2024-01-03T00:00:00+00:00",
+                refresh_interval=None,
+            ),
+        ]
+        for feed in feeds:
+            add_feed(feed)
+
+        result = list_feeds()
+        assert len(result) == 3
+
+        # Verify refresh_intervals are returned correctly
+        for feed in result:
+            if feed.id == "ri-list-feed-1":
+                assert feed.refresh_interval == 600
+            elif feed.id == "ri-list-feed-2":
+                assert feed.refresh_interval == 3600
+            elif feed.id == "ri-list-feed-3":
+                assert feed.refresh_interval is None
+
+    def test_update_feed_metadata_refresh_interval_success(self, initialized_db):
+        """update_feed_metadata() successfully updates refresh_interval."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, get_feed, update_feed_metadata
+
+        feed = Feed(
+            id="ri-update-meta-1",
+            name="Update Meta Refresh Interval Feed",
+            url="https://example.com/ri-update-meta.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=None,
+        )
+        add_feed(feed)
+
+        # Update refresh_interval
+        result, success = update_feed_metadata(
+            "ri-update-meta-1", refresh_interval=1800
+        )
+        assert success is True
+        assert result is not None
+        assert result.refresh_interval == 1800
+
+        # Verify persisted
+        stored = get_feed("ri-update-meta-1")
+        assert stored.refresh_interval == 1800
+
+    def test_update_feed_metadata_refresh_interval_none_does_not_update(
+        self, initialized_db
+    ):
+        """update_feed_metadata() with refresh_interval=None does not update (no-op)."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, get_feed, update_feed_metadata
+
+        feed = Feed(
+            id="ri-update-none-1",
+            name="Update To None Feed",
+            url="https://example.com/ri-update-none.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=3600,
+        )
+        add_feed(feed)
+
+        # Pass refresh_interval=None - should be no-op (keeps current value)
+        result, success = update_feed_metadata(
+            "ri-update-none-1", refresh_interval=None
+        )
+        assert success is False
+        assert result is not None
+        # refresh_interval should remain unchanged
+        assert result.refresh_interval == 3600
+
+        # Verify persisted
+        stored = get_feed("ri-update-none-1")
+        assert stored.refresh_interval == 3600
+
+    def test_update_feed_metadata_multiple_fields_including_refresh_interval(
+        self,
+        initialized_db,
+    ):
+        """update_feed_metadata() can update refresh_interval along with other fields."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, get_feed, update_feed_metadata
+
+        feed = Feed(
+            id="ri-multi-meta-1",
+            name="Multi Meta Feed",
+            url="https://example.com/ri-multi.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            weight=0.3,
+            group=None,
+            refresh_interval=1800,
+        )
+        add_feed(feed)
+
+        # Update multiple fields including refresh_interval
+        result, success = update_feed_metadata(
+            "ri-multi-meta-1",
+            weight=0.7,
+            group="Tech",
+            refresh_interval=7200,
+        )
+        assert success is True
+        assert result is not None
+        assert result.weight == 0.7
+        assert result.group == "Tech"
+        assert result.refresh_interval == 7200
+
+        # Verify persisted
+        stored = get_feed("ri-multi-meta-1")
+        assert stored.weight == 0.7
+        assert stored.group == "Tech"
+        assert stored.refresh_interval == 7200
+
+    def test_update_feed_metadata_refresh_interval_not_found(self, initialized_db):
+        """update_feed_metadata() with non-existing feed_id returns (None, False)."""
+        from src.storage.sqlite import update_feed_metadata
+
+        result, success = update_feed_metadata(
+            "non-existent-ri-feed", refresh_interval=3600
+        )
+        assert success is False
+        assert result is None
+
+    def test_update_feed_metadata_no_fields_returns_current(self, initialized_db):
+        """update_feed_metadata() with no fields to update returns current feed without changes."""
+        from src.models import Feed
+        from src.storage.sqlite import add_feed, update_feed_metadata
+
+        feed = Feed(
+            id="ri-nochange-1",
+            name="No Change Feed",
+            url="https://example.com/ri-nochange.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+            refresh_interval=3600,
+        )
+        add_feed(feed)
+
+        # Update with no fields
+        result, success = update_feed_metadata("ri-nochange-1")
+        assert success is False
+        assert result is not None
+        assert result.refresh_interval == 3600

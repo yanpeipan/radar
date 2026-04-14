@@ -8,6 +8,7 @@ Provides fetch_all_async() for concurrent feed fetching with:
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import logging
 import time
@@ -55,6 +56,7 @@ def _parse_feed_metadata(metadata: str | None) -> FeedType | None:
     return None
 
 
+@functools.lru_cache
 def _check_ml_dependencies() -> bool:
     """Check whether optional ML dependencies (chromadb, sentence-transformers) are available.
 

@@ -1,0 +1,178 @@
+{
+  "feature": "Eliminate duplicate date utility functions across storage/sqlite modules",
+  "workflow_type": "simple",
+  "workflow_rationale": "Single-service refactoring task - remove duplicate date utility functions from search.py and consolidate imports to utils.py",
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Refactor search.py to import from utils.py",
+      "type": "implementation",
+      "description": "Remove duplicate _date_to_timestamp and _date_to_timestamp_end functions from search.py and replace with imports from utils.py",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Update search.py to import date utilities from utils.py instead of defining them locally",
+          "service": "sqlite_storage",
+          "files_to_modify": [
+            "src/storage/sqlite/search.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/storage/sqlite/utils.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.storage.sqlite.search import search_articles_fts; print('Import OK')\"",
+            "expected": "Import OK"
+          },
+          "status": "completed"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Verify search functionality still works after refactoring",
+          "service": "sqlite_storage",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.storage.sqlite.search import search_articles_fts; result = search_articles_fts('test'); print(f'Search works: {type(result).__name__}')\"",
+            "expected": "Search works: list"
+          },
+          "status": "completed",
+          "notes": "Verified via AST parse + utility function tests. pydantic not available in sandbox, but search.py imports are correct and utility functions work. Full verification requires pydantic installed."
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Verify no other duplicates exist",
+      "type": "implementation",
+      "description": "Verify that no other files have duplicate date utility definitions",
+      "depends_on": [
+        "phase-1"
+      ],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Check for any remaining duplicate definitions",
+          "service": "sqlite_storage",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "grep -r 'def _date_to_timestamp\\|def _date_to_str\\|def _normalize_published_at' src/storage/sqlite/*.py | grep -v utils.py | grep -v __pycache__",
+            "expected": "No matches or only usage lines"
+          },
+          "status": "completed",
+          "notes": "Verification passed: grep found no duplicate definitions outside utils.py. All 5 canonical functions (_normalize_published_at, _date_to_timestamp, _date_to_timestamp_end, _date_to_str, _date_to_str_end) are in utils.py only."
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 2,
+    "total_subtasks": 3,
+    "services_involved": [
+      "sqlite_storage"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 1,
+      "parallel_groups": [],
+      "recommended_workers": 1,
+      "speedup_estimate": "Sequential execution - single service refactoring"
+    },
+    "startup_command": "source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec 018 --parallel 1"
+  },
+  "verification_strategy": {
+    "risk_level": "low",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "unit"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "search.py imports _date_to_timestamp and _date_to_timestamp_end from utils.py",
+      "search.py no longer defines _date_to_timestamp locally",
+      "search_articles_fts function works correctly after refactoring",
+      "All existing tests pass"
+    ],
+    "verification_steps": [
+      {
+        "name": "Import Verification",
+        "command": "python -c \"from src.storage.sqlite.search import search_articles_fts; print('Import OK')\"",
+        "expected_outcome": "Import OK",
+        "type": "command",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Run existing tests",
+        "command": "cd /Users/y3/feedship && uv run pytest tests/test_storage.py -v -k 'search' 2>/dev/null || echo 'No search-specific tests'",
+        "expected_outcome": "Tests pass or no search-specific tests found",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Low risk refactoring - removing duplicate code, no functional changes expected"
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": false,
+      "commands": [],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": false,
+      "commands": [],
+      "services_to_test": []
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "database_verification": {
+      "required": false,
+      "checks": []
+    }
+  },
+  "qa_signoff": null,
+  "notes": {
+    "investigation_findings": {
+      "canonical_location": "src/storage/sqlite/utils.py",
+      "functions_there": [
+        "_normalize_published_at",
+        "_date_to_timestamp",
+        "_date_to_timestamp_end",
+        "_date_to_str",
+        "_date_to_str_end"
+      ],
+      "duplicates_found": {
+        "src/storage/sqlite/search.py": [
+          "_date_to_timestamp",
+          "_date_to_timestamp_end"
+        ]
+      },
+      "note_about_conn_py": "The spec mentioned conn.py having duplicates, but investigation shows conn.py does not contain these functions. They appear to have been moved to utils.py already.",
+      "note_about_vector_py": "src/storage/vector.py has _parse_date_to_timestamp and _published_at_to_timestamp but these serve different purposes (ChromaDB storage) with different signatures and are intentionally separate."
+    }
+  },
+  "status": "human_review",
+  "planStatus": "review",
+  "xstateState": "human_review",
+  "executionPhase": "complete",
+  "updated_at": "2026-04-13T17:08:59.302Z",
+  "reviewReason": "completed"
+}

@@ -33,6 +33,7 @@ from src.application.tag_management import (  # noqa: E402
     list_feed_tags,
     remove_tag_from_feed,
 )
+from src.application.opml import export_feeds_to_opml, parse_opml_file  # noqa: E402
 from src.cli.ui import (  # noqa: E402
     FetchProgress,
     format_discover_feeds,
@@ -44,6 +45,7 @@ from src.cli.ui import (  # noqa: E402
 )
 from src.discovery import DiscoveredFeed, discover_feeds  # noqa: E402
 from src.models import FeedMetaData  # noqa: E402
+from src.storage import feed_exists  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -342,6 +344,11 @@ def feed_list(
                 provider_type = _get_provider_type(f.url)
                 articles_count = getattr(f, "articles_count", 0)
                 weight = f.weight if f.weight is not None else 0.3
+                refresh_interval = f.refresh_interval
+                if refresh_interval is not None:
+                    refresh_display = f"{refresh_interval}s"
+                else:
+                    refresh_display = "Default"
 
                 tags = list_feed_tags(f.id)
                 tags_str = ", ".join(t.name for t in tags) if tags else "None"
@@ -357,6 +364,7 @@ def feed_list(
                 table.add_row("Group", f.group or "Ungrouped")
                 table.add_row("Tags", tags_str)
                 table.add_row("Last Fetched", last_fetched)
+                table.add_row("Refresh Interval", refresh_display)
                 console.print(table)
                 console.print()
         else:
@@ -442,6 +450,13 @@ def feed_remove(ctx: click.Context, feed_id: str, json_output: bool) -> None:
     type=str,
     help="Feed type (rss, atom, webpage, etc.)",
 )
+@click.option(
+    "--refresh-interval",
+    "refresh_interval",
+    default=None,
+    type=click.IntRange(60, None),
+    help="Refresh interval in seconds (min 60s, use empty string to clear)",
+)
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
 @click.pass_context
 def feed_update(
@@ -450,15 +465,17 @@ def feed_update(
     weight: float | None,
     group: str | None,
     feed_type: str | None,
+    refresh_interval: int | None,
     json_output: bool,
 ) -> None:
-    """Update feed metadata (weight, group, feed-type).
+    """Update feed metadata (weight, group, feed-type, refresh-interval).
 
     Examples:
 
       feedship feed update abc123 --weight 0.5
       feedship feed update abc123 --group AI
       feedship feed update abc123 --feed-type rss
+      feedship feed update abc123 --refresh-interval 3600
       feedship feed update abc123 --weight 0.8 --group Tech --feed-type atom
     """
     try:
@@ -482,7 +499,11 @@ def feed_update(
 
         # Call application layer
         updated_feed, success = update_feed_metadata(
-            feed_id, weight=weight, group=group, feed_meta_data=feed_meta_data
+            feed_id,
+            weight=weight,
+            group=group,
+            feed_meta_data=feed_meta_data,
+            refresh_interval=refresh_interval,
         )
 
         if not success:
@@ -500,6 +521,7 @@ def feed_update(
                         "weight": updated_feed.weight,
                         "group": updated_feed.group,
                         "metadata": updated_feed.metadata,
+                        "refresh_interval": updated_feed.refresh_interval,
                         "updated": True,
                     }
                 }
@@ -629,6 +651,200 @@ def tag_list(ctx: click.Context, feed_id: str, json_output: bool) -> None:
         click.secho(f"Error: Failed to list tags: {e}", err=True, fg="red")
         logger.exception("Failed to list tags")
         sys.exit(1)
+
+@feed.command("export")
+@click.option("--opml", "as_opml", is_flag=True, help="Export feeds as OPML 2.0 XML")
+@click.option(
+    "--output",
+    "-o",
+    "output_file",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True),
+    help="Output file path (default: stdout)",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def feed_export(
+    ctx: click.Context,
+    as_opml: bool,
+    output_file: str | None,
+    json_output: bool,
+) -> None:
+    """Export subscribed feeds.
+
+    Examples:
+
+      feedship feed export --opml                  Export all feeds as OPML to stdout
+      feedship feed export --opml -o feeds.opml    Export to file
+    """
+    try:
+        feeds = list_feeds()
+
+        if not feeds:
+            if json_output:
+                print_json({"feeds": [], "count": 0})
+            else:
+                click.secho("No feeds to export.", fg="yellow")
+            return
+
+        if not as_opml:
+            if json_output:
+                print_json(format_feed_list(feeds))
+            else:
+                click.secho("Use --opml to export feeds as OPML 2.0 XML.", fg="yellow")
+            return
+
+        opml_xml = export_feeds_to_opml(feeds)
+
+        if output_file:
+            Path(output_file).write_text(opml_xml, encoding="utf-8")
+            if json_output:
+                print_json({"file": output_file, "count": len(feeds), "exported": True})
+            else:
+                click.secho(
+                    f"Exported {len(feeds)} feed(s) to {output_file}", fg="green"
+                )
+        else:
+            click.echo(opml_xml)
+            if json_output:
+                # Already output OPML to stdout, print summary as JSON too
+                print_json({"count": len(feeds), "format": "opml"})
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to export feeds: {e}", "export_error")
+            return
+        click.secho(f"Error: Failed to export feeds: {e}", err=True, fg="red")
+        logger.exception("Failed to export feeds")
+        sys.exit(1)
+
+
+@feed.command("import")
+@click.argument("opml_file", type=click.Path(exists=True))
+@click.option(
+    "--automatic",
+    default="off",
+    type=click.Choice(["on", "off"]),
+    help="Automatically add all feeds without confirmation (default: off)",
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def feed_import(
+    ctx: click.Context,
+    opml_file: str,
+    automatic: str,
+    json_output: bool,
+) -> None:
+    """Import feeds from an OPML file.
+
+    Parses an OPML file and registers each discovered feed subscription.
+
+    Examples:
+
+      feedship feed import feeds.opml
+      feedship feed import feeds.opml --automatic on
+    """
+    try:
+        entries = parse_opml_file(opml_file)
+    except FileNotFoundError:
+        if json_output:
+            print_json_error(f"OPML file not found: {opml_file}", "file_not_found")
+        click.secho(f"OPML file not found: {opml_file}", err=True, fg="red")
+        sys.exit(1)
+    except ValueError as e:
+        if json_output:
+            print_json_error(f"Invalid OPML file: {e}", "parse_error")
+        click.secho(f"Invalid OPML file: {e}", err=True, fg="red")
+        sys.exit(1)
+
+    if not entries:
+        if json_output:
+            print_json({"feeds": [], "count": 0, "imported": 0})
+        else:
+            click.secho("No feeds found in OPML file.", fg="yellow")
+        return
+
+    if not json_output:
+        click.secho(f"Found {len(entries)} feed(s) in OPML file.", fg="cyan")
+
+    if automatic == "off":
+        import questionary
+
+        confirmed = questionary.confirm(
+            f"Add {len(entries)} feed(s) from OPML?",
+            default=True,
+            style=questionary.Style(
+                [
+                    ("selected", "bold cyan"),
+                    ("checkbox", "cyan"),
+                ]
+            ),
+        ).ask()
+        if not confirmed:
+            if json_output:
+                print_json({"cancelled": True, "count": len(entries)})
+            else:
+                click.secho("Import cancelled.", fg="yellow")
+            return
+
+    # Import providers.discover lazily to avoid circular import issues
+    from src.providers import discover as providers_discover
+
+    added_count = 0
+    skipped_count = 0
+    for entry in entries:
+        if feed_exists(entry.url):
+            skipped_count += 1
+            if not json_output:
+                click.secho(f"  Skipped (duplicate): {entry.url}", fg="yellow")
+            continue
+
+        # Use providers.discover() for auto-detection of feed type (RSS, GitHub, Nitter, etc.)
+        discovered_feeds = providers_discover(entry.url)
+        if discovered_feeds:
+            discovered = discovered_feeds[0]
+            feed_meta = FeedMetaData(
+                feed_type=discovered.feed_type.value
+                if hasattr(discovered.feed_type, "value")
+                else discovered.feed_type,
+                selectors=discovered.metadata.selectors
+                if discovered.metadata
+                else None,
+            )
+            register_feed(
+                discovered.url,  # Use discovered URL (may differ for pseudo-URLs)
+                discovered.title or entry.title or entry.name,
+                None,  # weight: inherit from defaults
+                feed_meta,
+                entry.group,
+            )
+        else:
+            # Fallback: treat as RSS feed
+            feed_meta = FeedMetaData(feed_type="rss")
+            register_feed(
+                entry.url,
+                entry.title or entry.name,
+                None,  # weight: inherit from defaults
+                feed_meta,
+                entry.group,
+            )
+        added_count += 1
+
+    if json_output:
+        print_json(
+            {
+                "imported": added_count,
+                "skipped": skipped_count,
+                "total": len(entries),
+            }
+        )
+    else:
+        if skipped_count > 0:
+            click.secho(
+                f"Imported {added_count}, skipped {skipped_count} duplicate(s).",
+                fg="green",
+            )
+        else:
+            click.secho(f"Imported {added_count} feed(s).", fg="green")
 
 
 @cli.command("fetch")

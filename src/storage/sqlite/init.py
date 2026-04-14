@@ -61,7 +61,8 @@ class DatabaseInitializer:
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     metadata TEXT,
                     weight REAL DEFAULT 0.3,
-                    "group" TEXT
+                    "group" TEXT,
+                    refresh_interval INTEGER DEFAULT 3600
                 )
             """)
 
@@ -69,6 +70,13 @@ class DatabaseInitializer:
             if "group" not in {row[1] for row in cursor.fetchall()}:
                 cursor.execute('ALTER TABLE feeds ADD COLUMN "group" TEXT')
                 logger.debug("Migrated group column")
+
+            cursor.execute("PRAGMA table_info(feeds)")
+            if "refresh_interval" not in {row[1] for row in cursor.fetchall()}:
+                cursor.execute(
+                    "ALTER TABLE feeds ADD COLUMN refresh_interval INTEGER DEFAULT 3600"
+                )
+                logger.debug("Migrated refresh_interval column")
 
             extra_cols = "".join(
                 f"\n    {name} {typ}," for name, typ in _ARTICLES_EXTRA_COLUMNS.items()

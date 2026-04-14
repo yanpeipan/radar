@@ -9,6 +9,7 @@ from __future__ import annotations
 import concurrent.futures
 import logging
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from src.application.combine import combine_scores
 from src.storage import (
@@ -30,6 +31,7 @@ from src.storage.vector import (
 logger = logging.getLogger(__name__)
 
 
+@lru_cache
 def _check_ml_dependencies() -> bool:
     """Check whether optional ML dependencies (chromadb, sentence-transformers) are available.
 
