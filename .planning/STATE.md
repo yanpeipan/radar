@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-13T06:55:00.000Z"
-last_activity: "2026-04-13 — Completed quick task 260414-331: InsightChain replaces TLDRChain"
+last_activity: "2026-04-14 — Completed quick task 260414-nek: 精简 src/cli/feed.py 和 src/cli/article.py"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -145,5 +145,7 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 260412-x4s | BatchClassifyChain & BuildReportDataChain & TLDRChain LCEL pipe composition | 2026-04-12 | def3ec6 | | [260412-x4s-batchclassifychain-buildreportdatachain-](./quick/260412-x4s-batchclassifychain-buildreportdatachain-/) |
 | 260413-02d | BuildReportDataChain 直接接受 HeadingNode，移除 ReportDataAdapter | 2026-04-13 | 77510b4 | | [260413-02d-buildreportdatachain-headingnode-reportd](./quick/260413-02d-buildreportdatachain-headingnode-reportd/) |
 | 260412-u7q | Fix P0 crash (report_data initialization order) + remove EntityTag | 2026-04-12 | — | Blocked (pre-commit: B008 in models.py:59) | [260412-u7q-p0-bug-entitytag](./quick/260412-u7q-p0-bug-entitytag/) |
+| 260414-nda | 增加约束：UNIQUE(link) 删除feed 里的link重复文章 | 2026-04-14 | 2251307 | Verified | [260414-nda-unique-link-feed-link](./quick/260414-nda-unique-link-feed-link/) |
 | 260414-331 | report引入InsightChain(top_n=100, target_lang)取代TLDRChain：1 Cluster生成n Topics放入children；删除TLDRChain | 2026-04-13 | 951031c | Verified | [260414-331-report-chain-insightchain-top-n-100-targ](./quick/260414-331-report-chain-insightchain-top-n-100-targ/) |
+| 260414-nek | 使用最佳实践，精简 src/cli/feed.py 和 src/cli/article.py | 2026-04-14 | e38f832 | Verified | [260414-nek-src-cli-feed-py-src-cli-article-py](./quick/260414-nek-src-cli-feed-py-src-cli-article-py/) |
 | 2026-04-14 | fast | CLASSIFY_TRANSLATE_PROMPT过滤tags=[]的数据 | ✅ |
