@@ -220,7 +220,9 @@
             "command": "python -c \"from src.cli.article import article_star; print('article_star exists')\"",
             "expected": "article_star exists"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Added article_star command with --star and --unstar flags. Also added star_article/unstar_article functions to storage layer (status.py, impl.py, __init__.py). Committed as ba2d54c.",
+          "updated_at": "2026-04-14T07:02:23.327967+00:00"
         },
         {
           "id": "subtask-4-3",
@@ -238,7 +240,9 @@
             "command": "python -c \"from src.cli.article import article_list; import click; opts = {p.name for p in article_list.params}; assert 'unread_only' in opts; assert 'starred_only' in opts; print('OK')\"",
             "expected": "OK"
           },
-          "status": "pending"
+          "status": "completed",
+          "notes": "Added --unread-only, --starred, --starred-only click options to article_list command. --starred is an alias for --starred-only. Verified via .venv/python. Committed as bc70b17.",
+          "updated_at": "2026-04-14T07:05:57.858515+00:00"
         },
         {
           "id": "subtask-4-4",
@@ -429,6 +433,6 @@
   "planStatus": "in_progress",
   "xstateState": "backlog",
   "executionPhase": "coding",
-  "updated_at": "2026-04-14T06:57:42.057Z",
-  "last_updated": "2026-04-14T06:56:57.187102+00:00"
+  "updated_at": "2026-04-14T07:07:17.589Z",
+  "last_updated": "2026-04-14T07:05:57.858530+00:00"
 }

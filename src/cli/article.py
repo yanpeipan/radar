@@ -66,6 +66,9 @@ def print_articles(items: list[ArticleListItem]) -> None:
         expand=False,
         row_styles=["", "dim"],
     )
+    table.add_column(
+        "", style="yellow", width=2, no_wrap=True, overflow="ignore", justify="center"
+    )
     table.add_column("ID", style="dim", width=8, no_wrap=True, overflow="ellipsis")
     table.add_column(
         "Title", style="cyan", min_width=30, max_width=70, overflow="ellipsis"
@@ -78,11 +81,16 @@ def print_articles(items: list[ArticleListItem]) -> None:
     )
 
     for item in items:
+        star = "[yellow]★[/yellow]" if item.is_starred else ""
         title = item.title[:80] if item.title else "-"
+
+        title = f"[dim]{title}[/dim]" if item.is_read else f"[bold]{title}[/bold]"
+
         if item.link:
             title = f"[link={item.link}]{title}[/link]"
 
         table.add_row(
+            star,
             (item.id[:8] if item.id else "-"),
             title,
             (item.feed_name[:15] if item.feed_name else "-"),
@@ -141,7 +149,10 @@ def article(ctx: click.Context) -> None:
     "--starred", "show_starred", is_flag=True, help="Show starred/bookmarked articles"
 )
 @click.option(
-    "--starred-only", "starred_only", is_flag=True, help="Show only starred/bookmarked articles"
+    "--starred-only",
+    "starred_only",
+    is_flag=True,
+    help="Show only starred/bookmarked articles",
 )
 @click.pass_context
 def article_list(
