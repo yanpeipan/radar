@@ -136,6 +136,13 @@ def article(ctx: click.Context) -> None:
     help="Filter to articles with quality_score >= value (0.0-1.0)",
 )
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.option("--unread-only", is_flag=True, help="Show only unread articles")
+@click.option(
+    "--starred", "show_starred", is_flag=True, help="Show starred/bookmarked articles"
+)
+@click.option(
+    "--starred-only", "starred_only", is_flag=True, help="Show only starred/bookmarked articles"
+)
 @click.pass_context
 def article_list(
     ctx: click.Context,
@@ -148,6 +155,9 @@ def article_list(
     sort: str | None,
     min_quality: float | None,
     json_output: bool,
+    unread_only: bool,
+    show_starred: bool,
+    starred_only: bool,
 ) -> None:
     """List recent articles from all feeds or a specific feed."""
     try:
@@ -162,6 +172,8 @@ def article_list(
             groups=groups_list,
             sort_by=sort,
             min_quality=min_quality,
+            unread_only=unread_only,
+            starred_only=starred_only or show_starred,
         )
         if json_output:
             print_json(format_article_list(articles, limit))
