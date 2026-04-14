@@ -23,13 +23,13 @@ def test_article_enriched_default_fields():
 
 def test_entity_topic_fields():
     topic = ReportCluster(
-        name="Google Gemma 4",
+        title="Google Gemma 4",
         summary="Gemma 4发布",
         tags=[],
         children=[],
         articles=[],
     )
-    assert topic.name == "Google Gemma 4"
+    assert topic.title == "Google Gemma 4"
 
 
 def test_report_data_fields():

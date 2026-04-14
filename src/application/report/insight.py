@@ -82,7 +82,7 @@ class InsightChain(Runnable):
         )[: self.top_n]
 
         # Build multi-article block
-        lines = [f"Entity 1 ({cluster.name}):"]
+        lines = [f"Entity 1 ({cluster.title}):"]
         for j, article in enumerate(sorted_articles, 1):
             content = article.translation or article.title or ""
             lines.append(f"  [{j}] {content}")
@@ -147,7 +147,7 @@ class InsightChain(Runnable):
                         from src.application.report.models import ReportCluster
 
                         rc = ReportCluster(
-                            name=topic_id,
+                            title=topic_id,
                             summary=topic.summary,
                             children=[],
                             articles=[],
@@ -176,7 +176,7 @@ class InsightChain(Runnable):
                     )
                 except Exception as e:
                     logger.warning(
-                        "Simple summary failed for cluster %s: %s", cluster.name, e
+                        "Simple summary failed for cluster %s: %s", cluster.title, e
                     )
                     # Fallback: use article title as summary
                     if cluster.articles:

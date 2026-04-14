@@ -77,14 +77,16 @@ class ReportCluster:
     """An entity topic grouping multiple articles.
 
     Attributes:
-        name: Topic name/headline
+        title: Topic name/headline
+        content: Long-form content (distinct from summary's short-form)
         summary: One-sentence TLDR summary
         tags: List of entity tags extracted by NER
         children: List of child ReportCluster (sub-topics in same layer)
         articles: Flat list of all articles in this topic
     """
 
-    name: str
+    title: str
+    content: str = field(default=str)
     summary: str = field(default_factory=str)
     tags: list[str] = field(default_factory=list)
     children: list[ReportCluster] = field(default_factory=list)
@@ -127,7 +129,7 @@ class ReportData:
         if cluster is None:
             if cluster_name not in self.clusters:
                 self.clusters[cluster_name] = []
-            cluster = ReportCluster(name=cluster_name)
+            cluster = ReportCluster(title=cluster_name)
             self.clusters[cluster_name].append(cluster)
 
         cluster.articles.append(ReportArticle.from_article(item))
@@ -156,7 +158,7 @@ class ReportData:
         for node in heading_tree.children:
             matched = self.get_cluster(node.title)
             if matched is None:
-                matched = ReportCluster(name=node.title, children=[], articles=[])
+                matched = ReportCluster(title=node.title, children=[], articles=[])
             clusters.setdefault(node.title, []).append(matched)
         self.clusters = clusters
 
@@ -180,7 +182,7 @@ class ReportData:
     ) -> ReportCluster | None:
         """Recursively find a cluster by name in a list of clusters."""
         for cluster in clusters:
-            if cluster.name == name:
+            if cluster.title == name:
                 return cluster
             # Search in children
             if cluster.children:
