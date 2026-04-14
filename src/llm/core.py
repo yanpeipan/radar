@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 import litellm
+from langchain_core.exceptions import OutputParserException
 from langchain_core.runnables import Runnable
 from langchain_litellm import ChatLiteLLMRouter
 from litellm import (
@@ -77,6 +78,7 @@ class LLMWrapper(Runnable):
         Timeout,
         JSONSchemaValidationError,
         InternalServerError,
+        OutputParserException,
     )
 
     def __init__(
@@ -91,7 +93,7 @@ class LLMWrapper(Runnable):
         self.thinking = thinking
         self.structured_output = structured_output
         self._retry_config = _retry_config or {
-            "stop_after_attempt": 2,
+            "stop_after_attempt": 3,
             "retry_if_exception_type": self._RETRY_TYPES,
         }
         self._bind_kwargs = bind_kwargs

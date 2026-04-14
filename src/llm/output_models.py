@@ -36,13 +36,13 @@ class Insight(BaseModel):
     title: str = Field(..., description="Insight subtitle")
     content: str = Field(..., description="2-4 sentence coherent paragraph")
     source_indices: list[int] = Field(
-        ..., 
-        description="1-based article indices from the presented list"
+        ..., description="1-based article indices from the presented list"
     )
 
 
 class Topic(BaseModel):
     """A topic within a cluster."""
+
     title: str = Field(..., description="Topic title in target language")
     summary: str = Field(..., description="One-sentence deep insight")
     insights: list[Insight] = Field(..., description="Multiple insights for this topic")

@@ -424,7 +424,7 @@ async def _process_articles_batch(articles: list[dict]) -> list[dict]:
 
 **Confidence breakdown:**
 - Standard stack: HIGH — verified from source code
-- Architecture: HIGH — verified from source code  
+- Architecture: HIGH — verified from source code
 - Pitfalls: HIGH — based on existing code patterns
 
 **Research date:** 2026/04/09

@@ -8,7 +8,7 @@
 
 **Options:**
 - `sqlite3.connect()` per call (current) - high overhead
-- Module-level connection caching with `threading.local()` 
+- Module-level connection caching with `threading.local()`
 - Third-party pool library (e.g., `persistence`, `sqlamp`)
 
 **Best Practice for SQLite:**

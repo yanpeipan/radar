@@ -63,4 +63,3 @@ verification: Verified with direct Python imports - all modules now load without
 files_changed:
 - src/application/report/models.py
 - src/application/report/template.py
-

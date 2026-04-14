@@ -60,7 +60,7 @@ def get_classify_runnable(
     max_concurrency: int = 5,
 ) -> Runnable:
     """Factory: returns RunnableLambda that processes list[ArticleListItem] -> list[ArticleListItem].
-    
+
     Batching: split input into batches of batch_size, process max_concurrency batches concurrently.
     Each batch calls get_classify_translate_chain, enriches articles in-place with .tags and .translation.
     """
@@ -100,12 +100,12 @@ def get_classify_runnable(
         batch_results = await asyncio.gather(
             *[run_with_semaphore(arts, offset) for arts, offset in batches]
         )
-        
+
         # Flatten and build lookup dicts
         all_items: list[ClassifyTranslateItem] = []
         for batch_items in batch_results:
             all_items.extend(batch_items)
-        
+
         trans_by_id = {item.id: item.translation for item in all_items}
         tags_by_id = {item.id: item.tags for item in all_items}
 
