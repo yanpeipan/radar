@@ -75,6 +75,15 @@ from src.storage.sqlite.search import (  # noqa: F401, E402
 )
 
 # ---------------------------------------------------------------------------
+# status.py - Article read/unread and star status
+# ---------------------------------------------------------------------------
+from src.storage.sqlite.status import (  # noqa: F401, E402
+    mark_article_read,
+    mark_article_unread,
+    toggle_article_star,
+)
+
+# ---------------------------------------------------------------------------
 # utils.py - Date utilities
 # ---------------------------------------------------------------------------
 from src.storage.sqlite.utils import (  # noqa: F401, E402
