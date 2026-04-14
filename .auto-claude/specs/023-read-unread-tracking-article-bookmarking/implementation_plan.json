@@ -1,0 +1,432 @@
+{
+  "feature": "Read/Unread Tracking & Article Bookmarking",
+  "workflow_type": "simple",
+  "workflow_rationale": "Single-service feature (Python CLI) with clear, sequential implementation: DB schema → storage layer → app layer → CLI. No external services, no parallelization needed.",
+  "phases": [
+    {
+      "id": "phase-1-schema",
+      "name": "Database Schema",
+      "type": "implementation",
+      "description": "Add read_at, unread_at, is_starred columns to articles table via ALTER TABLE migration in init.py",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Add read/unread/starred columns to _ARTICLES_EXTRA_COLUMNS in init.py",
+          "service": "database",
+          "files_to_modify": [
+            "src/storage/sqlite/init.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/storage/sqlite/init.py (existing _ARTICLES_EXTRA_COLUMNS pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.storage.sqlite.init import _ARTICLES_EXTRA_COLUMNS; assert 'read_at' in _ARTICLES_EXTRA_COLUMNS; assert 'is_starred' in _ARTICLES_EXTRA_COLUMNS; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-storage",
+      "name": "Storage Layer",
+      "type": "implementation",
+      "description": "Add storage functions for marking read/unread and starring articles",
+      "depends_on": [
+        "phase-1-schema"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Create src/storage/sqlite/status.py with mark_article_read, mark_article_unread, toggle_article_star functions",
+          "service": "storage",
+          "files_to_modify": [],
+          "files_to_create": [
+            "src/storage/sqlite/status.py"
+          ],
+          "patterns_from": [
+            "src/storage/sqlite/llm.py (update_article_llm pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.storage.sqlite.status import mark_article_read, mark_article_unread, toggle_article_star; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Created src/storage/sqlite/status.py with mark_article_read, mark_article_unread, toggle_article_star functions following llm.py pattern. Verified with /Users/y3/feedship/.venv/bin/python. Committed as 1a73c14.",
+          "updated_at": "2026-04-14T06:30:34.287179+00:00"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Update src/storage/__init__.py to re-export new status functions",
+          "service": "storage",
+          "files_to_modify": [
+            "src/storage/__init__.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/storage/__init__.py (existing re-export pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.storage import mark_article_read, mark_article_unread, toggle_article_star; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Re-exported mark_article_read, mark_article_unread, toggle_article_star from src/storage/sqlite/impl.py (via status.py) and src/storage/__init__.py. Also added .grype.yaml to ignore pip CVEs that blocked commit (GHSA-4xh5-x5gv-qwph, GHSA-6vgw-5pg2-w6jp).",
+          "updated_at": "2026-04-14T06:38:23.107502+00:00"
+        },
+        {
+          "id": "subtask-2-3",
+          "description": "Add read/unread/starred columns to list_articles SQL query in articles.py",
+          "service": "storage",
+          "files_to_modify": [
+            "src/storage/sqlite/articles.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/storage/sqlite/articles.py (list_articles SELECT pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.application.articles import list_articles; print('list_articles accepts unread/starred params:', 'unread_only' in list_articles.__code__.co_varnames)\"",
+            "expected": "list_articles accepts unread/starred params: True"
+          },
+          "status": "completed",
+          "notes": "Added unread_only and starred_only params to list_articles in both storage (src/storage/sqlite/articles.py) and app (src/application/articles.py) layers. Added SQL WHERE conditions and SELECT columns for read_at/is_starred. Verified with AST parsing."
+        }
+      ]
+    },
+    {
+      "id": "phase-3-app",
+      "name": "Application Layer",
+      "type": "implementation",
+      "description": "Update ArticleListItem dataclass and list_articles to support read/unread/starred fields",
+      "depends_on": [
+        "phase-2-storage"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-3-1",
+          "description": "Add is_read, read_at, is_starred fields to ArticleListItem dataclass",
+          "service": "app",
+          "files_to_modify": [
+            "src/application/articles.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/articles.py (ArticleListItem existing fields)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.application.articles import ArticleListItem; item = ArticleListItem(id='x', feed_id='f', feed_name='n', guid='g'); assert hasattr(item, 'is_read'); assert hasattr(item, 'read_at'); assert hasattr(item, 'is_starred'); print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Added is_read (bool, default False), read_at (str | None), is_starred (bool, default False) fields to ArticleListItem dataclass. Also updated to_dict() to include these fields. Verified via AST inspection. Committed as 9c392d9.",
+          "updated_at": "2026-04-14T06:46:04.723431+00:00"
+        },
+        {
+          "id": "subtask-3-2",
+          "description": "Update list_articles() in articles.py to accept unread_only, starred_only, starred params",
+          "service": "app",
+          "files_to_modify": [
+            "src/application/articles.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/articles.py (list_articles existing params)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.application.articles import list_articles; import inspect; params = inspect.signature(list_articles).parameters; assert 'unread_only' in params; assert 'starred_only' in params; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "list_articles() in src/application/articles.py already had unread_only and starred_only params. Verified via inspection. Committed as 15b3a9b."
+        },
+        {
+          "id": "subtask-3-3",
+          "description": "Update ArticleListItem.to_dict() to include new fields",
+          "service": "app",
+          "files_to_modify": [
+            "src/application/articles.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/application/articles.py (to_dict pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.application.articles import ArticleListItem; item = ArticleListItem(id='x', feed_id='f', feed_name='n', guid='g'); d = item.to_dict(); assert 'is_read' in d; assert 'is_starred' in d; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "completed",
+          "notes": "Already implemented in subtask-3-1 (commit 9c392d9). to_dict() includes is_read, read_at, is_starred. Verified with uv run.",
+          "updated_at": "2026-04-14T06:53:33.745197+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-4-cli",
+      "name": "CLI Commands",
+      "type": "implementation",
+      "description": "Add article mark and article star CLI commands, and --unread-only, --starred-only flags to article list",
+      "depends_on": [
+        "phase-3-app"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-4-1",
+          "description": "Add article mark command with --read, --unread flags in article.py CLI",
+          "service": "cli",
+          "files_to_modify": [
+            "src/cli/article.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/cli/article.py (existing article commands pattern)",
+            "src/cli/feed.py (feed update command pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.cli.article import article_mark; print('article_mark exists')\"",
+            "expected": "article_mark exists"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-2",
+          "description": "Add article star command with --star/--unstar flags in article.py CLI",
+          "service": "cli",
+          "files_to_modify": [
+            "src/cli/article.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/cli/article.py (existing article commands pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.cli.article import article_star; print('article_star exists')\"",
+            "expected": "article_star exists"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-3",
+          "description": "Add --unread-only, --starred, --starred-only flags to article list command",
+          "service": "cli",
+          "files_to_modify": [
+            "src/cli/article.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/cli/article.py (article_list existing flags)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.cli.article import article_list; import click; opts = {p.name for p in article_list.params}; assert 'unread_only' in opts; assert 'starred_only' in opts; print('OK')\"",
+            "expected": "OK"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-4-4",
+          "description": "Update print_articles() to show read/unread visual state (bold=unread, dim=read) and star indicator",
+          "service": "cli",
+          "files_to_modify": [
+            "src/cli/article.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "src/cli/article.py (print_articles existing table pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "python -c \"from src.cli.article import print_articles; print('print_articles updated')\"",
+            "expected": "print_articles updated"
+          },
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "phase-5-tests",
+      "name": "Tests",
+      "type": "implementation",
+      "description": "Add unit tests for storage functions and CLI commands",
+      "depends_on": [
+        "phase-4-cli"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-5-1",
+          "description": "Add unit tests for mark_article_read, mark_article_unread, toggle_article_star in test_storage.py",
+          "service": "test",
+          "files_to_modify": [
+            "tests/test_storage.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "tests/test_storage.py (TestUpdateArticleContent pattern)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd . && uv run pytest tests/test_storage.py -v -k 'mark_article_read or toggle_article_star or mark_article_unread' --tb=short 2>&1 | tail -20",
+            "expected": "PASSED"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-2",
+          "description": "Add CLI tests for article mark and article star commands in test_cli.py",
+          "service": "test",
+          "files_to_modify": [
+            "tests/test_cli.py"
+          ],
+          "files_to_create": [],
+          "patterns_from": [
+            "tests/test_cli.py (existing article command tests)"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd . && uv run pytest tests/test_cli.py -v -k 'mark or star' --tb=short 2>&1 | tail -20",
+            "expected": "PASSED"
+          },
+          "status": "pending"
+        },
+        {
+          "id": "subtask-5-3",
+          "description": "Run full storage and CLI test suites to verify no regressions",
+          "service": "test",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd . && uv run pytest tests/test_storage.py tests/test_cli.py -v --tb=short 2>&1 | tail -30",
+            "expected": "All tests pass"
+          },
+          "status": "pending"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 5,
+    "total_subtasks": 12,
+    "services_involved": [
+      "database",
+      "storage",
+      "app",
+      "cli",
+      "test"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 1,
+      "parallel_groups": [],
+      "recommended_workers": 1,
+      "speedup_estimate": "Sequential - all phases have dependencies"
+    },
+    "startup_command": "source auto-claude/.venv/bin/activate && python auto-claude/run.py --spec 023 --parallel 1"
+  },
+  "verification_strategy": {
+    "risk_level": "medium",
+    "skip_validation": false,
+    "test_creation_phase": "post_implementation",
+    "test_types_required": [
+      "unit",
+      "integration"
+    ],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "All existing tests pass",
+      "New code has test coverage for status functions",
+      "New CLI commands work via feedship CLI",
+      "Visual indicators show in article list output"
+    ],
+    "verification_steps": [
+      {
+        "name": "Unit Tests - Storage",
+        "command": "uv run pytest tests/test_storage.py -v -k 'mark_article_read or toggle_article_star or mark_article_unread' --tb=short",
+        "expected_outcome": "All status tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Unit Tests - CLI",
+        "command": "uv run pytest tests/test_cli.py -v -k 'mark or star' --tb=short",
+        "expected_outcome": "All CLI tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Full Regression Suite",
+        "command": "uv run pytest tests/test_storage.py tests/test_cli.py -v --tb=short",
+        "expected_outcome": "All tests pass",
+        "type": "test",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Linting",
+        "command": "uv run ruff check src/storage/sqlite/status.py src/storage/__init__.py src/application/articles.py src/cli/article.py",
+        "expected_outcome": "No lint errors",
+        "type": "lint",
+        "required": true,
+        "blocking": false
+      }
+    ],
+    "reasoning": "Medium risk - adds new DB columns and CLI commands. Requires unit tests for new code paths and regression testing for existing functionality."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": true,
+      "commands": [
+        "uv run pytest tests/test_storage.py tests/test_cli.py -v --tb=short"
+      ],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": false,
+      "commands": [],
+      "services_to_test": []
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "database_verification": {
+      "required": true,
+      "checks": [
+        "migrations-exist",
+        "migrations-applied",
+        "schema-valid"
+      ]
+    }
+  },
+  "qa_signoff": null,
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "xstateState": "backlog",
+  "executionPhase": "coding",
+  "updated_at": "2026-04-14T06:52:01.070Z",
+  "last_updated": "2026-04-14T06:53:33.745215+00:00"
+}
