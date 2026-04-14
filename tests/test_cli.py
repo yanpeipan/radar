@@ -529,6 +529,120 @@ class TestArticleGroupCommands:
         assert "AI" in result.output
 
 
+class TestArticleMarkStarCommands:
+    """Tests for article mark and article star CLI commands."""
+
+    def _create_article(self, initialized_db):
+        """Helper to create a feed and article for mark/star tests."""
+        feed = Feed(
+            id="article-mark-star-feed",
+            name="Mark Star Feed",
+            url="https://example.com/mark-star.xml",
+            etag=None,
+            modified_at=None,
+            fetched_at=None,
+            created_at="2024-01-01T00:00:00+00:00",
+        )
+        add_feed(feed)
+        article_id = store_article(
+            guid="article-mark-star-guid",
+            title="Mark Star Test Title",
+            content="<p>Content for mark/star test</p>",
+            link="https://example.com/mark-star",
+            feed_id="article-mark-star-feed",
+            published_at="2024-01-15T10:00:00+00:00",
+        )
+        return article_id
+
+    # --- article mark tests ---
+
+    def test_article_mark_read_success(self, cli_runner, initialized_db):
+        """article mark <id> --read marks article as read."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(cli, ["article", "mark", article_id[:8], "--read"])
+        assert result.exit_code == 0
+        assert "read" in result.output.lower()
+
+    def test_article_mark_unread_success(self, cli_runner, initialized_db):
+        """article mark <id> --unread marks article as unread."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(
+            cli, ["article", "mark", article_id[:8], "--unread"]
+        )
+        assert result.exit_code == 0
+        assert "unread" in result.output.lower()
+
+    def test_article_mark_missing_flag(self, cli_runner, initialized_db):
+        """article mark without --read or --unread returns exit code 1."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(cli, ["article", "mark", article_id[:8]])
+        assert result.exit_code == 1
+        assert "Must specify" in result.output or "Error" in result.output
+
+    def test_article_mark_conflicting_flags(self, cli_runner, initialized_db):
+        """article mark with both --read and --unread returns exit code 1."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(
+            cli, ["article", "mark", article_id[:8], "--read", "--unread"]
+        )
+        assert result.exit_code == 1
+        assert "Cannot use both" in result.output or "Error" in result.output
+
+    def test_article_mark_not_found(self, cli_runner, initialized_db):
+        """article mark with non-existent ID returns exit code 1 and 'not found'."""
+        result = cli_runner.invoke(cli, ["article", "mark", "nonexistent", "--read"])
+        assert result.exit_code == 1
+        assert "not found" in result.output.lower() or "Error" in result.output
+
+    # --- article star tests ---
+
+    def test_article_star_success(self, cli_runner, initialized_db):
+        """article star <id> --star stars the article."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(cli, ["article", "star", article_id[:8], "--star"])
+        assert result.exit_code == 0
+        assert "starred" in result.output.lower()
+
+    def test_article_unstar_success(self, cli_runner, initialized_db):
+        """article star <id> --unstar unstars the article."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(
+            cli, ["article", "star", article_id[:8], "--unstar"]
+        )
+        assert result.exit_code == 0
+        assert "unstarred" in result.output.lower()
+
+    def test_article_star_missing_flag(self, cli_runner, initialized_db):
+        """article star without --star or --unstar returns exit code 1."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(cli, ["article", "star", article_id[:8]])
+        assert result.exit_code == 1
+        assert "Must specify" in result.output or "Error" in result.output
+
+    def test_article_star_conflicting_flags(self, cli_runner, initialized_db):
+        """article star with both --star and --unstar returns exit code 1."""
+        article_id = self._create_article(initialized_db)
+
+        result = cli_runner.invoke(
+            cli, ["article", "star", article_id[:8], "--star", "--unstar"]
+        )
+        assert result.exit_code == 1
+        assert "Cannot use both" in result.output or "Error" in result.output
+
+    def test_article_star_not_found(self, cli_runner, initialized_db):
+        """article star with non-existent ID returns exit code 1 and 'not found'."""
+        result = cli_runner.invoke(cli, ["article", "star", "nonexistent", "--star"])
+        assert result.exit_code == 1
+        assert "not found" in result.output.lower() or "Error" in result.output
+
+
 class TestFeedDiscovery:
     """Tests for feed discovery functionality."""
 

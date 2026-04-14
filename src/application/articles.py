@@ -90,6 +90,9 @@ class ArticleListItem:
     minhash_signature: bytes | None = None
     tags: list[str] = field(default_factory=list)
     translation: str | None = None
+    is_read: bool = False
+    read_at: str | None = None
+    is_starred: bool = False
 
     def to_dict(self) -> dict:
         """Convert to dict for boundaries that require dict (e.g., template rendering)."""
@@ -117,6 +120,9 @@ class ArticleListItem:
             "minhash_signature": self.minhash_signature,
             "tags": self.tags,
             "translation": self.translation,
+            "is_read": self.is_read,
+            "read_at": self.read_at,
+            "is_starred": self.is_starred,
         }
 
 
@@ -129,6 +135,8 @@ def list_articles(
     groups: list[str] | None = None,
     sort_by: str | None = None,
     min_quality: float | None = None,
+    unread_only: bool = False,
+    starred_only: bool = False,
 ) -> list[ArticleListItem]:
     """List articles ordered by publication date.
 
@@ -141,6 +149,8 @@ def list_articles(
         groups: Optional list of feed groups to filter by (OR semantics).
         sort_by: Sort field — "quality" sorts by quality_score DESC, NULLS LAST.
         min_quality: Minimum quality_score filter (0.0-1.0).
+        unread_only: If True, only return articles that have not been read.
+        starred_only: If True, only return starred/bookmarked articles.
 
     Returns:
         List of ArticleListItem objects.
@@ -154,6 +164,8 @@ def list_articles(
         groups=groups,
         sort_by=sort_by,
         min_quality=min_quality,
+        unread_only=unread_only,
+        starred_only=starred_only,
     )
 
 

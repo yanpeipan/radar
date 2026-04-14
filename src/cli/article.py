@@ -18,7 +18,12 @@ from src.cli.ui import (
     print_json,
     print_json_error,
 )
-from src.storage import list_articles_by_tag
+from src.storage import (
+    mark_article_read,
+    mark_article_unread,
+    star_article,
+    unstar_article,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +66,9 @@ def print_articles(items: list[ArticleListItem]) -> None:
         expand=False,
         row_styles=["", "dim"],
     )
+    table.add_column(
+        "", style="yellow", width=2, no_wrap=True, overflow="ignore", justify="center"
+    )
     table.add_column("ID", style="dim", width=8, no_wrap=True, overflow="ellipsis")
     table.add_column(
         "Title", style="cyan", min_width=30, max_width=70, overflow="ellipsis"
@@ -73,11 +81,16 @@ def print_articles(items: list[ArticleListItem]) -> None:
     )
 
     for item in items:
+        star = "[yellow]★[/yellow]" if item.is_starred else ""
         title = item.title[:80] if item.title else "-"
+
+        title = f"[dim]{title}[/dim]" if item.is_read else f"[bold]{title}[/bold]"
+
         if item.link:
             title = f"[link={item.link}]{title}[/link]"
 
         table.add_row(
+            star,
             (item.id[:8] if item.id else "-"),
             title,
             (item.feed_name[:15] if item.feed_name else "-"),
@@ -136,6 +149,16 @@ def article(ctx: click.Context) -> None:
     help="Filter to articles with quality_score >= value (0.0-1.0)",
 )
 @click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.option("--unread-only", is_flag=True, help="Show only unread articles")
+@click.option(
+    "--starred", "show_starred", is_flag=True, help="Show starred/bookmarked articles"
+)
+@click.option(
+    "--starred-only",
+    "starred_only",
+    is_flag=True,
+    help="Show only starred/bookmarked articles",
+)
 @click.pass_context
 def article_list(
     ctx: click.Context,
@@ -149,24 +172,26 @@ def article_list(
     sort: str | None,
     min_quality: float | None,
     json_output: bool,
+    unread_only: bool,
+    show_starred: bool,
+    starred_only: bool,
 ) -> None:
     """List recent articles from all feeds or a specific feed."""
     try:
         on_list = list(on) if on else None
         groups_list = groups.split(",") if groups else None
-        if tag:
-            articles = list_articles_by_tag(tag, limit=limit)
-        else:
-            articles = list_articles(
-                limit=limit,
-                feed_id=feed_id,
-                since=since,
-                until=until,
-                on=on_list,
-                groups=groups_list,
-                sort_by=sort,
-                min_quality=min_quality,
-            )
+        articles = list_articles(
+            limit=limit,
+            feed_id=feed_id,
+            since=since,
+            until=until,
+            on=on_list,
+            groups=groups_list,
+            sort_by=sort,
+            min_quality=min_quality,
+            unread_only=unread_only,
+            starred_only=starred_only or show_starred,
+        )
         if json_output:
             print_json(format_article_list(articles, limit))
             return
@@ -441,4 +466,133 @@ def article_related(
             return
         click.secho(f"Error: Failed to find related articles: {e}", err=True, fg="red")
         logger.exception("Failed to find related articles")
+        sys.exit(1)
+
+
+@article.command("mark")
+@click.argument("article_id")
+@click.option("--read", "mark_read", is_flag=True, help="Mark article as read")
+@click.option("--unread", "mark_unread", is_flag=True, help="Mark article as unread")
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def article_mark(
+    ctx: click.Context,
+    article_id: str,
+    mark_read: bool,
+    mark_unread: bool,
+    json_output: bool,
+) -> None:
+    """Mark an article as read or unread.
+
+    Examples:
+
+      feedship article mark abc12345 --read
+      feedship article mark abc12345 --unread
+    """
+    if mark_read and mark_unread:
+        if json_output:
+            print_json_error(
+                "Cannot use both --read and --unread", "mutual_exclusion", exit_code=1
+            )
+        click.secho("Error: Cannot use both --read and --unread", err=True, fg="red")
+        sys.exit(1)
+
+    if not mark_read and not mark_unread:
+        if json_output:
+            print_json_error(
+                "Must specify --read or --unread", "missing_flag", exit_code=1
+            )
+        click.secho("Error: Must specify --read or --unread", err=True, fg="red")
+        sys.exit(1)
+
+    try:
+        if mark_read:
+            result = mark_article_read(article_id)
+        else:
+            result = mark_article_unread(article_id)
+
+        if not result.get("success"):
+            if json_output:
+                print_json_error(
+                    result.get("error", "Unknown error"), "not_found", exit_code=1
+                )
+            click.secho(f"Error: {result.get('error', 'Unknown error')}", fg="red")
+            sys.exit(1)
+
+        status = "read" if mark_read else "unread"
+        if json_output:
+            print_json({"item": {"id": article_id, "status": status, "updated": True}})
+        else:
+            click.secho(f"Marked article as {status}: {article_id}", fg="green")
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to mark article: {e}", "mark_error")
+            return
+        click.secho(f"Error: Failed to mark article: {e}", err=True, fg="red")
+        logger.exception("Failed to mark article")
+        sys.exit(1)
+
+
+@article.command("star")
+@click.argument("article_id")
+@click.option("--star", "do_star", is_flag=True, help="Star/bookmark the article")
+@click.option(
+    "--unstar", "do_unstar", is_flag=True, help="Remove star/bookmark from the article"
+)
+@click.option("--json", "json_output", is_flag=True, help="Output as JSON")
+@click.pass_context
+def article_star(
+    ctx: click.Context,
+    article_id: str,
+    do_star: bool,
+    do_unstar: bool,
+    json_output: bool,
+) -> None:
+    """Star or unstar a bookmarked article.
+
+    Examples:
+
+      feedship article star abc12345 --star
+      feedship article star abc12345 --unstar
+    """
+    if do_star and do_unstar:
+        if json_output:
+            print_json_error(
+                "Cannot use both --star and --unstar", "mutual_exclusion", exit_code=1
+            )
+        click.secho("Error: Cannot use both --star and --unstar", err=True, fg="red")
+        sys.exit(1)
+
+    if not do_star and not do_unstar:
+        if json_output:
+            print_json_error(
+                "Must specify --star or --unstar", "missing_flag", exit_code=1
+            )
+        click.secho("Error: Must specify --star or --unstar", err=True, fg="red")
+        sys.exit(1)
+
+    try:
+        result = star_article(article_id) if do_star else unstar_article(article_id)
+
+        if not result.get("success"):
+            if json_output:
+                print_json_error(
+                    result.get("error", "Unknown error"), "not_found", exit_code=1
+                )
+            click.secho(f"Error: {result.get('error', 'Unknown error')}", fg="red")
+            sys.exit(1)
+
+        status = "starred" if do_star else "unstarred"
+        if json_output:
+            print_json(
+                {"item": {"id": article_id, "is_starred": do_star, "updated": True}}
+            )
+        else:
+            click.secho(f"Article {status}: {article_id}", fg="green")
+    except Exception as e:
+        if json_output:
+            print_json_error(f"Failed to star article: {e}", "star_error")
+            return
+        click.secho(f"Error: Failed to star article: {e}", err=True, fg="red")
+        logger.exception("Failed to star article")
         sys.exit(1)

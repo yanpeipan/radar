@@ -1,0 +1,4 @@
+ignore:
+  # pip package-manager vulnerabilities are not exploitable in this CLI application
+  - vulnerability: GHSA-4xh5-x5gv-qwph
+  - vulnerability: GHSA-6vgw-5pg2-w6jp
