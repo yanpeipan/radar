@@ -4,7 +4,7 @@ milestone: v1.11
 milestone_name: milestone
 status: completed
 last_updated: "2026-04-13T06:55:00.000Z"
-last_activity: "2026-04-14 — Completed quick task 260414-v8a: ReportData.clusters → cluster: ReportCluster"
+last_activity: "2026-04-14 — Completed quick task 260414-vzo: Remove BatchClassifyChain from report generation chain"
 progress:
   total_phases: 5
   completed_phases: 4
@@ -153,3 +153,4 @@ Last activity: 2026-04-11 - Completed quick task 260412-54h: 对filtered进行�
 | 2026-04-14 | fast | CLASSIFY_TRANSLATE_PROMPT过滤tags=[]的数据 | ✅ |
 | 260414-uxw | ReportCluster 新增属性 content，name 改为 title | 2026-04-14 | cee7acd | Verified | [260414-uxw-reportcluster-content-name-title](./quick/260414-uxw-reportcluster-content-name-title/) |
 | 260414-v8a | ReportData.clusters → cluster: ReportCluster，模板改为动态遍历 cluster.children | 2026-04-14 | — | Verified | [260414-v8a-reportdata-clusters-cluster-reportcluste](./quick/260414-v8a-reportdata-clusters-cluster-reportcluste/) |
+| 260414-vzo | Remove BatchClassifyChain from report generation LCEL chain; route untagged articles to first heading title | 2026-04-14 | 88c0845 | Verified | [260414-vzo-remove-batchclassifychain-from-report-ge](./quick/260414-vzo-remove-batchclassifychain-from-report-ge/) |

@@ -144,8 +144,17 @@ class ReportData:
 
     def build(self, heading_tree: HeadingNode | None) -> None:
         """Match clusters to heading_tree nodes by title, populate cluster.children."""
-        if heading_tree is None:
+        # Skip rebuild when:
+        # 1. heading_tree is None (no template)
+        # 2. heading_tree has no children (empty template)
+        # 3. heading_tree children are Jinja2 placeholders (dynamic template iterating over cluster.children)
+        if heading_tree is None or not heading_tree.children:
             return
+        # Check if children are Jinja2 placeholders (dynamic content, not static headings)
+        if any(
+            "{{" in node.title or "{%" in node.title for node in heading_tree.children
+        ):
+            return  # Skip rebuild - template uses dynamic cluster.children iteration
         self.cluster.children = []
         for node in heading_tree.children:
             matched = self.get_cluster(node.title)
