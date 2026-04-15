@@ -115,15 +115,7 @@ def report(
             console.print(f"[red]Template error: {e}[/red]")
             sys.exit(1)
 
-        if json_output:
-            output_json = {
-                "date_range": data.date_range,
-                "total_articles": total_articles,
-            }
-            print_json(output_json)
-            return
-
-        # Plain text output
+        # Compute output path (used by both JSON and text modes)
         if output:
             output_path = Path(output)
         else:
@@ -133,6 +125,16 @@ def report(
             output_path = reports_dir / filename
 
         output_path.write_text(report_text)
+
+        if json_output:
+            output_json = {
+                "date_range": data.date_range,
+                "total_articles": total_articles,
+                "file_path": str(output_path),
+            }
+            print_json(output_json)
+            return
+
         console.print(f"[green]Report saved to {output_path}[/green]")
 
     except Exception as e:
