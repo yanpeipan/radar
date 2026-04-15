@@ -117,13 +117,19 @@ class ReportData:
 
         return count(self.cluster)
 
-    def add_article(self, cluster_name: str, item: ArticleListItem) -> None:
+    def add_article(self, cluster_name: str | None, item: ArticleListItem) -> None:
         """Add an article to a cluster in cluster.children, creating if needed.
 
+        If cluster_name is None, the article is added directly to
+        self.cluster.articles (unclustered).
+
         Args:
-            cluster_name: Key in cluster.children (e.g., "AI应用")
+            cluster_name: Key in cluster.children (e.g., "AI应用"), or None
             item: ArticleListItem (should have .tags and .translation from enrichment)
         """
+        if cluster_name is None:
+            self.cluster.articles.append(ReportArticle.from_article(item))
+            return
         cluster = self._find_cluster_in_children(self.cluster.children, cluster_name)
         if cluster is None:
             cluster = ReportCluster(title=cluster_name)
@@ -131,13 +137,13 @@ class ReportData:
         cluster.articles.append(ReportArticle.from_article(item))
 
     def add_articles(
-        self, items: list[ArticleListItem], get_tag: Callable[[ArticleListItem], str]
+        self, items: list[ArticleListItem], get_tag: Callable[[ArticleListItem], str | None]
     ) -> None:
         """Add multiple articles to clusters, calling add_article for each.
 
         Args:
             items: List of ArticleListItem to add
-            get_tag: Function to extract cluster name from each item
+            get_tag: Function to extract cluster name from each item (may return None)
         """
         for item in items:
             self.add_article(get_tag(item), item)
@@ -195,7 +201,7 @@ class BuildReportDataChain(Runnable):
         self,
         heading_tree: HeadingNode | None = None,
         target_lang: str = "zh",
-        fallback_tag: str = "其他",
+        fallback_tag: str = None,
     ) -> None:
         self.heading_tree = heading_tree
         self.target_lang = target_lang
@@ -215,13 +221,13 @@ class BuildReportDataChain(Runnable):
             heading_tree=self.heading_tree,
         )
 
-        def _get_cluster_tag(item: ArticleListItem) -> str:
-            """Route item to cluster: tags[0] > feed_name > fallback_tag."""
+        def _get_cluster_tag(item: ArticleListItem) -> str | None:
+            """Route item to cluster: tags[0] > feed_name > None."""
             if item.tags:
                 return item.tags[0]
             if item.feed_name:
                 return item.feed_name
-            return self.fallback_tag
+            return None
 
         report_data.add_articles(items, _get_cluster_tag)
         report_data.build(self.heading_tree)
