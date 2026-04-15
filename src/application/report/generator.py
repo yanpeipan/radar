@@ -61,6 +61,9 @@ async def _entity_report_async(
             if heading_tree and heading_tree.children
             else "其他"
         )
+        # If first_heading is a Jinja2 placeholder (dynamic template), use "其他"
+        if "{{" in first_heading or "{%" in first_heading:
+            first_heading = "其他"
         chain = BuildReportDataChain(
             heading_tree=heading_tree,
             target_lang=target_lang,
