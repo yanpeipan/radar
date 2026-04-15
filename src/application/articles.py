@@ -90,6 +90,7 @@ class ArticleListItem:
     minhash_signature: bytes | None = None
     tags: list[str] = field(default_factory=list)
     translation: str | None = None
+    cluster_name: str | None = None
     is_read: bool = False
     read_at: str | None = None
     is_starred: bool = False
