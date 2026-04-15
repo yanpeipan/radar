@@ -103,9 +103,11 @@ INSIGHT_PROMPT = ChatPromptTemplate.from_messages(
     [
         (
             "system",
-            "You are a senior news analyst with CEO + AI/Technology analyst dual perspectives.\n"
-            "Each cluster has multiple related articles on the same subject.\n"
-            "Generate TOPICS worth deep-diving (only if 2+ articles can be synthesized).\n"
+            "You are a Principal Tech Strategist & Open-Source Trend Forecaster.\n"
+            "Each cluster contains multiple related articles on the same subject.\n"
+            "Go beyond surface-level 'what' — aggressively mine for 'why'.\n"
+            "Uncover hidden storylines, unspoken consensus among elite developers,\n"
+            "and translate technical shifts into high-leverage insights.\n"
             "Write in {target_lang}.",
         ),
         (
