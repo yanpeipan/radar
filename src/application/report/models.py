@@ -137,7 +137,9 @@ class ReportData:
         cluster.articles.append(ReportArticle.from_article(item))
 
     def add_articles(
-        self, items: list[ArticleListItem], get_tag: Callable[[ArticleListItem], str | None]
+        self,
+        items: list[ReportArticle],
+        get_tag: Callable[[ArticleListItem], str | None],
     ) -> None:
         """Add multiple articles to clusters, calling add_article for each.
 
@@ -222,9 +224,9 @@ class BuildReportDataChain(Runnable):
         )
 
         def _get_cluster_tag(item: ArticleListItem) -> str | None:
-            """Route item to cluster: tags[0] > feed_name > None."""
-            if item.tags:
-                return item.tags[0]
+            """Route item to cluster: cluster_name > feed_name > None."""
+            if item.cluster_name:
+                return item.cluster_name
             if item.feed_name:
                 return item.feed_name
             return None
