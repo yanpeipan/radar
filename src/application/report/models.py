@@ -235,8 +235,12 @@ class BuildReportDataChain(Runnable):
         )
 
         def _get_cluster_tag(item: ArticleListItem) -> str | None:
-            """Route item to cluster by cluster_name only."""
-            return item.cluster_name
+            """Route item to cluster: cluster_name > feed_name > None."""
+            if item.cluster_name:
+                return item.cluster_name
+            if item.feed_name:
+                return item.feed_name
+            return None
 
         report_data.add_articles(items, _get_cluster_tag)
         report_data.build(self.heading_tree)
