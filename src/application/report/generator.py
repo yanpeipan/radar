@@ -68,7 +68,7 @@ async def _entity_report_async(
             heading_tree=heading_tree,
             target_lang=target_lang,
             fallback_tag=first_heading,
-        ) | InsightChain(top_n=100, target_lang=target_lang)
+        ) | InsightChain(top_n=30, target_lang=target_lang)
 
         report_data = await chain.ainvoke(filtered)
         report_data.date_range = {"since": since, "until": until}
