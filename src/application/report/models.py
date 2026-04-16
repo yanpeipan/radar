@@ -150,6 +150,17 @@ class ReportData:
         for item in items:
             self.add_article(get_tag(item), item)
 
+    def collect_all_clusters(self) -> list[ReportCluster]:
+        """Recursively flatten all clusters including root's children."""
+
+        def flatten(c: ReportCluster) -> list[ReportCluster]:
+            result = [c]
+            for child in c.children:
+                result.extend(flatten(child))
+            return result
+
+        return flatten(self.cluster)
+
     def build(self, heading_tree: HeadingNode | None) -> None:
         """Match clusters to heading_tree nodes by title, populate cluster.children."""
         # Skip rebuild when:

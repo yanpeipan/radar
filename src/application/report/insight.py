@@ -34,18 +34,11 @@ class InsightChain(Runnable):
         self,
         top_n: int = 100,
         target_lang: str = "zh",
-        max_concurrency: int = 5,
+        max_concurrency: int = 1,
     ) -> None:
         self.top_n = top_n
         self.target_lang = target_lang
         self.max_concurrency = max_concurrency
-
-    def _collect_all_clusters(self, cluster: ReportCluster) -> list[ReportCluster]:
-        """Recursively flatten all clusters including children."""
-        all_clusters = [cluster]
-        for child in cluster.children:
-            all_clusters.extend(self._collect_all_clusters(child))
-        return all_clusters
 
     def _build_article_titles(self, cluster: ReportCluster) -> tuple[str, list]:
         """Build article_titles for a single cluster with multiple articles.
@@ -88,7 +81,7 @@ class InsightChain(Runnable):
         from src.llm.chains import get_insight_chain
 
         # Step 1: collect all clusters
-        all_clusters = self._collect_all_clusters(input.cluster)
+        all_clusters = input.collect_all_clusters()
 
         # Step 2: filter clusters with articles
         clusters_with_articles = [c for c in all_clusters if c.articles]
@@ -96,17 +89,9 @@ class InsightChain(Runnable):
         if not clusters_with_articles:
             return input
 
-        # Step 3: separate by article count
-        rich_clusters = [c for c in clusters_with_articles if len(c.articles) >= 2]
-        simple_clusters = [
-            c
-            for c in clusters_with_articles
-            if len(c.articles) < 2 and len(c.articles) > 0
-        ]
-
         # Step 4a: process rich clusters (>= 2 articles) with full insight chain
         # Phase 2: Each cluster independently generates children from its own articles
-        if rich_clusters:
+        if clusters_with_articles:
             chain = get_insight_chain()
             semaphore = asyncio.Semaphore(self.max_concurrency)
 
@@ -141,38 +126,9 @@ class InsightChain(Runnable):
                         logger.warning("InsightChain cluster failed: %s", e)
 
             await asyncio.gather(
-                *[process_rich_cluster(c) for c in rich_clusters],
+                *[process_rich_cluster(c) for c in clusters_with_articles],
                 return_exceptions=True,
             )
-
-        # Step 4b: process simple clusters (< 2 articles) with simple summary only
-        if simple_clusters:
-            from src.llm.chains import get_simple_summary_chain
-
-            for cluster in simple_clusters:
-                article_titles, _ = self._build_article_titles(cluster)
-                try:
-                    chain = get_simple_summary_chain()
-                    result = await chain.ainvoke(
-                        {
-                            "article_titles": article_titles,
-                            "target_lang": self.target_lang,
-                        }
-                    )
-                    cluster.summary = (
-                        result.strip() if isinstance(result, str) else str(result)
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "Simple summary failed for cluster %s: %s", cluster.title, e
-                    )
-                    # Fallback: use article title as summary
-                    if cluster.articles:
-                        cluster.summary = (
-                            cluster.articles[0].translation
-                            or cluster.articles[0].title
-                            or ""
-                        )
 
         return input
 
