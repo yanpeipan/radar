@@ -28,7 +28,7 @@ class ClusterProcessChain(Runnable):
 
     def __init__(
         self,
-        top_n: int = 100,
+        top_n: int = 30,
         target_lang: str = "zh",
     ) -> None:
         self.top_n = top_n
@@ -123,7 +123,7 @@ class InsightChain(Runnable):
 
     def __init__(
         self,
-        top_n: int = 100,
+        top_n: int = 30,
         target_lang: str = "zh",
         max_concurrency: int = 1,
     ) -> None:
