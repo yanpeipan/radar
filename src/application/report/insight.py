@@ -10,18 +10,80 @@ from langchain_core.runnables import Runnable
 
 if TYPE_CHECKING:
     from src.application.report.models import ReportCluster, ReportData
+    from src.llm.output_models import TopicInsightOutput
 
 logger = logging.getLogger(__name__)
+
+
+class ClusterProcessChain(Runnable):
+    """Async Runnable that processes a single ReportCluster and returns TopicInsightOutput.
+
+    Args:
+        top_n: Number of articles per cluster for insight generation (default: 100).
+        target_lang: Target language for insights (default: "zh").
+    """
+
+    def __init__(
+        self,
+        top_n: int = 100,
+        target_lang: str = "zh",
+    ) -> None:
+        self.top_n = top_n
+        self.target_lang = target_lang
+
+    def _build_article_titles(self, cluster: ReportCluster) -> tuple[str, list]:
+        """Build article_titles for a single cluster with multiple articles.
+
+        Sorts articles by quality_weight descending and takes top_n.
+        Returns:
+            Tuple of (article_titles_str, sorted_articles_list).
+        """
+        sorted_articles = sorted(
+            cluster.articles,
+            key=lambda a: getattr(a, "quality_weight", 0.0) or 0.0,
+            reverse=True,
+        )[: self.top_n]
+
+        lines = [f"Entity 1 ({cluster.title}):"]
+        for j, article in enumerate(sorted_articles, 1):
+            content = article.translation or article.title or ""
+            lines.append(f"  [{j}] {content}")
+
+        return "\n".join(lines), sorted_articles
+
+    async def ainvoke(self, cluster: ReportCluster, config=None) -> TopicInsightOutput:
+        """Process a single cluster and return TopicInsightOutput.
+
+        The caller is responsible for setting cluster.summary and cluster.children
+        from the returned TopicInsightOutput.
+        """
+        from src.llm.chains import get_insight_chain
+
+        article_titles, _ = self._build_article_titles(cluster)
+        chain = get_insight_chain()
+        result = await chain.ainvoke(
+            {
+                "article_titles": article_titles,
+                "target_lang": self.target_lang,
+                "top_n": self.top_n,
+            }
+        )
+        return result
+
+    def invoke(self, cluster: ReportCluster, config=None) -> TopicInsightOutput:
+        """Sync wrapper using asyncio.run() pattern."""
+        try:
+            loop = asyncio.get_running_loop()
+            return loop.run_until_complete(self.ainvoke(cluster, config))
+        except RuntimeError:
+            return asyncio.run(self.ainvoke(cluster, config))
 
 
 class InsightChain(Runnable):
     """Async Runnable that generates cluster.summary and cluster.children for all clusters.
 
-    Each cluster is processed individually with its top_n articles.
-    For clusters with >= 2 articles: generates cluster.summary (one-sentence TLDR) AND
-    cluster.children (Topic nodes with Insights).
-    For clusters with < 2 articles: only generates cluster.summary.
-    Concurrency is controlled via max_concurrency semaphore.
+    Delegates per-cluster processing to ClusterProcessChain for concurrent execution.
+    All clusters with articles go through the same insight processing (no size distinction).
 
     Args:
         top_n: Number of articles per cluster for insight generation (default: 100).
@@ -40,45 +102,15 @@ class InsightChain(Runnable):
         self.target_lang = target_lang
         self.max_concurrency = max_concurrency
 
-    def _build_article_titles(self, cluster: ReportCluster) -> tuple[str, list]:
-        """Build article_titles for a single cluster with multiple articles.
-
-        Sorts articles by quality_weight descending and takes top_n.
-        Format:
-        "Entity 1 ({name}):
-          [1] article_title_or_translation
-          [2] article_title_or_translation
-          ..."
-
-        Returns:
-            Tuple of (article_titles_str, sorted_articles_list) where indices in the
-            string correspond to 1-based positions in the returned articles list.
-        """
-        # Sort articles by quality_weight descending and take top_n
-        sorted_articles = sorted(
-            cluster.articles,
-            key=lambda a: getattr(a, "quality_weight", 0.0) or 0.0,
-            reverse=True,
-        )[: self.top_n]
-
-        # Build multi-article block
-        lines = [f"Entity 1 ({cluster.title}):"]
-        for j, article in enumerate(sorted_articles, 1):
-            content = article.translation or article.title or ""
-            lines.append(f"  [{j}] {content}")
-
-        return "\n".join(lines), sorted_articles
-
     async def ainvoke(self, input: ReportData, config=None) -> ReportData:
         """Generate cluster.summary and cluster.children for all clusters with articles.
 
         1. Collect all clusters recursively
         2. Filter clusters with articles
-        3. Separate clusters by article count (>= 2 vs < 2)
-        4. Batch call get_insight_chain for clusters with >= 2 articles
-        5. Map results back to clusters (cluster.summary + cluster.children)
+        3. Delegate each cluster to ClusterProcessChain concurrently
+        4. Set cluster.summary and cluster.children from TopicInsightOutput
         """
-        from src.llm.chains import get_insight_chain
+        from src.application.report.models import ReportCluster
 
         # Step 1: collect all clusters
         all_clusters = input.collect_all_clusters()
@@ -89,46 +121,34 @@ class InsightChain(Runnable):
         if not clusters_with_articles:
             return input
 
-        # Step 4a: process rich clusters (>= 2 articles) with full insight chain
-        # Phase 2: Each cluster independently generates children from its own articles
-        if clusters_with_articles:
-            chain = get_insight_chain()
-            semaphore = asyncio.Semaphore(self.max_concurrency)
+        # Step 3: delegate to ClusterProcessChain with concurrency control
+        chain = ClusterProcessChain(top_n=self.top_n, target_lang=self.target_lang)
+        semaphore = asyncio.Semaphore(self.max_concurrency)
 
-            async def process_rich_cluster(cluster: ReportCluster) -> None:
-                async with semaphore:
-                    article_titles, _ = self._build_article_titles(cluster)
-                    try:
-                        result = await chain.ainvoke(
-                            {
-                                "article_titles": article_titles,
-                                "target_lang": self.target_lang,
-                                "top_n": self.top_n,
-                            }
-                        )
-                        if result and hasattr(result, "topics"):
-                            # Assign topic_id and convert to ReportCluster for cluster.children
-                            cluster.children = []
-                            for i, topic in enumerate(result.topics, start=1):
-                                topic_id = f"Topic_{i:02d}"
-                                from src.application.report.models import ReportCluster
+        async def process_cluster(cluster: ReportCluster) -> None:
+            async with semaphore:
+                try:
+                    result = await chain.ainvoke(cluster)
+                    if result and hasattr(result, "topics") and result.topics:
+                        # Set cluster.summary and cluster.children from TopicInsightOutput
+                        cluster.children = []
+                        for i, topic in enumerate(result.topics, start=1):
+                            topic_id = f"Topic_{i:02d}"
+                            rc = ReportCluster(
+                                title=topic_id,
+                                summary=topic.summary,
+                                children=[],
+                                articles=[],
+                            )
+                            cluster.children.append(rc)
+                        cluster.summary = result.topics[0].summary
+                except Exception as e:
+                    logger.warning("ClusterProcessChain failed: %s", e)
 
-                                rc = ReportCluster(
-                                    title=topic_id,
-                                    summary=topic.summary,
-                                    children=[],
-                                    articles=[],
-                                )
-                                cluster.children.append(rc)
-                            if result.topics:
-                                cluster.summary = result.topics[0].summary
-                    except Exception as e:
-                        logger.warning("InsightChain cluster failed: %s", e)
-
-            await asyncio.gather(
-                *[process_rich_cluster(c) for c in clusters_with_articles],
-                return_exceptions=True,
-            )
+        await asyncio.gather(
+            *[process_cluster(c) for c in clusters_with_articles],
+            return_exceptions=True,
+        )
 
         return input
 
