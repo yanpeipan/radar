@@ -11,6 +11,7 @@ from langchain_core.runnables import Runnable
 from src.llm.core import LLMWrapper
 from src.llm.output_models import (
     ClassifyTranslateOutput,
+    ClusterInsightOutput,
     TopicInsightOutputDeprecated,
 )
 
@@ -126,8 +127,44 @@ INSIGHT_PROMPT = ChatPromptTemplate.from_messages(
 
 
 def get_insight_chain() -> Runnable:
-    """Returns LCEL chain for batch topic insight generation."""
+    """DEPRECATED: Returns LCEL chain for batch topic insight generation."""
     return INSIGHT_PROMPT | LLMWrapper(structured_output=TopicInsightOutputDeprecated)
+
+
+# ClusterInsight chain — flat output with title/summary/content + embedded topics
+CLUSTER_INSIGHT_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a Principal Tech Strategist & Open-Source Trend Forecaster.\n"
+            "Each cluster contains multiple related articles on the same subject.\n"
+            "Apply a 4-step analytical framework to each topic:\n"
+            "1. Surface Deconstruction: categorize and decompose surface-level elements\n"
+            "2. First Principles Breakdown: identify the ROOT CAUSE driving this development\n"
+            "3. Hidden Storylines: uncover shadow trends, unspoken consensus among elite developers\n"
+            "4. Value Creator Translation: translate technical shifts into actionable alpha\n\n"
+            "OUTPUT REQUIREMENTS:\n"
+            "- title: cluster title in target language (e.g. '监管转向', '平台战略')\n"
+            "- summary: standalone one-sentence TLDR (independent洞察)\n"
+            "- content: 2-4 sentence coherent paragraph that weaves ROOT CAUSE + HIDDEN DYNAMICS + ACTIONABLE ALPHA\n"
+            "- topics[].title: sub-topic categorization (e.g. '技术范式转移', '生态整合')\n"
+            "- topics[].summary: one-sentence deep insight for the sub-topic\n"
+            "- topics[].content: 2-4 sentence coherent paragraph for the sub-topic\n"
+            "- topics[].source_indices: 1-based article indices from the presented list that support this topic\n"
+            "Go beyond 'what happened' — aggressively mine for 'why' and 'so what'.",
+        ),
+        (
+            "human",
+            "Write in {target_lang}.\n\n"
+            "Cluster articles (top {top_n}):\n{article_titles}",
+        ),
+    ]
+)
+
+
+def get_cluster_insight_chain() -> Runnable:
+    """Returns LCEL chain for ClusterProcessChain with flat ClusterInsightOutput."""
+    return CLUSTER_INSIGHT_PROMPT | LLMWrapper(structured_output=ClusterInsightOutput)
 
 
 # Simple summary chain — one-sentence TLDR for clusters with < 2 articles
