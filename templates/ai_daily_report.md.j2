@@ -5,10 +5,14 @@ AI 日报 — {{ report_data.date_range.until }}
 {% endif %}
 {%- for section in report_data.cluster.children %}
 ## {{ section.title }}
+> {{ section.summary or '' }}
+> {{ section.content or '' }}
+
 
 {%- if section.children %}
 {%- for child in section.children %}
 > {{ child.summary or '' }}
+> {{ child.content or '' }}
 
 {%- endfor %}
 {%- endif %}
